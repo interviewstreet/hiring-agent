@@ -1,5 +1,5 @@
 PyMuPDF==1.26.3
 ollama==0.1.7
 pydantic==2.5.0
-requests==2.31.0
+requests==2.32.4
 pymupdf4llm==0.0.27
