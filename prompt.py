@@ -4,6 +4,7 @@ Prompts for Resume Evaluation System
 This module contains all the prompts used by the resume evaluation system.
 Centralizing prompts here makes them easier to maintain and update.
 """
+
 import os
 from dotenv import load_dotenv
 from models import ModelProvider
@@ -26,52 +27,18 @@ if PROVIDER not in [p.value for p in ModelProvider]:
 # Model-specific parameters
 MODEL_PARAMETERS = {
     # Ollama models
-    "qwen3:1.7b": {
-        "temperature": 0.0,
-        "top_p": 0.9
-    },
-    "gemma3:1b": {
-        "temperature": 0.0,
-        "top_p": 0.9
-    },    
-    "qwen3:4b": {
-        "temperature": 0.1,
-        "top_p": 0.4
-    },
-    "gemma3:4b": {
-        "temperature": 0.1,
-        "top_p": 0.9
-    },
-    "gemma3:12b": {
-        "temperature": 0.1,
-        "top_p": 0.9
-    },
-    "mistral:7b": {
-        "temperature": 0.1,
-        "top_p": 0.9
-    },
-    
+    "qwen3:1.7b": {"temperature": 0.0, "top_p": 0.9},
+    "gemma3:1b": {"temperature": 0.0, "top_p": 0.9},
+    "qwen3:4b": {"temperature": 0.1, "top_p": 0.4},
+    "gemma3:4b": {"temperature": 0.1, "top_p": 0.9},
+    "gemma3:12b": {"temperature": 0.1, "top_p": 0.9},
+    "mistral:7b": {"temperature": 0.1, "top_p": 0.9},
     # Google Gemini models
-    "gemini-2.0-flash": {
-        "temperature": 0.1,
-        "top_p": 0.9
-    },
-    "gemini-2.0-flash-lite": {
-        "temperature": 0.1,
-        "top_p": 0.9
-    },
-    "gemini-2.5-pro": {
-        "temperature": 0.1,
-        "top_p": 0.9
-    },
-    "gemini-2.5-flash": {
-        "temperature": 0.1,
-        "top_p": 0.9
-    },
-    "gemini-2.5-flash-lite": {
-        "temperature": 0.1,
-        "top_p": 0.9
-    }
+    "gemini-2.0-flash": {"temperature": 0.1, "top_p": 0.9},
+    "gemini-2.0-flash-lite": {"temperature": 0.1, "top_p": 0.9},
+    "gemini-2.5-pro": {"temperature": 0.1, "top_p": 0.9},
+    "gemini-2.5-flash": {"temperature": 0.1, "top_p": 0.9},
+    "gemini-2.5-flash-lite": {"temperature": 0.1, "top_p": 0.9},
 }
 
 # Model provider mapping
@@ -84,13 +51,12 @@ MODEL_PROVIDER_MAPPING = {
     "gemma3:4b": ModelProvider.OLLAMA,
     "gemma3:12b": ModelProvider.OLLAMA,
     "mistral:7b": ModelProvider.OLLAMA,
-    
     # Google Gemini models
     "gemini-2.0-flash": ModelProvider.GEMINI,
     "gemini-2.0-flash-lite": ModelProvider.GEMINI,
     "gemini-2.5-flash": ModelProvider.GEMINI,
     "gemini-2.5-flash-lite": ModelProvider.GEMINI,
-    "gemini-2.5-pro": ModelProvider.GEMINI
+    "gemini-2.5-pro": ModelProvider.GEMINI,
 }
 
 # Get API keys from environment

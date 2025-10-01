@@ -7,10 +7,3 @@ Jinja2==3.1.6
 google-generativeai==0.4.0
 python-dotenv==1.0.1
 
-# Add testing dependencies
-echo "pytest>=7.4.0" >> requirements.txt
-echo "pytest-cov>=4.1.0" >> requirements.txt
-echo "pytest-mock>=3.11.1" >> requirements.txt
-
-# Install new dependencies
-pip install -r requirements.txt
