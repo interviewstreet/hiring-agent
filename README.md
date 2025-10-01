@@ -197,6 +197,19 @@ You can leave it on during iteration. See the next section for details.
 
 ## CLI usage
 
+## Testing
+
+### Running Tests
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=. --cov-report=html
+
+# Run specific test file
+pytest tests/test_pdf_handler.py
+
 ### End to end scoring
 
 Provide a path to a resume PDF.
