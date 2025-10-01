@@ -441,7 +441,7 @@ def to_markdown(
         """
         bbox = pymupdf.Rect(span["bbox"])  # span bbox
         span_text = span["text"].strip()
-        
+
         # Find all links that overlap with this span
         overlapping_links = []
         for link in links:
@@ -449,31 +449,31 @@ def to_markdown(
             # Check if the link area intersects with the span bbox
             if bbox.intersects(hot):
                 overlapping_links.append(link)
-        
+
         if not overlapping_links:
             return None
-        
+
         # If only one link, return simple format
         if len(overlapping_links) == 1:
             link = overlapping_links[0]
             # Check if this looks like a partial URL (starts with http or contains domain parts)
-            if span_text.startswith('http'):
+            if span_text.startswith("http"):
                 # Use the full link URL as the display text
                 return f'[{link["uri"]}]({link["uri"]})'
             else:
                 return f'[{span_text}]({link["uri"]})'
-        
+
         # Multiple links found - need to split the text
         return _resolve_multiple_links(span_text, overlapping_links, bbox)
 
     def _resolve_multiple_links(span_text, links, span_bbox):
         """Resolve multiple links within a single span text.
-        
+
         Args:
             span_text: The text content of the span
             links: List of overlapping links
             span_bbox: The bounding box of the span
-            
+
         Returns:
             str: Markdown formatted text with multiple links
         """
@@ -490,12 +490,12 @@ def to_markdown(
             elif len(parts) >= len(links):
                 # More parts than links - try to match intelligently
                 return _match_parts_to_links(parts, links, span_bbox)
-        
+
         # Try to identify individual words that should be linked
         words = span_text.split()
         if len(words) >= len(links):
             return _match_words_to_links(words, links, span_bbox)
-        
+
         # Fallback: return the first link with the full text
         return f'[{span_text}]({links[0]["uri"]})'
 
@@ -503,38 +503,38 @@ def to_markdown(
         """Match parts of text to specific links based on content and position."""
         # Common platform names to match
         platform_keywords = {
-            'github': ['github', 'git'],
-            'linkedin': ['linkedin', 'linked'],
-            'hackerrank': ['hackerrank', 'hacker'],
-            'twitter': ['twitter', 'tweet'],
-            'portfolio': ['portfolio', 'site', 'website'],
-            'behance': ['behance'],
-            'dribbble': ['dribbble'],
-            'leetcode': ['leetcode', 'leet'],
-            'stackoverflow': ['stackoverflow', 'stack'],
+            "github": ["github", "git"],
+            "linkedin": ["linkedin", "linked"],
+            "hackerrank": ["hackerrank", "hacker"],
+            "twitter": ["twitter", "tweet"],
+            "portfolio": ["portfolio", "site", "website"],
+            "behance": ["behance"],
+            "dribbble": ["dribbble"],
+            "leetcode": ["leetcode", "leet"],
+            "stackoverflow": ["stackoverflow", "stack"],
         }
-        
+
         result_parts = []
         used_links = set()
-        
+
         for part in parts:
             part_lower = part.lower()
             matched_link = None
-            
+
             # Try to match by platform keywords
             for platform, keywords in platform_keywords.items():
                 if any(keyword in part_lower for keyword in keywords):
                     # Find corresponding link
                     for i, link in enumerate(links):
                         if i not in used_links:
-                            uri = link.get('uri', '').lower()
+                            uri = link.get("uri", "").lower()
                             if platform in uri:
                                 matched_link = link
                                 used_links.add(i)
                                 break
                     if matched_link:
                         break
-            
+
             # If no keyword match, try to find the best remaining link
             if not matched_link and links:
                 for i, link in enumerate(links):
@@ -542,12 +542,12 @@ def to_markdown(
                         matched_link = link
                         used_links.add(i)
                         break
-            
+
             if matched_link:
                 result_parts.append(f'[{part}]({matched_link["uri"]})')
             else:
                 result_parts.append(part)
-        
+
         return " | ".join(result_parts)
 
     def _match_words_to_links(words, links, span_bbox):
@@ -558,7 +558,7 @@ def to_markdown(
             for word, link in zip(words, links):
                 result_parts.append(f'[{word}]({link["uri"]})')
             return " ".join(result_parts)
-        
+
         # If more words than links, try to match by content
         return _match_parts_to_links(words, links, span_bbox)
 
@@ -739,14 +739,14 @@ def to_markdown(
                     if resolve_links(parms.links, s):
                         has_links = True
                         break
-                
+
                 if has_links:
                     # Process heading with links span-by-span
                     header_text = ""
                     for s in spans:
                         # Apply heading formatting to each span
                         span_text = s["text"].strip()
-                        
+
                         # Apply font formatting
                         if all_mono:
                             span_text = "`" + span_text + "`"
@@ -756,14 +756,14 @@ def to_markdown(
                             span_text = "**" + span_text + "**"
                         if all_strikeout:
                             span_text = "~~" + span_text + "~~"
-                        
+
                         # Resolve links for this span
                         ltext = resolve_links(parms.links, s)
                         if ltext:
                             header_text += ltext + " "
                         else:
                             header_text += span_text + " "
-                    
+
                     # Add the heading prefix and output
                     if hdr_string != prev_hdr_string:
                         out_string += hdr_string + header_text.strip() + "\n"

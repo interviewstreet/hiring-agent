@@ -5,6 +5,7 @@ from enum import Enum
 
 class ModelProvider(Enum):
     """Enum for supported model providers."""
+
     OLLAMA = "ollama"
     GEMINI = "gemini"
 
@@ -12,27 +13,39 @@ class ModelProvider(Enum):
 @runtime_checkable
 class LLMProvider(Protocol):
     """Protocol for LLM providers."""
-    
-    def chat(self, model: str, messages: List[Dict[str, str]], options: Dict[str, Any] = None, **kwargs) -> Dict[str, Any]:
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
 
+
 class Location(BaseModel):
     """Location information for JSON Resume format."""
+
     address: Optional[str] = None
     postalCode: Optional[str] = None
     city: Optional[str] = None
     countryCode: Optional[str] = None
     region: Optional[str] = None
 
+
 class Profile(BaseModel):
     """Social profile information for JSON Resume format."""
+
     network: Optional[str] = None
     username: Optional[str] = None
     url: str
 
+
 class Basics(BaseModel):
     """Basic information for JSON Resume format."""
+
     name: str
     email: Optional[str] = None
     phone: Optional[str] = None
@@ -41,8 +54,10 @@ class Basics(BaseModel):
     location: Optional[Location] = None
     profiles: Optional[List[Profile]] = None
 
+
 class Work(BaseModel):
     """Work experience for JSON Resume format."""
+
     name: Optional[str] = None
     position: Optional[str] = None
     url: Optional[str] = None
@@ -51,8 +66,10 @@ class Work(BaseModel):
     summary: Optional[str] = None
     highlights: Optional[List[str]] = None
 
+
 class Volunteer(BaseModel):
     """Volunteer experience for JSON Resume format."""
+
     organization: Optional[str] = None
     position: Optional[str] = None
     url: Optional[str] = None
@@ -61,8 +78,10 @@ class Volunteer(BaseModel):
     summary: Optional[str] = None
     highlights: Optional[List[str]] = None
 
+
 class Education(BaseModel):
     """Education information for JSON Resume format."""
+
     institution: Optional[str] = None
     url: Optional[str] = None
     area: Optional[str] = None
@@ -72,51 +91,67 @@ class Education(BaseModel):
     score: Optional[str] = None
     courses: Optional[List[str]] = None
 
+
 class Award(BaseModel):
     """Award information for JSON Resume format."""
+
     title: Optional[str] = None
     date: Optional[str] = None
     awarder: Optional[str] = None
     summary: Optional[str] = None
 
+
 class Certificate(BaseModel):
     """Certificate information for JSON Resume format."""
+
     name: Optional[str] = None
     date: Optional[str] = None
     issuer: Optional[str] = None
     url: Optional[str] = None
 
+
 class Publication(BaseModel):
     """Publication information for JSON Resume format."""
+
     name: Optional[str] = None
     publisher: Optional[str] = None
     releaseDate: Optional[str] = None
     url: Optional[str] = None
     summary: Optional[str] = None
 
+
 class Skill(BaseModel):
     """Skill information for JSON Resume format."""
+
     name: Optional[str] = None
     level: Optional[str] = None
     keywords: Optional[List[str]] = None
 
+
 class Language(BaseModel):
     """Language information for JSON Resume format."""
+
     language: Optional[str] = None
     fluency: Optional[str] = None
 
+
 class Interest(BaseModel):
     """Interest information for JSON Resume format."""
+
     name: Optional[str] = None
     keywords: Optional[List[str]] = None
 
+
 class Reference(BaseModel):
     """Reference information for JSON Resume format."""
+
     name: Optional[str] = None
     reference: Optional[str] = None
 
+
 class Project(BaseModel):
     """Project information for JSON Resume format."""
+
     name: Optional[str] = None
     startDate: Optional[str] = None
     endDate: Optional[str] = None
@@ -126,32 +161,46 @@ class Project(BaseModel):
     technologies: Optional[List[str]] = None
     skills: Optional[List[str]] = None
 
+
 class BasicsSection(BaseModel):
     """Basics section containing basic information."""
+
     basics: Optional[Basics] = None
+
 
 class WorkSection(BaseModel):
     """Work section containing a list of work experiences."""
+
     work: Optional[List[Work]] = None
+
 
 class EducationSection(BaseModel):
     """Education section containing a list of education entries."""
+
     education: Optional[List[Education]] = None
+
 
 class SkillsSection(BaseModel):
     """Skills section containing a list of skill categories."""
+
     skills: Optional[List[Skill]] = None
+
 
 class ProjectsSection(BaseModel):
     """Projects section containing a list of projects."""
+
     projects: Optional[List[Project]] = None
+
 
 class AwardsSection(BaseModel):
     """Awards section containing a list of awards."""
+
     awards: Optional[List[Award]] = None
-    
+
+
 class JSONResume(BaseModel):
     """Complete JSON Resume format model."""
+
     basics: Optional[Basics] = None
     work: Optional[List[Work]] = None
     volunteer: Optional[List[Volunteer]] = None
@@ -165,10 +214,12 @@ class JSONResume(BaseModel):
     references: Optional[List[Reference]] = None
     projects: Optional[List[Project]] = None
 
+
 class CategoryScore(BaseModel):
     score: float = Field(ge=0, description="Score achieved in this category")
     max: int = Field(gt=0, description="Maximum possible score")
     evidence: str = Field(min_length=1, description="Evidence supporting the score")
+
 
 class Scores(BaseModel):
     open_source: CategoryScore
@@ -176,13 +227,19 @@ class Scores(BaseModel):
     production: CategoryScore
     technical_skills: CategoryScore
 
+
 class BonusPoints(BaseModel):
     total: float = Field(ge=0, le=20, description="Total bonus points")
     breakdown: str = Field(description="Breakdown of bonus points")
 
+
 class Deductions(BaseModel):
-    total: float = Field(ge=0, description="Total deduction points (stored as positive, applied as negative)")
+    total: float = Field(
+        ge=0,
+        description="Total deduction points (stored as positive, applied as negative)",
+    )
     reasons: str = Field(description="Reasons for deductions")
+
 
 class EvaluationData(BaseModel):
     scores: Scores
@@ -191,8 +248,10 @@ class EvaluationData(BaseModel):
     key_strengths: List[str] = Field(min_items=1, max_items=5)
     areas_for_improvement: List[str] = Field(min_items=1, max_items=3)
 
+
 class GitHubProfile(BaseModel):
     """Pydantic model for GitHub profile data."""
+
     username: str
     name: Optional[str] = None
     bio: Optional[str] = None
@@ -211,60 +270,66 @@ class GitHubProfile(BaseModel):
 
 class OllamaProvider:
     """Ollama LLM provider implementation."""
-    
+
     def __init__(self):
         import ollama
+
         self.client = ollama
-    
-    def chat(self, model: str, messages: List[Dict[str, str]], options: Dict[str, Any] = None, **kwargs) -> Dict[str, Any]:
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
-        chat_params = {
-            'model': model,
-            'messages': messages,
-            'options': options or {}
-        }
-        
-        if 'format' in kwargs:
-            chat_params['format'] = kwargs['format']
-            
+        chat_params = {"model": model, "messages": messages, "options": options or {}}
+
+        if "format" in kwargs:
+            chat_params["format"] = kwargs["format"]
+
         return self.client.chat(**chat_params)
 
 
 class GeminiProvider:
     """Google Gemini API provider implementation."""
-    
+
     def __init__(self, api_key: str):
         import google.generativeai as genai
+
         genai.configure(api_key=api_key)
         self.client = genai
-        
-    def chat(self, model: str, messages: List[Dict[str, str]], options: Dict[str, Any] = None, **kwargs) -> Dict[str, Any]:
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
         """Send a chat request to Google Gemini API."""
         # Map options to Gemini parameters
         generation_config = {}
         if options:
-            if 'temperature' in options:
-                generation_config['temperature'] = options['temperature']
-            if 'top_p' in options:
-                generation_config['top_p'] = options['top_p']
-                
+            if "temperature" in options:
+                generation_config["temperature"] = options["temperature"]
+            if "top_p" in options:
+                generation_config["top_p"] = options["top_p"]
+
         # Create a Gemini model
-        gemini_model = self.client.GenerativeModel(model_name=model,
-                                                 generation_config=generation_config)
-        
+        gemini_model = self.client.GenerativeModel(
+            model_name=model, generation_config=generation_config
+        )
+
         # Convert messages to Gemini format
         gemini_messages = []
         for msg in messages:
-            role = "user" if msg['role'] == 'user' else "model"
-            gemini_messages.append({"role": role, "parts": [msg['content']]})
-            
+            role = "user" if msg["role"] == "user" else "model"
+            gemini_messages.append({"role": role, "parts": [msg["content"]]})
+
         # Send the chat request
         response = gemini_model.generate_content(gemini_messages)
-        
+
         # Convert Gemini response to Ollama-like format for compatibility
-        return {
-            'message': {
-                'role': 'assistant',
-                'content': response.text
-            }
-        }
+        return {"message": {"role": "assistant", "content": response.text}}
