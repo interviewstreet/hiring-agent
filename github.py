@@ -2,7 +2,10 @@ import os
 import re
 import json
 import requests
+import time
 from pathlib import Path
+import logging
+
 
 from typing import Dict, List, Optional, Any
 from models import GitHubProfile
@@ -11,6 +14,7 @@ from prompt import DEFAULT_MODEL, MODEL_PARAMETERS
 from llm_utils import initialize_llm_provider, extract_json_from_response
 from config import DEVELOPMENT_MODE
 
+logger = logging.getLogger(__name__)
 
 def _create_cache_filename(api_url: str, params: dict = None) -> str:
     url_parts = api_url.replace("https://api.github.com/", "").replace("/", "_")
@@ -22,38 +26,118 @@ def _create_cache_filename(api_url: str, params: dict = None) -> str:
         filename = f"cache/gh_githubcache_{url_parts}.json"
     return filename
 
+def _check_rate_limit(response):
+    """Check GitHub API rate limit headers and wait if necessary."""
+    if response.headers.get('X-RateLimit-Remaining'):
+        remaining = int(response.headers.get('X-RateLimit-Remaining', 0))
+        reset_time = int(response.headers.get('X-RateLimit-Reset', 0))
+        
+        if remaining < 5:  # Conservative threshold
+            wait_time = max(reset_time - int(time.time()), 0) + 1
+            print(f"⚠️ GitHub rate limit low ({remaining} remaining). Waiting {wait_time}s...")
+            time.sleep(wait_time)
+            return True
+    return False
 
-def _fetch_github_api(api_url, params=None):
+
+def _fetch_github_api_with_retry(api_url, params=None, max_retries=3):
+    """Fetch GitHub API with retry logic and proper error handling."""
     headers = {}
     github_token = os.environ.get("GITHUB_TOKEN")
     if github_token:
         headers["Authorization"] = f"token {github_token}"
-
-    cache_filename = _create_cache_filename(api_url, params)
-    if DEVELOPMENT_MODE and os.path.exists(cache_filename):
-        print(f"Loading cached GitHub data from {cache_filename}")
+    
+    for attempt in range(max_retries):
         try:
-            cached_data = json.loads(Path(cache_filename).read_text())
-            return 200, cached_data
-        except Exception as e:
-            print(f"Error reading cache file {cache_filename}: {e}")
+            # Check cache first (existing logic)
+            cache_filename = _create_cache_filename(api_url, params)
+            if DEVELOPMENT_MODE and os.path.exists(cache_filename):
+                print(f"Loading cached GitHub data from {cache_filename}")
+                try:
+                    cache_content = Path(cache_filename).read_text(encoding='utf-8')
+                    if cache_content.strip():  # Check if not empty
+                        cached_data = json.loads(cache_content)
+                        return 200, cached_data
+                    else:
+                        print(f"⚠️ Cache file {cache_filename} is empty, re-fetching...")
+                except json.JSONDecodeError as e:
+                    print(f"⚠️ Corrupted cache file {cache_filename}: {e}. Re-fetching...")
+                except Exception as e:
+                    print(f"⚠️ Error reading cache file {cache_filename}: {e}. Re-fetching...")
+            # Make the API request
+            response = requests.get(api_url, params=params, timeout=10, headers=headers)
+            status_code = response.status_code
+            
+            # Handle rate limiting
+            if status_code == 403:
+                if 'rate limit' in response.text.lower():
+                    reset_time = int(response.headers.get('X-RateLimit-Reset', time.time() + 60))
+                    wait_time = max(reset_time - int(time.time()), 0) + 1
+                    print(f"⚠️ Rate limit exceeded. Waiting {wait_time}s before retry...")
+                    time.sleep(wait_time)
+                    continue  # Retry after waiting
+            
+            # Check rate limit for successful requests
+            if status_code == 200:
+                _check_rate_limit(response)
+                data = response.json()
+                
+                # Cache successful responses (existing logic)
+                if DEVELOPMENT_MODE:
+                    try:
+                        os.makedirs("cache", exist_ok=True)
+                        Path(cache_filename).write_text(
+                            json.dumps(data, indent=2, ensure_ascii=False),
+                            encoding='utf-8'
+                        )
+                        print(f"Cached GitHub data to {cache_filename}")
+                    except Exception as e:
+                        print(f"Error caching GitHub data to {cache_filename}: {e}")
+                
+                return status_code, data
+            
+            # For other status codes, return immediately (don't retry 404s)
+            if status_code == 404:
+                return status_code, {}
+            
+            # For server errors, retry with backoff
+            if status_code >= 500:
+                wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                print(f"Server error ({status_code}). Retrying in {wait_time}s...")
+                time.sleep(wait_time)
+                continue
+            
+            # For other errors, return the response
+            return status_code, {}
+            
+        except requests.exceptions.Timeout as e:
+            wait_time = 2 ** attempt  # Exponential backoff
+            print(f"Request timeout (attempt {attempt + 1}/{max_retries}). Retrying in {wait_time}s...")
+            if attempt < max_retries - 1:
+                time.sleep(wait_time)
+            else:
+                print(f"Failed after {max_retries} attempts: {e}")
+                return 0, {}
+                
+        except requests.exceptions.ConnectionError as e:
+            wait_time = 2 ** attempt
+            print(f"Connection error (attempt {attempt + 1}/{max_retries}). Retrying in {wait_time}s...")
+            if attempt < max_retries - 1:
+                time.sleep(wait_time)
+            else:
+                print(f"Failed after {max_retries} attempts: {e}")
+                return 0, {}
+                
+        except requests.exceptions.RequestException as e:
+            print(f"Request error: {e}")
+            return 0, {}
+    
+    print(f"Failed to fetch {api_url} after {max_retries} attempts")
+    return 0, {}
 
-    response = requests.get(api_url, params, timeout=10, headers=headers)
-    status_code = response.status_code
-    data = response.json() if response.status_code == 200 else {}
-
-    if DEVELOPMENT_MODE and status_code == 200:
-        try:
-            os.makedirs("cache", exist_ok=True)
-            Path(cache_filename).write_text(
-                json.dumps(data, indent=2, ensure_ascii=False)
-            )
-            print(f"Cached GitHub data to {cache_filename}")
-        except Exception as e:
-            print(f"Error caching GitHub data to {cache_filename}: {e}")
-
-    return status_code, data
-
+def _fetch_github_api(api_url, params=None):
+    """Wrapper for backward compatibility."""
+    return _fetch_github_api_with_retry(api_url, params)
 
 def extract_github_username(github_url: str) -> Optional[str]:
     if not github_url:
@@ -111,7 +195,7 @@ def fetch_github_profile(github_url: str) -> Optional[GitHubProfile]:
             print(f"GitHub user not found: {username}")
             return None
         else:
-            print(f"GitHub API error: {response.status_code} - {response.text}")
+            print(f"GitHub API error: {status_code}")
             return None
 
     except requests.exceptions.RequestException as e:
@@ -143,12 +227,12 @@ def fetch_repo_contributors(owner: str, repo_name: str) -> int:
 
         status_code, contributors_data = _fetch_github_api(api_url)
 
-        return contributors_data
+        # return contributors_data
 
         if status_code == 200:
-            return len(contributors_data)
+            return contributors_data
         else:
-            return 1
+            return []
 
     except Exception as e:
         logger.error(f"Error fetching contributors for {owner}/{repo_name}: {e}")
@@ -232,11 +316,11 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
             )
             return projects
 
-        elif response.status_code == 404:
+        elif status_code == 404:
             print(f"GitHub user not found: {username}")
             return []
         else:
-            print(f"GitHub API error: {response.status_code} - {response.text}")
+            print(f"GitHub API error: {status_code}")
             return []
 
     except requests.exceptions.RequestException as e:
