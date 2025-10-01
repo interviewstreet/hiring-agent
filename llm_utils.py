@@ -48,14 +48,32 @@ def initialize_llm_provider(model_name: str) -> Any:
     """
     # Default to Ollama provider
     provider = OllamaProvider()
-    # If using Gemini and API key is available, use Gemini provider
+    
+    # Check if using Gemini and API key is available
     model_provider = MODEL_PROVIDER_MAPPING.get(model_name, ModelProvider.OLLAMA)
+    
     if model_provider == ModelProvider.GEMINI:
         if not GEMINI_API_KEY:
-            logger.warning("⚠️ Gemini API key not found. Falling back to Ollama.")
+            logger.warning("⚠️ Gemini API key not found. Please set GEMINI_API_KEY or GOOGLE_API_KEY environment variable. Falling back to Ollama.")
+            logger.info("💡 You can get your API key from: https://aistudio.google.com/app/apikey")
         else:
             logger.info(f"🔄 Using Google Gemini API provider with model {model_name}")
-            provider = GeminiProvider(api_key=GEMINI_API_KEY)
+            try:
+                provider = GeminiProvider(api_key=GEMINI_API_KEY)
+                # Test the connection
+                test_response = provider.chat(
+                    model=model_name,
+                    messages=[{"role": "user", "content": "Hello"}],
+                    options={"max_output_tokens": 10}
+                )
+                if "Error" in test_response.get('message', {}).get('content', ''):
+                    raise Exception("API test failed")
+                logger.info("✅ Gemini API connection successful")
+            except Exception as e:
+                logger.error(f"❌ Failed to initialize Gemini provider: {str(e)}")
+                logger.warning("🔄 Falling back to Ollama provider")
+                provider = OllamaProvider()
     else:
         logger.info(f"🔄 Using Ollama provider with model {model_name}")
+    
     return provider
