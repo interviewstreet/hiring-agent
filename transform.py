@@ -74,33 +74,51 @@ def get_network_name(domain: str) -> str:
     }
     return domain_mapping.get(domain, '')
 
-def transform_basics(basics_data: Dict) -> Dict:
-    if not isinstance(basics_data, dict):
-        return basics_data
-        
-    profiles = basics_data.get('profiles', [])
-    
-    transformed_profiles = []
-    if isinstance(profiles, list):
-        for i, profile in enumerate(profiles):
-            if isinstance(profile, dict):
-                transformed_profile = profile.copy()
-                url = transformed_profile.get('url', '')
-                network = transformed_profile.get('network')
-                
-                if url and network is None:
-                    domain = extract_domain_from_url(url)
-                    network_name = get_network_name(domain)
-                    
-                    if network_name:
-                        transformed_profile['network'] = network_name
-                        username = extract_username_from_url(url, domain)
-                        if username:
-                            transformed_profile['username'] = username
-                transformed_profiles.append(transformed_profile)
-    
-    basics_data['profiles'] = transformed_profiles
-    return basics_data
+from typing import Any, Dict, Mapping, Optional
+
+def transform_basics(basics_data: Mapping[str, Any]) -> Dict[str, Any]:
+    if not isinstance(basics_data, Mapping):
+        return basics_data  # type: ignore[return-value]
+
+    profiles = basics_data.get("profiles")
+    if not isinstance(profiles, list):
+        return dict(basics_data)
+
+    def _safe_extract_network_and_username(url: str) -> tuple[Optional[str], Optional[str]]:
+        try:
+            domain = extract_domain_from_url(url)
+        except Exception:
+            return None, None
+        try:
+            network = get_network_name(domain)
+        except Exception:
+            network = None
+        try:
+            username = extract_username_from_url(url, domain) if domain else None
+        except Exception:
+            username = None
+        return network, username
+
+    def _transform_profile(p: Any) -> Dict[str, Any]:
+        if not isinstance(p, Mapping):
+            return p  # type: ignore[return-value]
+        out: Dict[str, Any] = dict(p)
+        url = (out.get("url") or "").strip()
+        network_missing = not bool(out.get("network"))
+        username_missing = not bool(out.get("username"))
+        if url and (network_missing or username_missing):
+            network, username = _safe_extract_network_and_username(url)
+            if network_missing and network:
+                out["network"] = network
+            if username_missing and username:
+                out["username"] = username
+        return out
+
+    transformed_profiles = [_transform_profile(p) for p in profiles]
+    result = dict(basics_data)
+    result["profiles"] = transformed_profiles
+    return result
+
 
 
 def extract_username_from_url(url: str, domain: str) -> str:
