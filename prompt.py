@@ -60,18 +60,6 @@ MODEL_PARAMETERS = {
         "temperature": 0.1,
         "top_p": 0.9
     },
-    "gemini-1.5-flash": {
-        "temperature": 0.1,
-        "top_p": 0.9
-    },
-    "gemini-1.5-flash-8b": {
-        "temperature": 0.1,
-        "top_p": 0.9
-    },
-    "gemini-1.5-pro": {
-        "temperature": 0.1,
-        "top_p": 0.8
-    },
     "gemini-2.0-flash-exp": {
         "temperature": 0.1,
         "top_p": 0.9
@@ -108,9 +96,6 @@ MODEL_PROVIDER_MAPPING = {
     
     # Google Gemini models
     "gemini-2.0-flash": ModelProvider.GEMINI,
-    "gemini-1.5-flash": ModelProvider.GEMINI,
-    "gemini-1.5-flash-8b": ModelProvider.GEMINI,
-    "gemini-1.5-pro": ModelProvider.GEMINI,
     "gemini-2.0-flash-exp": ModelProvider.GEMINI,
     # Legacy support for existing configs
     "gemini-2.0-flash-lite": ModelProvider.GEMINI,
