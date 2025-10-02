@@ -1,10 +1,10 @@
 Extract ONLY the basic information (name, email, phone, location, profiles) from this resume.
 
---- The input resume markdown starts here ---
+--- TARGET SECTION: Basic Information ---
 
-{{ text_content }}
+{{ target_section_text }}
 
---- The input resume markdown ends here ---
+--- END TARGET SECTION ---
 
 Return ONLY a JSON object with this structure:
 {
