@@ -9,6 +9,7 @@ import logging
 
 from typing import Dict, List, Optional, Any
 from models import GitHubProfile
+from pdf import logger
 from prompts.template_manager import TemplateManager
 from prompt import DEFAULT_MODEL, MODEL_PARAMETERS
 from llm_utils import initialize_llm_provider, extract_json_from_response
@@ -156,14 +157,18 @@ def extract_github_username(github_url: str) -> Optional[str]:
     for pattern in patterns:
         match = re.search(pattern, github_url)
         if match:
-            return match.group(1)
-
+            username = match.group(1)
+            # Remove query parameters if present (e.g., "?tab=repositories")
+            if "?" in username:
+                username = username.split("?", 1)[0]
+            return username
     return None
 
 
 def fetch_github_profile(github_url: str) -> Optional[GitHubProfile]:
     try:
         username = extract_github_username(github_url)
+        logger.info(f"{username}")
         if not username:
             print(f"Could not extract username from: {github_url}")
             return None
@@ -195,7 +200,7 @@ def fetch_github_profile(github_url: str) -> Optional[GitHubProfile]:
             print(f"GitHub user not found: {username}")
             return None
         else:
-            print(f"GitHub API error: {status_code}")
+            print(f"GitHub API error: {status_code} - {data}")
             return None
 
     except requests.exceptions.RequestException as e:
@@ -482,6 +487,7 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
 
 
 def fetch_and_display_github_info(github_url: str) -> Dict:
+    logger.info(f"{github_url}")
     github_profile = fetch_github_profile(github_url)
     if not github_profile:
         print("\n❌ Failed to fetch GitHub profile details.")

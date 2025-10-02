@@ -113,7 +113,7 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 - Projects solving real-world problems
 - Projects demonstrating advanced algorithms or data structures
 
-## BONUS POINTS
+## BONUS POINTS (Maximum total: 20 points)
 - +5 points for Google Summer of Code (GSoC) participation
 - +3 points for Girl Script Summer of Code participation
 - +3-5 points for startup founder/co-founder experience
@@ -121,6 +121,8 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 - +2 points for portfolio website (GitHub URL in basics.url)
 - +1 point for LinkedIn profile
 - +1-3 points for high-quality technical blogs (if blog data provided)
+
+**CRITICAL**: The total bonus points cannot exceed 20 points under any circumstances.
 
 ## DEDUCTIONS
 **For Simple Projects:**
@@ -146,6 +148,21 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 4. You MUST NOT add any other fields like "summary", "skills", "experience", etc.
 5. You MUST NOT change the field names or structure
 
+**IMPORTANT LIST CONSTRAINTS:**
+- key_strengths: Provide 1-5 items (maximum 5 key strengths)
+- areas_for_improvement: Provide 1-3 items (maximum 3 areas for improvement)
+
+**IMPORTANT SCORE CONSTRAINTS:**
+- Evidence fields cannot be empty string
+- All category scores must be >= 0 (cannot be negative)
+- **CATEGORY SCORE LIMITS** (CANNOT be exceeded under any circumstances):
+  - open_source: 0-35 points (maximum 35)
+  - self_projects: 0-30 points (maximum 30)
+  - production: 0-25 points (maximum 25)
+  - technical_skills: 0-10 points (maximum 10)
+- Bonus points total must be <= 20 (maximum 20 points)
+- **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed 120 points
+
 **DO NOT RETURN A RESUME SUMMARY. RETURN ONLY THE SCORING EVALUATION IN THE SPECIFIED JSON FORMAT.**
 
 Analyze the following resume and provide a JSON response with this EXACT structure (all fields are required):
@@ -159,8 +176,8 @@ Analyze the following resume and provide a JSON response with this EXACT structu
     },
     "bonus_points": {"total": 0, "breakdown": "string"},
     "deductions": {"total": 0, "reasons": "string"},
-    "key_strengths": ["strength1", "strength2", "strength3"],
-    "areas_for_improvement": ["improvement1", "improvement2"]
+    "key_strengths": ["strength1", "strength2", "strength3", "strength4", "strength5"],
+    "areas_for_improvement": ["improvement1", "improvement2", "improvement3"]
 }
 
 Resume to evaluate:
