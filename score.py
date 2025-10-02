@@ -44,8 +44,15 @@ def print_evaluation_results(
 
     if hasattr(evaluation, "scores") and evaluation.scores:
         for category_name, category_data in evaluation.scores.model_dump().items():
-            total_score += category_data["score"]
+            category_score = min(category_data["score"], category_data["max"])
+            total_score += category_score
             max_score += category_data["max"]
+
+            # Log warning if score was capped
+            if category_score < category_data["score"]:
+                print(
+                    f"⚠️  Warning: {category_name} score capped from {category_data['score']} to {category_score} (max: {category_data['max']})"
+                )
 
     # Add bonus points
     if hasattr(evaluation, "bonus_points") and evaluation.bonus_points:
@@ -55,6 +62,12 @@ def print_evaluation_results(
     if hasattr(evaluation, "deductions") and evaluation.deductions:
         total_score -= evaluation.deductions.total
 
+    # Ensure total score doesn't exceed maximum possible score
+    max_possible_score = max_score + 20  # 120 (100 categories + 20 bonus)
+    if total_score > max_possible_score:
+        total_score = max_possible_score
+        print(f"⚠️  Warning: Total score capped at maximum possible value")
+
     # Overall Score
     print(f"\n🎯 OVERALL SCORE: {total_score:.1f}/{max_score}")
 
@@ -63,10 +76,19 @@ def print_evaluation_results(
     print("-" * 60)
 
     if hasattr(evaluation, "scores") and evaluation.scores:
+        # Define category maximums
+        category_maxes = {
+            "open_source": 35,
+            "self_projects": 30,
+            "production": 25,
+            "technical_skills": 10,
+        }
+
         # Open Source
         if hasattr(evaluation.scores, "open_source") and evaluation.scores.open_source:
             os_score = evaluation.scores.open_source
-            print(f"🌐 Open Source:          {os_score.score}/{os_score.max}")
+            capped_score = min(os_score.score, category_maxes["open_source"])
+            print(f"🌐 Open Source:          {capped_score}/{os_score.max}")
             print(f"   Evidence: {os_score.evidence}")
             print()
 
@@ -76,14 +98,16 @@ def print_evaluation_results(
             and evaluation.scores.self_projects
         ):
             sp_score = evaluation.scores.self_projects
-            print(f"🚀 Self Projects:        {sp_score.score}/{sp_score.max}")
+            capped_score = min(sp_score.score, category_maxes["self_projects"])
+            print(f"🚀 Self Projects:        {capped_score}/{sp_score.max}")
             print(f"   Evidence: {sp_score.evidence}")
             print()
 
         # Production Experience
         if hasattr(evaluation.scores, "production") and evaluation.scores.production:
             prod_score = evaluation.scores.production
-            print(f"🏢 Production Experience: {prod_score.score}/{prod_score.max}")
+            capped_score = min(prod_score.score, category_maxes["production"])
+            print(f"🏢 Production Experience: {capped_score}/{prod_score.max}")
             print(f"   Evidence: {prod_score.evidence}")
             print()
 
@@ -93,7 +117,8 @@ def print_evaluation_results(
             and evaluation.scores.technical_skills
         ):
             tech_score = evaluation.scores.technical_skills
-            print(f"💻 Technical Skills:     {tech_score.score}/{tech_score.max}")
+            capped_score = min(tech_score.score, category_maxes["technical_skills"])
+            print(f"💻 Technical Skills:     {capped_score}/{tech_score.max}")
             print(f"   Evidence: {tech_score.evidence}")
             print()
 
@@ -199,6 +224,10 @@ def main(pdf_path):
         )
         pdf_handler = PDFHandler()
         resume_data = pdf_handler.extract_json_from_pdf(pdf_path)
+
+        if resume_data == None:
+            return None
+
         if DEVELOPMENT_MODE:
             os.makedirs(os.path.dirname(cache_filename), exist_ok=True)
             Path(cache_filename).write_text(

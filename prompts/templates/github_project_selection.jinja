@@ -61,13 +61,13 @@ Given a list of GitHub repositories, select the TOP 7 most impressive projects t
 4. Start selection from the top of the sorted list (highest commit counts first)
 
 **CRITICAL REQUIREMENTS:**
-- Select exactly 7 UNIQUE projects (no duplicates)
+- Select exactly 7 UNIQUE projects (no duplicates) if 7 or more qualifying projects exist
+- If fewer than 7 qualifying projects exist, select ALL of them (do not pad with additional projects)
 - Do not select the same repository multiple times
-- Ensure all 7 projects are distinct and represent different aspects of the candidate's skills
+- Ensure all selected projects are distinct and represent different aspects of the candidate's skills
 - **HARD REQUIREMENT**: Only select projects where author_commit_count is 4 or higher
 - **HARD REQUIREMENT**: Do NOT select any project with author_commit_count of 1, 2, or 3
 - **HARD REQUIREMENT**: Start selection from projects with the highest author_commit_count
-- If there are fewer than 7 projects in the provided list, select all of them. Do not attempt to create or combine projects to reach 7. Only include the actual projects present.
 
 
 Select exactly 7 unique projects that best represent the candidate's technical abilities. 
