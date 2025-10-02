@@ -1,20 +1,25 @@
 import os
 import re
 import json
+import time
+import logging
 import requests
 from pathlib import Path
-
 from typing import Dict, List, Optional, Any
+
 from models import GitHubProfile
 from prompts.template_manager import TemplateManager
 from prompt import DEFAULT_MODEL, MODEL_PARAMETERS
 from llm_utils import initialize_llm_provider, extract_json_from_response
 from config import DEVELOPMENT_MODE
 
+# Configure logger
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 def _create_cache_filename(api_url: str, params: dict = None) -> str:
     url_parts = api_url.replace("https://api.github.com/", "").replace("/", "_")
-
     if params:
         param_str = "_".join([f"{k}_{v}" for k, v in sorted(params.items())])
         filename = f"cache/gh_githubcache_{url_parts}_{param_str}.json"
@@ -23,44 +28,93 @@ def _create_cache_filename(api_url: str, params: dict = None) -> str:
     return filename
 
 
-def _fetch_github_api(api_url, params=None):
-    headers = {}
+def _fetch_github_api(api_url: str, params: dict = None, retries: int = 3, timeout: int = 10):
+    """
+    Fetch JSON from GitHub API with retries, rate-limit detection and UTF-8 cache handling.
+    Returns: (status_code:int, data:Any)
+    """
+    headers = {"Accept": "application/vnd.github.v3+json"}
     github_token = os.environ.get("GITHUB_TOKEN")
     if github_token:
         headers["Authorization"] = f"token {github_token}"
 
     cache_filename = _create_cache_filename(api_url, params)
+
+    # Development mode: try cached file first
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
-        print(f"Loading cached GitHub data from {cache_filename}")
+        logger.info("Loading cached GitHub data from %s", cache_filename)
         try:
-            cached_data = json.loads(Path(cache_filename).read_text())
+            cached_text = Path(cache_filename).read_text(encoding="utf-8")
+            cached_data = json.loads(cached_text)
             return 200, cached_data
         except Exception as e:
-            print(f"Error reading cache file {cache_filename}: {e}")
+            logger.warning("Error reading cache file %s: %s", cache_filename, e)
 
-    response = requests.get(api_url, params, timeout=10, headers=headers)
-    status_code = response.status_code
-    data = response.json() if response.status_code == 200 else {}
-
-    if DEVELOPMENT_MODE and status_code == 200:
+    attempt = 0
+    while attempt < retries:
         try:
-            os.makedirs("cache", exist_ok=True)
-            Path(cache_filename).write_text(
-                json.dumps(data, indent=2, ensure_ascii=False)
-            )
-            print(f"Cached GitHub data to {cache_filename}")
-        except Exception as e:
-            print(f"Error caching GitHub data to {cache_filename}: {e}")
+            resp = requests.get(api_url, params=params, timeout=timeout, headers=headers)
+            status_code = resp.status_code
 
-    return status_code, data
+            # Rate limit detection
+            remaining = resp.headers.get("X-RateLimit-Remaining")
+            reset = resp.headers.get("X-RateLimit-Reset")
+            if status_code == 403 and remaining == "0":
+                logger.warning("GitHub API rate limit exceeded. X-RateLimit-Reset=%s", reset)
+                return 403, {}
+
+            # Successful
+            if status_code == 200:
+                try:
+                    data = resp.json()
+                except ValueError:
+                    # JSON decode error
+                    logger.error("Failed to decode JSON from GitHub response for %s", api_url)
+                    data = {}
+
+                # Cache when in development mode
+                if DEVELOPMENT_MODE:
+                    try:
+                        os.makedirs("cache", exist_ok=True)
+                        Path(cache_filename).write_text(
+                            json.dumps(data, indent=2, ensure_ascii=False),
+                            encoding="utf-8",
+                        )
+                        logger.info("Cached GitHub data to %s", cache_filename)
+                    except Exception as e:
+                        logger.warning("Error caching GitHub data to %s: %s", cache_filename, e)
+
+                return status_code, data
+
+            # Non-200, non-rate-limit error: return status and empty payload
+            logger.debug("GitHub API returned status %s for %s", status_code, api_url)
+            return status_code, {}
+
+        except requests.exceptions.RequestException as exc:
+            attempt += 1
+            if attempt < retries:
+                wait = 2 ** (attempt - 1)
+                logger.warning(
+                    "Request error fetching %s: %s. Retrying %s/%s after %ss",
+                    api_url,
+                    exc,
+                    attempt,
+                    retries,
+                    wait,
+                )
+                time.sleep(wait)
+            else:
+                logger.error("Request failed after %s attempts: %s", retries, exc)
+                return 500, {}
+
+    return 500, {}
 
 
 def extract_github_username(github_url: str) -> Optional[str]:
     if not github_url:
         return None
 
-    github_url = github_url.replace(" ", "")
-    github_url = github_url.strip()
+    github_url = github_url.replace(" ", "").strip()
 
     patterns = [
         r"https?://github\.com/([^/]+)",
@@ -81,11 +135,10 @@ def fetch_github_profile(github_url: str) -> Optional[GitHubProfile]:
     try:
         username = extract_github_username(github_url)
         if not username:
-            print(f"Could not extract username from: {github_url}")
+            logger.warning("Could not extract username from: %s", github_url)
             return None
 
         api_url = f"https://api.github.com/users/{username}"
-
         status_code, data = _fetch_github_api(api_url)
 
         if status_code == 200:
@@ -105,30 +158,32 @@ def fetch_github_profile(github_url: str) -> Optional[GitHubProfile]:
                 twitter_username=data.get("twitter_username"),
                 hireable=data.get("hireable"),
             )
-
             return profile
         elif status_code == 404:
-            print(f"GitHub user not found: {username}")
+            logger.info("GitHub user not found: %s", username)
+            return None
+        elif status_code == 403:
+            logger.warning("Rate limited while fetching profile for %s", username)
             return None
         else:
-            print(f"GitHub API error: {response.status_code} - {response.text}")
+            logger.error("GitHub API error while fetching profile for %s: status=%s", username, status_code)
             return None
 
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching GitHub profile: {e}")
-        return None
     except Exception as e:
-        print(f"Unexpected error fetching GitHub profile: {e}")
+        logger.exception("Unexpected error fetching GitHub profile for %s: %s", github_url, e)
         return None
 
 
-def fetch_contributions_count(owner: str, contributors_data):
+def fetch_contributions_count(owner: str, contributors_data: Any):
     user_contributions = 0
     total_contributions = 0
 
+    if not isinstance(contributors_data, list):
+        return 0, 0
+
     for contributor in contributors_data:
         if isinstance(contributor, dict):
-            contributions = contributor.get("contributions", 0)
+            contributions = contributor.get("contributions", 0) or 0
             total_contributions += contributions
 
             if contributor.get("login", "").lower() == owner.lower():
@@ -137,64 +192,62 @@ def fetch_contributions_count(owner: str, contributors_data):
     return user_contributions, total_contributions
 
 
-def fetch_repo_contributors(owner: str, repo_name: str) -> int:
+def fetch_repo_contributors(owner: str, repo_name: str) -> List[Dict]:
     try:
         api_url = f"https://api.github.com/repos/{owner}/{repo_name}/contributors"
-
         status_code, contributors_data = _fetch_github_api(api_url)
 
-        return contributors_data
-
-        if status_code == 200:
-            return len(contributors_data)
+        if status_code == 200 and isinstance(contributors_data, list):
+            return contributors_data
         else:
-            return 1
-
+            # Return empty list on error to avoid breaking callers
+            return []
     except Exception as e:
-        logger.error(f"Error fetching contributors for {owner}/{repo_name}: {e}")
-        return 1
+        logger.exception("Error fetching contributors for %s/%s: %s", owner, repo_name, e)
+        return []
 
 
 def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
     try:
         username = extract_github_username(github_url)
         if not username:
-            print(f"Could not extract username from: {github_url}")
+            logger.warning("Could not extract username from: %s", github_url)
             return []
 
         api_url = f"https://api.github.com/users/{username}/repos"
-
         params = {"sort": "updated", "per_page": min(max_repos, 100), "type": "all"}
 
         status_code, repos_data = _fetch_github_api(api_url, params=params)
 
-        if status_code == 200:
-            projects = []
+        if status_code == 200 and isinstance(repos_data, list):
+            projects: List[Dict] = []
             for repo in repos_data:
+                if not isinstance(repo, dict):
+                    continue
+
+                # Filter small forks
                 if repo.get("fork") and repo.get("forks_count", 0) < 5:
                     continue
 
                 repo_name = repo.get("name")
+                if not repo_name:
+                    continue
 
                 contributors_data = fetch_repo_contributors(username, repo_name)
-                contributor_count = len(contributors_data)
+                contributor_count = len(contributors_data) if isinstance(contributors_data, list) else 0
 
                 user_contributions, total_contributions = fetch_contributions_count(
                     username, contributors_data
                 )
 
-                project_type = (
-                    "open_source" if contributor_count > 1 else "self_project"
-                )
+                project_type = "open_source" if contributor_count > 1 else "self_project"
 
                 project = {
                     "name": repo.get("name"),
                     "description": repo.get("description"),
                     "github_url": repo.get("html_url"),
                     "live_url": repo.get("homepage") if repo.get("homepage") else None,
-                    "technologies": (
-                        [repo.get("language")] if repo.get("language") else []
-                    ),
+                    "technologies": [repo.get("language")] if repo.get("language") else [],
                     "project_type": project_type,
                     "contributor_count": contributor_count,
                     "author_commit_count": user_contributions,
@@ -217,33 +270,27 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                 }
                 projects.append(project)
 
-            projects.sort(key=lambda x: x["github_details"]["stars"], reverse=True)
+            projects.sort(key=lambda x: x["github_details"].get("stars", 0), reverse=True)
 
-            open_source_count = sum(
-                1 for p in projects if p["project_type"] == "open_source"
-            )
-            self_project_count = sum(
-                1 for p in projects if p["project_type"] == "self_project"
-            )
+            open_source_count = sum(1 for p in projects if p.get("project_type") == "open_source")
+            self_project_count = sum(1 for p in projects if p.get("project_type") == "self_project")
 
-            print(f"✅ Found {len(projects)} repositories")
-            print(
-                f"📊 Project classification: {open_source_count} open source, {self_project_count} self projects"
-            )
+            logger.info("Found %s repositories for %s", len(projects), username)
+            logger.info("Project classification: %s open source, %s self projects", open_source_count, self_project_count)
             return projects
 
-        elif response.status_code == 404:
-            print(f"GitHub user not found: {username}")
+        elif status_code == 404:
+            logger.info("GitHub user not found: %s", username)
+            return []
+        elif status_code == 403:
+            logger.warning("Rate limited while fetching repositories for %s", username)
             return []
         else:
-            print(f"GitHub API error: {response.status_code} - {response.text}")
+            logger.error("GitHub API error while fetching repos for %s: status=%s", username, status_code)
             return []
 
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching GitHub repositories: {e}")
-        return []
     except Exception as e:
-        print(f"Unexpected error fetching GitHub repositories: {e}")
+        logger.exception("Unexpected error fetching GitHub repositories for %s: %s", github_url, e)
         return []
 
 
@@ -276,9 +323,8 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
         return []
 
     try:
-        projects_data = []
+        projects_data: List[Dict] = []
         for project in projects:
-
             if project.get("author_commit_count") == 0:
                 continue
 
@@ -296,24 +342,20 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
             }
             projects_data.append(project_data)
 
-        projects_json = json.dumps(projects_data, indent=2)
+        projects_json = json.dumps(projects_data, indent=2, ensure_ascii=False)
 
         template_manager = TemplateManager()
         prompt = template_manager.render_template(
             "github_project_selection", projects_data=projects_json
         )
 
-        print(
-            f"🤖 Using LLM to select top 5 projects from {len(projects)} repositories..."
-        )
+        logger.info("Using LLM to select top projects from %s repositories", len(projects))
 
         # Initialize the LLM provider
         provider = initialize_llm_provider(DEFAULT_MODEL)
 
         # Get model parameters
-        model_params = MODEL_PARAMETERS.get(
-            DEFAULT_MODEL, {"temperature": 0.1, "top_p": 0.9}
-        )
+        model_params = MODEL_PARAMETERS.get(DEFAULT_MODEL, {"temperature": 0.1, "top_p": 0.9})
 
         # Prepare chat parameters
         chat_params = {
@@ -321,65 +363,63 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are an expert technical recruiter analyzing GitHub repositories to identify the most impressive projects. CRITICAL: You must select exactly 7 UNIQUE projects - no duplicates allowed. Each project must be different from the others.",
+                    "content": "You are an expert technical recruiter analyzing GitHub repositories to identify the most impressive projects. Select unique projects without duplicates.",
                 },
                 {"role": "user", "content": prompt},
             ],
             "options": model_params,
         }
 
-        # Call the LLM provider
         response = provider.chat(**chat_params)
-
-        response_text = response["message"]["content"]
-
+        response_text = ""
         try:
+            # Response format might vary; be defensive
+            if isinstance(response, dict):
+                # common structure: { "message": {"content": "..." } } or similar
+                message = response.get("message")
+                if isinstance(message, dict):
+                    response_text = message.get("content", "")
+                else:
+                    # fallback: string conversion
+                    response_text = str(response)
+            else:
+                response_text = str(response)
+
             response_text = response_text.strip()
             response_text = extract_json_from_response(response_text)
-
             selected_projects = json.loads(response_text)
-
-            unique_projects = []
-            seen_names = set()
-
-            for project in selected_projects:
-                project_name = project.get("name", "")
-                if project_name and project_name not in seen_names:
-                    unique_projects.append(project)
-                    seen_names.add(project_name)
-
-            if len(unique_projects) < 7:
-                print(
-                    f"⚠️ LLM selected {len(selected_projects)} projects but {len(unique_projects)} are unique"
-                )
-
-                for project in projects_data:
-                    if len(unique_projects) >= 7:
-                        break
-                    project_name = project.get("name", "")
-                    if project_name and project_name not in seen_names:
-                        unique_projects.append(project)
-                        seen_names.add(project_name)
-
-            project_names = ", ".join(
-                [proj.get("name", "N/A") for proj in unique_projects]
-            )
-            print(
-                f"✅ LLM selected {len(unique_projects)} unique top projects: {project_names}"
-            )
-            return unique_projects
-
-        except json.JSONDecodeError as e:
-            print(f"ERROR: Error parsing LLM response: {e}")
-            print(f"ERROR: Raw response: {response_text}")
-
-            print("🔄 Falling back to first 7 projects")
+        except Exception as e:
+            logger.exception("Error parsing LLM response: %s", e)
+            logger.info("Falling back to first 7 projects")
             return projects_data[:7]
 
-    except Exception as e:
-        print(f"Error using LLM for project selection: {e}")
-        print("🔄 Falling back to first 7 projects")
+        # Ensure uniqueness and at most 7 items
+        unique_projects = []
+        seen_names = set()
+        for project in selected_projects:
+            project_name = project.get("name", "")
+            if project_name and project_name not in seen_names:
+                unique_projects.append(project)
+                seen_names.add(project_name)
+            if len(unique_projects) >= 7:
+                break
 
+        if len(unique_projects) < 7:
+            # Fill with fallback projects from projects_data
+            for p in projects_data:
+                if len(unique_projects) >= 7:
+                    break
+                pn = p.get("name")
+                if pn and pn not in seen_names:
+                    unique_projects.append(p)
+                    seen_names.add(pn)
+
+        logger.info("LLM selected %s unique top projects", len(unique_projects))
+        return unique_projects
+
+    except Exception as e:
+        logger.exception("Error using LLM for project selection: %s", e)
+        # Fallback: first up to 7 projects
         projects_data = []
         for project in projects[:7]:
             project_data = {
@@ -393,21 +433,20 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
                 "github_details": project.get("github_details", {}),
             }
             projects_data.append(project_data)
-
         return projects_data
 
 
 def fetch_and_display_github_info(github_url: str) -> Dict:
     github_profile = fetch_github_profile(github_url)
     if not github_profile:
-        print("\n❌ Failed to fetch GitHub profile details.")
+        logger.error("Failed to fetch GitHub profile details.")
         return {}
 
-    print("🔍 Fetching all repository details...")
+    logger.info("Fetching all repository details...")
     projects = fetch_all_github_repos(github_url)
 
     if not projects:
-        print("\n❌ No repositories found or failed to fetch repository details.")
+        logger.warning("No repositories found or failed to fetch repository details.")
 
     profile_json = generate_profile_json(github_profile)
     projects_json = generate_projects_json(projects)
@@ -415,22 +454,26 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
     result = {
         "profile": profile_json,
         "projects": projects_json,
-        "total_projects": len(projects_json),
+        "total_projects": len(projects_json) if isinstance(projects_json, list) else 0,
     }
 
     return result
 
 
-def main(github_url):
+def main(github_url: str):
     result = fetch_and_display_github_info(github_url)
-    print("\n" + "=" * 60)
-    print("JSON DATA OUTPUT")
-    print("=" * 60)
-    print(json.dumps(result, indent=2, ensure_ascii=False))
-    print("=" * 60)
-
+    divider = "=" * 60
+    logger.info("\n%s\nJSON DATA OUTPUT\n%s", divider, divider)
+    try:
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+    except Exception:
+        # fallback to safe ascii serialization
+        print(json.dumps(result, indent=2, ensure_ascii=True))
+    logger.info("%s", divider)
     return result
 
 
 if __name__ == "__main__":
-    main("https://github.com/PavitKaur05")
+    # Example usage
+    example_url = "https://github.com/PavitKaur05"
+    main(example_url)
