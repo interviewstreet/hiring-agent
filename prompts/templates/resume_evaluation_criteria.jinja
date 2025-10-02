@@ -1,6 +1,9 @@
-You are evaluating a resume for a Software Intern position at HackerRank. Analyze the resume data and provide scores based on these criteria:
+You are evaluating a resume{% if job_description %} for a specific job position{% endif %}. Analyze the resume data and provide scores based on these criteria:
 
 **MANDATORY: You MUST always fill ALL FOUR categories: open_source, self_projects, production, technical_skills.**
+{% if job_description %}
+**JOB MATCHING: If a job description is provided, you MUST also evaluate job_match category (0-50 points) based on how well the candidate's skills and experience align with the job requirements.**
+{% endif %}
 
 ## CRITICAL FAIRNESS REQUIREMENTS
 **SCORES MUST NEVER DEPEND ON:**
@@ -89,6 +92,41 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 ### Technical Skills (0-10 points)
 - Analyze the 'skills', 'languages', and evidence of technical breadth or problem-solving in projects, work, or competitions
 
+{% if job_description %}
+### Job Match (0-50 points)
+**HIGH SCORES (40-50 points):**
+- Perfect alignment with required skills and technologies
+- Strong experience in the specific domain/industry
+- Demonstrated experience with exact tools/frameworks mentioned
+- Relevant project portfolio that directly relates to job requirements
+
+**MEDIUM SCORES (25-39 points):**
+- Good alignment with most required skills
+- Some relevant experience in the domain
+- Transferable skills that could apply to the role
+- Some projects that demonstrate relevant capabilities
+
+**LOW SCORES (10-24 points):**
+- Limited alignment with required skills
+- Minimal relevant experience
+- Skills are mostly in different domains
+- Projects don't directly relate to job requirements
+
+**VERY LOW SCORES (0-9 points):**
+- No alignment with required skills
+- Completely different background/domain
+- No relevant experience or projects
+- Major skill gaps for the position
+
+**JOB MATCH EVALUATION CRITERIA:**
+- Compare candidate's technical skills with job requirements
+- Assess relevance of work experience to the role
+- Evaluate project portfolio alignment with job needs
+- Consider domain expertise and industry experience
+- Look for specific technologies, tools, or frameworks mentioned in job description
+- Assess soft skills and qualifications mentioned in job requirements
+{% endif %}
+
 ## PROJECT COMPLEXITY ASSESSMENT
 
 **Simple/Basic Projects (Low Impact):**
@@ -144,9 +182,12 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 ## CRITICAL REQUIREMENTS
 1. You MUST respond with ONLY the JSON structure below - no summary, no other fields
 2. You MUST fill ALL FOUR score categories: open_source, self_projects, production, technical_skills
-3. You MUST provide evidence for each score
-4. You MUST NOT add any other fields like "summary", "skills", "experience", etc.
-5. You MUST NOT change the field names or structure
+{% if job_description %}
+3. You MUST also fill the job_match category if a job description is provided
+{% endif %}
+4. You MUST provide evidence for each score
+5. You MUST NOT add any other fields like "summary", "skills", "experience", etc.
+6. You MUST NOT change the field names or structure
 
 **IMPORTANT LIST CONSTRAINTS:**
 - key_strengths: Provide 1-5 items (maximum 5 key strengths)
@@ -160,8 +201,11 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
   - self_projects: 0-30 points (maximum 30)
   - production: 0-25 points (maximum 25)
   - technical_skills: 0-10 points (maximum 10)
+{% if job_description %}
+  - job_match: 0-50 points (maximum 50)
+{% endif %}
 - Bonus points total must be <= 20 (maximum 20 points)
-- **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed 120 points
+- **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed {% if job_description %}170{% else %}120{% endif %} points
 
 **DO NOT RETURN A RESUME SUMMARY. RETURN ONLY THE SCORING EVALUATION IN THE SPECIFIED JSON FORMAT.**
 
@@ -172,14 +216,23 @@ Analyze the following resume and provide a JSON response with this EXACT structu
         "open_source": {"score": 0, "max": 35, "evidence": "string"},
         "self_projects": {"score": 0, "max": 30, "evidence": "string"},
         "production": {"score": 0, "max": 25, "evidence": "string"},
-        "technical_skills": {"score": 0, "max": 10, "evidence": "string"}
+        "technical_skills": {"score": 0, "max": 10, "evidence": "string"}{% if job_description %},
+        "job_match": {"score": 0, "max": 50, "evidence": "string"}{% endif %}
     },
     "bonus_points": {"total": 0, "breakdown": "string"},
     "deductions": {"total": 0, "reasons": "string"},
     "key_strengths": ["strength1", "strength2", "strength3", "strength4", "strength5"],
-    "areas_for_improvement": ["improvement1", "improvement2", "improvement3"]
+    "areas_for_improvement": ["improvement1", "improvement2", "improvement3"]{% if job_description %},
+    "job_description": "{{ job_description }}",
+    "job_match_analysis": "Detailed analysis of how well the candidate matches the job requirements"{% endif %}
 }
 
 Resume to evaluate:
 
 {{ text_content }}
+
+{% if job_description %}
+Job Description to match against:
+
+{{ job_description }}
+{% endif %}
