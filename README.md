@@ -106,6 +106,8 @@ pip install -r requirements.txt
 
 ### Ollama Models
 
+Install Ollama from the [official site](https://ollama.com/download) and start the server.
+
 Pull the model you want to use. For example:
 
 ```bash
