@@ -209,8 +209,24 @@ def main(pdf_path):
     # Check if cache exists and we're in development mode
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
         print(f"Loading cached data from {cache_filename}")
-        cached_data = json.loads(Path(cache_filename).read_text())
-        resume_data = JSONResume(**cached_data)
+        try:
+            cached_data = json.loads(Path(cache_filename).read_text(encoding="utf-8"))
+            resume_data = JSONResume(**cached_data)
+        except Exception as e:
+            print(f"Warning: Failed to read or decode cache file {cache_filename}: {e}. Deleting and regenerating.")
+            os.remove(cache_filename)
+            logger.debug(
+                f"Extracting data from PDF"
+                + (" and caching to " + cache_filename if DEVELOPMENT_MODE else "")
+            )
+            pdf_handler = PDFHandler()
+            resume_data = pdf_handler.extract_json_from_pdf(pdf_path)
+            if DEVELOPMENT_MODE:
+                os.makedirs(os.path.dirname(cache_filename), exist_ok=True)
+                Path(cache_filename).write_text(
+                    json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
     else:
         logger.debug(
             f"Extracting data from PDF"
@@ -221,14 +237,36 @@ def main(pdf_path):
         if DEVELOPMENT_MODE:
             os.makedirs(os.path.dirname(cache_filename), exist_ok=True)
             Path(cache_filename).write_text(
-                json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False)
+                json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False),
+                encoding="utf-8",
             )
 
     # Check if cache exists and we're in development mode
     github_data = {}
     if DEVELOPMENT_MODE and os.path.exists(github_cache_filename):
         print(f"Loading cached data from {github_cache_filename}")
-        github_data = json.loads(Path(github_cache_filename).read_text())
+        try:
+            github_data = json.loads(
+                Path(github_cache_filename).read_text(encoding="utf-8")
+            )
+        except Exception as e:
+            print(f"Warning: Failed to read or decode cache file {github_cache_filename}: {e}. Deleting and regenerating.")
+            os.remove(github_cache_filename)
+            print(
+                f"Fetching GitHub data"
+                + (" and caching to " + github_cache_filename if DEVELOPMENT_MODE else "")
+            )
+            profiles = []
+            if resume_data and hasattr(resume_data, "basics") and resume_data.basics:
+                profiles = resume_data.basics.profiles or []
+            github_profile = find_profile(profiles, "Github")
+            if github_profile:
+                github_data = fetch_and_display_github_info(github_profile.url)
+            if DEVELOPMENT_MODE:
+                os.makedirs(os.path.dirname(github_cache_filename), exist_ok=True)
+                Path(github_cache_filename).write_text(
+                    json.dumps(github_data, indent=2, ensure_ascii=False), encoding="utf-8"
+                )
     else:
         print(
             f"Fetching GitHub data"
@@ -246,7 +284,7 @@ def main(pdf_path):
         if DEVELOPMENT_MODE:
             os.makedirs(os.path.dirname(github_cache_filename), exist_ok=True)
             Path(github_cache_filename).write_text(
-                json.dumps(github_data, indent=2, ensure_ascii=False)
+                json.dumps(github_data, indent=2, ensure_ascii=False), encoding="utf-8"
             )
 
     score = _evaluate_resume(resume_data, github_data)

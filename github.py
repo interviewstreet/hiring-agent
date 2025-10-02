@@ -34,10 +34,11 @@ def _fetch_github_api(api_url, params=None):
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
         print(f"Loading cached GitHub data from {cache_filename}")
         try:
-            cached_data = json.loads(Path(cache_filename).read_text())
+            cached_data = json.loads(Path(cache_filename).read_text(encoding="utf-8"))
             return 200, cached_data
         except Exception as e:
-            print(f"Error reading cache file {cache_filename}: {e}")
+            print(f"Warning: Failed to read or decode cache file {cache_filename}: {e}. Deleting and regenerating.")
+            os.remove(cache_filename)
 
     response = requests.get(api_url, params, timeout=10, headers=headers)
     status_code = response.status_code
@@ -47,7 +48,7 @@ def _fetch_github_api(api_url, params=None):
         try:
             os.makedirs("cache", exist_ok=True)
             Path(cache_filename).write_text(
-                json.dumps(data, indent=2, ensure_ascii=False)
+                json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
             )
             print(f"Cached GitHub data to {cache_filename}")
         except Exception as e:
@@ -237,11 +238,11 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
             )
             return projects
 
-        elif response.status_code == 404:
+        elif status_code == 404:
             print(f"GitHub user not found: {username}")
             return []
         else:
-            print(f"GitHub API error: {response.status_code} - {response.text}")
+            print(f"GitHub API error: {status_code} - {repos_data}")
             return []
 
     except requests.exceptions.RequestException as e:
