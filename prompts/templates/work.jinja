@@ -1,7 +1,5 @@
 Extract ONLY the work experience from this resume.
 
-Search specifically for sections titled "Experience", "Work Experience", "Work" or common variants such as "Professional Experience", "Employment History", "Relevant Experience", "Professional Background", or "Career". If multiple such sections exist, merge their entries. Prefer sections that contain company names, job titles, and dates. If no explicit heading exists, infer work entries by looking for blocks containing company names, positions, and date ranges.
-
 --- The input markdown starts here ---
 
 {{ text_content }}
@@ -22,24 +20,17 @@ Return ONLY a JSON object with this structure:
   ]
 }
 
-Deduplication, selection, and ordering rules:
-- Only include entries that belong to the identified experience/work sections (including headings "Work", "Work Experience", "Experience", and common variants). If an entry is clearly labeled as internship, volunteering, or education and is not inside the same Experience/Work section, exclude it.
-- Preserve the order of entries as they appear in the resume (most recent first if present).
-- Do not include duplicate entries. If two or more entries have identical name, position, startDate (or absence), endDate (or absence), and summary, keep only the first occurrence and discard duplicates.
-- If entries are similar but not identical (e.g., different summaries or dates), keep them as separate items.
+**IMPORTANT**: 
 
-Date extraction and normalization rules:
-1. Look for date ranges near company names or job titles. Ranges may use hyphen "-", en dash "–", em dash "—", or the word "to".
-2. Recognize formats like "Month Year", "Mon YYYY", "MM/YYYY", "YYYY", "YYYY-MM", or plain years. When month is present, convert to "YYYY-MM" (month as two digits). When only year is present use "YYYY".
-3. Normalize ongoing/current indicators ("Present", "Current", "Now", "Ongoing", etc.) to "Present".
-4. If a clear date range is present (e.g., "Jan 2020 - Mar 2022" or "2019–2021"), extract both startDate and endDate according to the above formats.
-5. If only a single date is clearly tied to a role and no range is present, set that value as startDate and omit endDate.
-6. If no reliable date can be extracted for an entry, omit startDate and endDate for that entry.
-7. When multiple date-like tokens appear, associate the closest date range to the corresponding position/company.
+For date extraction, follow these rules carefully:
 
-Additional extraction rules:
-- For each work entry, populate "name" and "position" if available. "summary" should be a brief concatenation of the role description lines. "highlights" should be an array of bullet-like achievements or measurable outcomes where present.
-- Merge multiple Experience/Work sections if present; include all unique entries following deduplication rules above.
-- Preserve original ordering (most recent first if resume is in reverse-chronological order).
+1. Look for date ranges in the work experience section. These often appear as "Start – End" or "Start - End" format.
+2. Date ranges can be separated by any of these characters: hyphen "-", en dash "–", em dash "—", or the word "to".
+3. Carefully extract both the start and end dates from these ranges.
+4. If a position is current/ongoing, the end date may be indicated by words like "Present", "Current", "Now", "Ongoing", etc.
+5. Look for dates near position titles or company names
+6. Dates might be formatted as "Month Year" or "MM/YYYY" or other variations
+7. If dates appear as "Month Year - Month Year", extract both parts
+8. If only years are provided (e.g., "2019-2021"), use the year information only
 
-IMPORTANT: Return ONLY valid JSON. Do not include any explanatory text.
+**IMPORTANT**: Return ONLY valid JSON. Do not include any explanatory text. 
