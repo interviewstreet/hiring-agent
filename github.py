@@ -208,7 +208,7 @@ def fetch_repo_contributors(owner: str, repo_name: str) -> List[Dict]:
 def fetch_user_pull_requests(username: str, max_prs: int = 50) -> List[Dict]:
     try:
         # Search for merged PRs authored by the user
-        search_query = f"author:{username} type:pr is:merged"
+        search_query = f"author:{username} type:pr"
         api_url = "https://api.github.com/search/issues"
         params = {
             "q": search_query,
@@ -273,8 +273,7 @@ def fetch_user_pull_requests(username: str, max_prs: int = 50) -> List[Dict]:
                         "number": pr_number,
                         "title": item.get('title', ''),
                         "state": item.get('state', ''),
-                        "created_at": item.get('created_at'),
-                        "merged_at": item.get('closed_at'),  
+                        "isMerged" : pr_data.get('merged', False) if pr_status == 200 else False,
                         "additions": pr_data.get('additions', 0) if pr_status == 200 else 0,
                         "deletions": pr_data.get('deletions', 0) if pr_status == 200 else 0,
                         "changed_files": pr_data.get('changed_files', 0) if pr_status == 200 else 0,
@@ -304,7 +303,7 @@ def fetch_user_pull_requests(username: str, max_prs: int = 50) -> List[Dict]:
                 print(f"Error processing PR {item.get('html_url', '')}: {e}")
                 continue
         
-        print(f"✅ Found {len(prs)} external pull requests for {username}")
+        print(f"Found {len(prs)} external pull requests for {username}")
         return prs
         
     except Exception as e:
