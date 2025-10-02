@@ -45,8 +45,15 @@ def print_evaluation_results(
 
     if hasattr(evaluation, "scores") and evaluation.scores:
         for category_name, category_data in evaluation.scores.model_dump().items():
-            total_score += category_data["score"]
+            category_score = min(category_data["score"], category_data["max"])
+            total_score += category_score
             max_score += category_data["max"]
+
+            # Log warning if score was capped
+            if category_score < category_data["score"]:
+                print(
+                    f"⚠️  Warning: {category_name} score capped from {category_data['score']} to {category_score} (max: {category_data['max']})"
+                )
 
     # Add bonus points
     if hasattr(evaluation, "bonus_points") and evaluation.bonus_points:
@@ -56,6 +63,12 @@ def print_evaluation_results(
     if hasattr(evaluation, "deductions") and evaluation.deductions:
         total_score -= evaluation.deductions.total
 
+    # Ensure total score doesn't exceed maximum possible score
+    max_possible_score = max_score + 20  # 120 (100 categories + 20 bonus)
+    if total_score > max_possible_score:
+        total_score = max_possible_score
+        print(f"⚠️  Warning: Total score capped at maximum possible value")
+
     # Overall Score
     print(f"\n🎯 OVERALL SCORE: {total_score:.1f}/{max_score}")
 
@@ -64,10 +77,19 @@ def print_evaluation_results(
     print("-" * 60)
 
     if hasattr(evaluation, "scores") and evaluation.scores:
+        # Define category maximums
+        category_maxes = {
+            "open_source": 35,
+            "self_projects": 30,
+            "production": 25,
+            "technical_skills": 10,
+        }
+
         # Open Source
         if hasattr(evaluation.scores, "open_source") and evaluation.scores.open_source:
             os_score = evaluation.scores.open_source
-            print(f"🌐 Open Source:          {os_score.score}/{os_score.max}")
+            capped_score = min(os_score.score, category_maxes["open_source"])
+            print(f"🌐 Open Source:          {capped_score}/{os_score.max}")
             print(f"   Evidence: {os_score.evidence}")
             print()
 
@@ -77,14 +99,16 @@ def print_evaluation_results(
             and evaluation.scores.self_projects
         ):
             sp_score = evaluation.scores.self_projects
-            print(f"🚀 Self Projects:        {sp_score.score}/{sp_score.max}")
+            capped_score = min(sp_score.score, category_maxes["self_projects"])
+            print(f"🚀 Self Projects:        {capped_score}/{sp_score.max}")
             print(f"   Evidence: {sp_score.evidence}")
             print()
 
         # Production Experience
         if hasattr(evaluation.scores, "production") and evaluation.scores.production:
             prod_score = evaluation.scores.production
-            print(f"🏢 Production Experience: {prod_score.score}/{prod_score.max}")
+            capped_score = min(prod_score.score, category_maxes["production"])
+            print(f"🏢 Production Experience: {capped_score}/{prod_score.max}")
             print(f"   Evidence: {prod_score.evidence}")
             print()
 
@@ -94,7 +118,8 @@ def print_evaluation_results(
             and evaluation.scores.technical_skills
         ):
             tech_score = evaluation.scores.technical_skills
-            print(f"💻 Technical Skills:     {tech_score.score}/{tech_score.max}")
+            capped_score = min(tech_score.score, category_maxes["technical_skills"])
+            print(f"💻 Technical Skills:     {capped_score}/{tech_score.max}")
             print(f"   Evidence: {tech_score.evidence}")
             print()
 
@@ -184,14 +209,20 @@ async def main(pdf_path):
             + (" and caching to " + cache_filename if DEVELOPMENT_MODE else "")
         )
         pdf_handler = PDFHandler()
+
+        # ✅ Use async if extract_json_from_pdf is async
         resume_data = await pdf_handler.extract_json_from_pdf(pdf_path)
+
+        # ✅ Handle None result safely
+        if resume_data is None:
+            return None
+
         if DEVELOPMENT_MODE:
             os.makedirs(os.path.dirname(cache_filename), exist_ok=True)
             Path(cache_filename).write_text(
                 json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False)
             )
 
-    github_data = {}
     if DEVELOPMENT_MODE and os.path.exists(github_cache_filename):
         print(f"Loading cached data from {github_cache_filename}")
         github_data = json.loads(Path(github_cache_filename).read_text())
@@ -206,8 +237,10 @@ async def main(pdf_path):
             profiles = resume_data.basics.profiles or []
         github_profile = find_profile(profiles, "Github")
 
+        github_data = {}
         if github_profile:
             github_data = fetch_and_display_github_info(github_profile.url)
+
         if DEVELOPMENT_MODE:
             os.makedirs(os.path.dirname(github_cache_filename), exist_ok=True)
             Path(github_cache_filename).write_text(

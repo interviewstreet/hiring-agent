@@ -246,7 +246,7 @@ class EvaluationData(BaseModel):
     bonus_points: BonusPoints
     deductions: Deductions
     key_strengths: List[str] = Field(min_items=1, max_items=5)
-    areas_for_improvement: List[str] = Field(min_items=1, max_items=3)
+    areas_for_improvement: List[str] = Field(min_items=1, max_items=5)
 
 
 class GitHubProfile(BaseModel):
@@ -284,12 +284,35 @@ class OllamaProvider:
         """Send an async chat request to Ollama."""
         import httpx
 
-        payload = {"model": model, "messages": messages, "options": options or {}, "stream": False}
-        if "format" in kwargs:
-            payload["format"] = kwargs["format"]
+        # Copy options safely
+        ollama_options = options.copy() if options else {}
 
+        # Remove stream from Ollama options
+        ollama_options.pop("stream", None)
+
+        # Add num_ctx 32K context window
+        ollama_options["num_ctx"] = 32768
+
+        # Build chat params
+        chat_params = {
+            "model": model,
+            "messages": messages,
+            "options": ollama_options,
+        }
+
+        # Add stream if passed
+        if "stream" in kwargs:
+            chat_params["stream"] = kwargs["stream"]
+        else:
+            chat_params["stream"] = False  # default
+
+        # Add format if passed
+        if "format" in kwargs:
+            chat_params["format"] = kwargs["format"]
+
+        # Make async request
         async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(f"{self.base_url}/api/chat", json=payload)
+            response = await client.post(f"{self.base_url}/api/chat", json=chat_params)
             response.raise_for_status()
             return response.json()
 
