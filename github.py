@@ -2,6 +2,7 @@ import os
 import re
 import json
 import requests
+import time
 from pathlib import Path
 
 from typing import Dict, List, Optional, Any
@@ -16,12 +17,31 @@ def _create_cache_filename(api_url: str, params: dict = None) -> str:
     url_parts = api_url.replace("https://api.github.com/", "").replace("/", "_")
 
     if params:
-        param_str = "_".join([f"{k}_{v}" for k, v in sorted(params.items())])
+        clean_params = {}
+        for k, v in params.items():
+            clean_v = str(v).replace(":", "-").replace(" ", "-").replace("/", "-")
+            clean_params[k] = clean_v
+        param_str = "_".join([f"{k}_{v}" for k, v in sorted(clean_params.items())])
         filename = f"cache/gh_githubcache_{url_parts}_{param_str}.json"
     else:
         filename = f"cache/gh_githubcache_{url_parts}.json"
     return filename
 
+
+OPEN_SOURCE_LICENSES = {
+    'mit', 'apache-2.0', 'gpl-3.0', 'gpl-2.0', 'bsd-3-clause', 'bsd-2-clause',
+    'lgpl-3.0', 'lgpl-2.1', 'mpl-2.0', 'agpl-3.0','isc',
+    'cc0-1.0', 'bsl-1.0', 'epl-2.0', 'eupl-1.2', 'artistic-2.0'
+}
+
+OPEN_SOURCE_PROGRAMS = {
+    'hacktoberfest', 'hacktoberfest-accepted', 'hacktoberfest2024', 'hacktoberfest2023',
+    'gssoc', 'gssoc24', 'gssoc-ext', 'gssoc-extd', 'gssoc2024', 'girlscript-summer-of-code',
+    'gsoc', 'google-summer-of-code', 'mlh', 'outreachy', 'dwoc', 'kwoc', 'swoc',
+    'codepeak', 'cross-winter-of-code', 'winter-of-code', 'summer-of-code',
+    'open-source-contest', 'open-source-program', 'first-timers-only',
+    'good-first-issue', 'help-wanted', 'beginner-friendly'
+}
 
 def _fetch_github_api(api_url, params=None):
     headers = {}
@@ -33,12 +53,14 @@ def _fetch_github_api(api_url, params=None):
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
         print(f"Loading cached GitHub data from {cache_filename}")
         try:
-            cached_data = json.loads(Path(cache_filename).read_text())
+            cached_data = json.loads(Path(cache_filename).read_text(encoding='utf-8'))
             return 200, cached_data
         except Exception as e:
             print(f"Error reading cache file {cache_filename}: {e}")
+    
+    time.sleep(0.1) 
 
-    response = requests.get(api_url, params, timeout=10, headers=headers)
+    response = requests.get(api_url, params, timeout=120, headers=headers)
     status_code = response.status_code
     data = response.json() if response.status_code == 200 else {}
 
@@ -46,7 +68,8 @@ def _fetch_github_api(api_url, params=None):
         try:
             os.makedirs("cache", exist_ok=True)
             Path(cache_filename).write_text(
-                json.dumps(data, indent=2, ensure_ascii=False)
+                json.dumps(data, indent=2, ensure_ascii=False),
+                encoding='utf-8'
             )
             print(f"Cached GitHub data to {cache_filename}")
         except Exception as e:
@@ -75,6 +98,35 @@ def extract_github_username(github_url: str) -> Optional[str]:
             return match.group(1)
 
     return None
+
+
+def fetch_repo_license(owner: str, repo_name: str) -> Optional[str]:
+    try:
+        api_url = f"https://api.github.com/repos/{owner}/{repo_name}/license"
+        status_code, data = _fetch_github_api(api_url)
+        
+        if status_code == 200 and data.get('license'):
+            license_key = data['license'].get('key', '').lower()
+            return license_key
+        return None
+    except Exception as e:
+        print(f"Error fetching license for {owner}/{repo_name}: {e}")
+        return None
+
+
+def is_opensource_license(license_key: str) -> bool:
+    if not license_key:
+        return False
+        
+    return license_key.lower() in OPEN_SOURCE_LICENSES
+
+
+def has_opensource_tags(topics: List[str]) -> bool:
+    if not topics:
+        return False
+    
+    topic_set = {topic.lower() for topic in topics}
+    return bool(topic_set.intersection(OPEN_SOURCE_PROGRAMS))
 
 
 def fetch_github_profile(github_url: str) -> Optional[GitHubProfile]:
@@ -111,7 +163,7 @@ def fetch_github_profile(github_url: str) -> Optional[GitHubProfile]:
             print(f"GitHub user not found: {username}")
             return None
         else:
-            print(f"GitHub API error: {response.status_code} - {response.text}")
+            print(f"GitHub API error: {status_code}")
             return None
 
     except requests.exceptions.RequestException as e:
@@ -137,22 +189,143 @@ def fetch_contributions_count(owner: str, contributors_data):
     return user_contributions, total_contributions
 
 
-def fetch_repo_contributors(owner: str, repo_name: str) -> int:
+def fetch_repo_contributors(owner: str, repo_name: str) -> List[Dict]:
     try:
         api_url = f"https://api.github.com/repos/{owner}/{repo_name}/contributors"
 
         status_code, contributors_data = _fetch_github_api(api_url)
 
-        return contributors_data
-
-        if status_code == 200:
-            return len(contributors_data)
+        if status_code == 200 and isinstance(contributors_data, list):
+            return contributors_data
         else:
-            return 1
+            return []
 
     except Exception as e:
-        logger.error(f"Error fetching contributors for {owner}/{repo_name}: {e}")
-        return 1
+        print(f"Error fetching contributors for {owner}/{repo_name}: {e}")
+        return []
+
+
+def fetch_user_pull_requests(username: str, max_prs: int = 50) -> List[Dict]:
+    try:
+        # Search for merged PRs authored by the user
+        search_query = f"author:{username} type:pr is:merged"
+        api_url = "https://api.github.com/search/issues"
+        params = {
+            "q": search_query,
+            "sort": "updated",
+            "order": "desc",
+            "per_page": min(max_prs, 100)
+        }
+        
+        status_code, data = _fetch_github_api(api_url, params)
+        
+        if status_code != 200:
+            print(f"Failed to fetch PRs for {username}: status {status_code}")
+            return []
+        
+        prs = []
+        for item in data.get('items', []):
+            try:
+                repo_url = item.get('repository_url', '')
+                if not repo_url:
+                    continue
+                
+                repo_parts = repo_url.split('/')[-2:]
+                if len(repo_parts) != 2:
+                    continue
+                
+                repo_owner, repo_name = repo_parts
+                
+                if repo_owner.lower() == username.lower():
+                    continue
+                
+                repo_api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}"
+                repo_status, repo_data = _fetch_github_api(repo_api_url)
+                
+                if repo_status != 200:
+                    continue
+                
+                pr_number = item.get('number')
+                pr_api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/pulls/{pr_number}"
+                pr_status, pr_data = _fetch_github_api(pr_api_url)
+                
+                labels = [label.get('name', '').lower() for label in item.get('labels', [])]
+                topics = repo_data.get('topics', [])
+                
+                opensource_program = None
+                program_indicators = set(labels + topics)
+                
+                for program in OPEN_SOURCE_PROGRAMS:
+                    if program in program_indicators:
+                        opensource_program = program
+                        break
+                
+                license_key = fetch_repo_license(repo_owner, repo_name)
+                
+                pr_info = {
+                    "name": f"{repo_owner}/{repo_name}",
+                    "contribution_type": "pull_request",
+                    "project_type": "open_source",
+                    "description": item.get('title', ''),
+                    "github_url": item.get('html_url', ''),
+                    "technologies": [repo_data.get('language')] if repo_data.get('language') else [],
+                    "pr_details": {
+                        "number": pr_number,
+                        "title": item.get('title', ''),
+                        "state": item.get('state', ''),
+                        "created_at": item.get('created_at'),
+                        "merged_at": item.get('closed_at'),  
+                        "additions": pr_data.get('additions', 0) if pr_status == 200 else 0,
+                        "deletions": pr_data.get('deletions', 0) if pr_status == 200 else 0,
+                        "changed_files": pr_data.get('changed_files', 0) if pr_status == 200 else 0,
+                        "commits": pr_data.get('commits', 0) if pr_status == 200 else 0,
+                        "labels": labels
+                    },
+                    "opensource_program": {
+                        "program_name": opensource_program,
+                        "detected": opensource_program is not None
+                    } if opensource_program else None,
+                    "github_details": {
+                        "stars": repo_data.get('stargazers_count', 0),
+                        "forks": repo_data.get('forks_count', 0),
+                        "language": repo_data.get('language'),
+                        "description": repo_data.get('description'),
+                        "topics": topics,
+                        "license": license_key,
+                        "owner": repo_owner,
+                        "created_at": repo_data.get('created_at'),
+                        "updated_at": repo_data.get('updated_at')
+                    }
+                }
+                
+                prs.append(pr_info)
+                
+            except Exception as e:
+                print(f"Error processing PR {item.get('html_url', '')}: {e}")
+                continue
+        
+        print(f"✅ Found {len(prs)} external pull requests for {username}")
+        return prs
+        
+    except Exception as e:
+        print(f"Error fetching pull requests for {username}: {e}")
+        return []
+
+
+def determine_project_type(repo: Dict, license_key: str, contributor_count: int, topics: List[str]) -> str:
+    stars = repo.get('stargazers_count', 0)
+    forks = repo.get('forks_count', 0)
+    
+    if license_key and is_opensource_license(license_key):
+        return "open_source"
+    
+    if has_opensource_tags(topics):
+        return "open_source"
+    
+    if contributor_count > 1 and (stars > 5 or forks > 2):
+        return "open_source"
+    
+    return "self_project"
 
 
 def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
@@ -175,6 +348,7 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                     continue
 
                 repo_name = repo.get("name")
+                topics = repo.get("topics", [])
 
                 contributors_data = fetch_repo_contributors(username, repo_name)
                 contributor_count = len(contributors_data)
@@ -183,12 +357,23 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                     username, contributors_data
                 )
 
-                project_type = (
-                    "open_source" if contributor_count > 1 else "self_project"
-                )
+                # Fetch repository license
+                license_key = fetch_repo_license(username, repo_name)
+
+                # Use enhanced project type determination
+                project_type = determine_project_type(repo, license_key, contributor_count, topics)
+
+                # Detect open source program participation
+                opensource_program = None
+                if has_opensource_tags(topics):
+                    for program in OPEN_SOURCE_PROGRAMS:
+                        if program in [topic.lower() for topic in topics]:
+                            opensource_program = program
+                            break
 
                 project = {
                     "name": repo.get("name"),
+                    "contribution_type": "owned_repository",
                     "description": repo.get("description"),
                     "github_url": repo.get("html_url"),
                     "live_url": repo.get("homepage") if repo.get("homepage") else None,
@@ -199,6 +384,10 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                     "contributor_count": contributor_count,
                     "author_commit_count": user_contributions,
                     "total_commit_count": total_contributions,
+                    "opensource_program": {
+                        "program_name": opensource_program,
+                        "detected": opensource_program is not None
+                    } if opensource_program else None,
                     "github_details": {
                         "stars": repo.get("stargazers_count", 0),
                         "forks": repo.get("forks_count", 0),
@@ -206,7 +395,8 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                         "description": repo.get("description"),
                         "created_at": repo.get("created_at"),
                         "updated_at": repo.get("updated_at"),
-                        "topics": repo.get("topics", []),
+                        "topics": topics,
+                        "license": license_key,
                         "open_issues": repo.get("open_issues_count", 0),
                         "size": repo.get("size", 0),
                         "fork": repo.get("fork", False),
@@ -232,11 +422,11 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
             )
             return projects
 
-        elif response.status_code == 404:
+        elif status_code == 404:
             print(f"GitHub user not found: {username}")
             return []
         else:
-            print(f"GitHub API error: {response.status_code} - {response.text}")
+            print(f"GitHub API error: {status_code}")
             return []
 
     except requests.exceptions.RequestException as e:
@@ -245,6 +435,124 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
     except Exception as e:
         print(f"Unexpected error fetching GitHub repositories: {e}")
         return []
+
+
+def fetch_github_projects_with_prs(github_url: str, max_repos: int = 100, max_prs: int = 50) -> List[Dict]:
+    username = extract_github_username(github_url)
+    if not username:
+        print(f"Could not extract username from: {github_url}")
+        return []
+    
+    owned_repos = fetch_all_github_repos(github_url, max_repos)
+    
+    pull_requests = fetch_user_pull_requests(username, max_prs)
+    
+    all_projects = owned_repos + pull_requests
+    
+    def get_sort_key(project):
+        if project.get('contribution_type') == 'pull_request':
+            return project.get('github_details', {}).get('stars', 0)
+        else:
+            return project.get('github_details', {}).get('stars', 0)
+    
+    all_projects.sort(key=get_sort_key, reverse=True)
+    
+    owned_open_source = sum(1 for p in owned_repos if p["project_type"] == "open_source")
+    owned_self_projects = sum(1 for p in owned_repos if p["project_type"] == "self_project")
+    pr_contributions = len(pull_requests)
+    
+    print(f"Found {len(owned_repos)} owned repositories ({owned_open_source} open source, {owned_self_projects} self projects)")
+    print(f"Found {pr_contributions} external pull request contributions")
+    print(f"Total projects: {len(all_projects)}")
+
+    return all_projects
+
+
+def _get_pr_summary(pr_details: Dict) -> Dict:
+    if not pr_details:
+        return None
+    
+    return {
+        "number": pr_details.get("number"),
+        "title": pr_details.get("title", "")[:100],
+        "impact": f"+{pr_details.get('additions', 0)}/-{pr_details.get('deletions', 0)} lines",
+        "files_changed": pr_details.get("changed_files", 0),
+        "commits": pr_details.get("commits", 0)
+    }
+
+
+def _fallback_project_selection(projects_data: List[Dict]) -> List[Dict]:    
+    if not projects_data:
+        print("No projects data available for fallback selection")
+        return []
+    
+    def get_priority_score(project):
+        if not project or not isinstance(project, dict):
+            return 0
+            
+        score = 0
+        
+        if project.get('contribution_type') == 'pull_request':
+            score += 1000
+
+            opensource_program = project.get('opensource_program') or {}
+            if opensource_program.get('detected'):
+                score += 500
+
+            github_details = project.get('github_details') or {}
+            target_stars = github_details.get('stars', 0) if github_details else 0
+            score += min(target_stars, 1000) 
+        
+
+        elif project.get('project_type') == 'open_source':
+            score += 500
+
+            opensource_program = project.get('opensource_program') or {}
+            if opensource_program.get('detected'):
+                score += 200
+            
+            github_details = project.get('github_details') or {}
+            stars = github_details.get('stars', 0) if github_details else 0
+            score += min(stars, 500)  
+        
+        else:
+            github_details = project.get('github_details') or {}
+            stars = github_details.get('stars', 0) if github_details else 0
+            score += min(stars, 100)  # Cap at 100
+        
+        if project.get('contribution_type') == 'owned_repository':
+            commits = project.get('author_commit_count', 0)
+            if commits >= 15:
+                score += 100
+            elif commits >= 5:
+                score += 50
+        
+        return score
+    
+    valid_projects = [p for p in projects_data if p and isinstance(p, dict)]
+    
+    if not valid_projects:
+        print("No valid projects found for selection")
+        return []
+    
+    sorted_projects = sorted(valid_projects, key=get_priority_score, reverse=True)
+    
+    selected = []
+    seen_names = set()
+    
+    for project in sorted_projects:
+        if len(selected) >= 7:
+            break
+        
+        name = project.get('name', '')
+        if name and name not in seen_names:
+            selected.append(project)
+            seen_names.add(name)
+    
+    project_names = [p.get('name', 'N/A') for p in selected]
+    print(f"Algorithmically selected {len(selected)} projects: {', '.join(project_names)}")
+    
+    return selected
 
 
 def generate_profile_json(profile: GitHubProfile) -> Dict:
@@ -278,21 +586,31 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
     try:
         projects_data = []
         for project in projects:
-
-            if project.get("author_commit_count") == 0:
+            if (project.get("contribution_type") == "owned_repository" and 
+                project.get("author_commit_count", 0) == 0):
                 continue
 
+            github_details = project.get("github_details", {})
             project_data = {
                 "name": project.get("name"),
-                "description": project.get("description"),
+                "contribution_type": project.get("contribution_type", "owned_repository"),
+                "description": project.get("description", "")[:200],
                 "github_url": project.get("github_url"),
                 "live_url": project.get("live_url"),
-                "technologies": project.get("technologies", []),
+                "technologies": project.get("technologies", [])[:5], 
                 "project_type": project.get("project_type", "self_project"),
                 "contributor_count": project.get("contributor_count", 1),
                 "author_commit_count": project.get("author_commit_count", 0),
                 "total_commit_count": project.get("total_commit_count", 0),
-                "github_details": project.get("github_details", {}),
+                "pr_summary": _get_pr_summary(project.get("pr_details")) if project.get("pr_details") else None,
+                "opensource_program": project.get("opensource_program"),
+                "github_summary": {
+                    "stars": github_details.get("stars", 0),
+                    "forks": github_details.get("forks", 0),
+                    "language": github_details.get("language"),
+                    "license": github_details.get("license"),
+                    "topics": github_details.get("topics", [])[:3],  # Limit to 3 topics
+                },
             }
             projects_data.append(project_data)
 
@@ -304,32 +622,41 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
         )
 
         print(
-            f"🤖 Using LLM to select top 5 projects from {len(projects)} repositories..."
+            f"Using LLM to select top 5 projects from {len(projects)} repositories..."
         )
 
-        # Initialize the LLM provider
         provider = initialize_llm_provider(DEFAULT_MODEL)
 
-        # Get model parameters
         model_params = MODEL_PARAMETERS.get(
             DEFAULT_MODEL, {"temperature": 0.1, "top_p": 0.9}
         )
+        
+        model_params.update({
+            "timeout": 120,  
+            "max_tokens": 4000,  
+        })
 
-        # Prepare chat parameters
+        system_message = (
+            "You are an expert technical recruiter analyzing GitHub repositories to identify the most impressive projects. CRITICAL: You must select exactly 7 UNIQUE projects - no duplicates allowed. Each project must be different from the others Prioritize: 1) External pull requests, "
+            "2) Open source program participation, 3) Projects with high commit counts. "
+            "Respond only with valid JSON array, no additional text."
+        )
+        
         chat_params = {
             "model": DEFAULT_MODEL,
             "messages": [
-                {
-                    "role": "system",
-                    "content": "You are an expert technical recruiter analyzing GitHub repositories to identify the most impressive projects. CRITICAL: You must select exactly 7 UNIQUE projects - no duplicates allowed. Each project must be different from the others.",
-                },
+                {"role": "system", "content": system_message},
                 {"role": "user", "content": prompt},
             ],
             "options": model_params,
         }
 
-        # Call the LLM provider
-        response = provider.chat(**chat_params)
+        try:
+            response = provider.chat(**chat_params)
+        except Exception as llm_error:
+            print(f"LLM call failed: {llm_error}")
+            print("Falling back to algorithmic selection")
+            return _fallback_project_selection(projects_data)
 
         response_text = response["message"]["content"]
 
@@ -345,7 +672,8 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
             for project in selected_projects:
                 project_name = project.get("name", "")
                 if project_name and project_name not in seen_names:
-                    unique_projects.append(project)
+                    full_project = project.get("_full_data", project)
+                    unique_projects.append(full_project)
                     seen_names.add(project_name)
 
             if len(unique_projects) < 7:
@@ -373,12 +701,12 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
             print(f"ERROR: Error parsing LLM response: {e}")
             print(f"ERROR: Raw response: {response_text}")
 
-            print("🔄 Falling back to first 7 projects")
+            print("Falling back to first 7 projects")
             return projects_data[:7]
 
     except Exception as e:
         print(f"Error using LLM for project selection: {e}")
-        print("🔄 Falling back to first 7 projects")
+        print("Falling back to first 7 projects")
 
         projects_data = []
         for project in projects[:7]:
@@ -400,14 +728,14 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
 def fetch_and_display_github_info(github_url: str) -> Dict:
     github_profile = fetch_github_profile(github_url)
     if not github_profile:
-        print("\n❌ Failed to fetch GitHub profile details.")
+        print("Failed to fetch GitHub profile details.")
         return {}
 
-    print("🔍 Fetching all repository details...")
-    projects = fetch_all_github_repos(github_url)
+    print("Fetching all repository details and pull requests...")
+    projects = fetch_github_projects_with_prs(github_url)
 
     if not projects:
-        print("\n❌ No repositories found or failed to fetch repository details.")
+        print("No repositories or pull requests found.")
 
     profile_json = generate_profile_json(github_profile)
     projects_json = generate_projects_json(projects)
