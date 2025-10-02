@@ -351,3 +351,5 @@ class GeminiProvider:
 
         # Convert Gemini response to Ollama-like format for compatibility
         return {"message": {"role": "assistant", "content": response.text}}
+
+
