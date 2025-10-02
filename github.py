@@ -2,6 +2,7 @@ import os
 import re
 import json
 import requests
+
 from pathlib import Path
 
 from typing import Dict, List, Optional, Any
@@ -10,6 +11,7 @@ from prompts.template_manager import TemplateManager
 from prompt import DEFAULT_MODEL, MODEL_PARAMETERS
 from llm_utils import initialize_llm_provider, extract_json_from_response
 from config import DEVELOPMENT_MODE
+
 
 
 def _create_cache_filename(api_url: str, params: dict = None) -> str:
@@ -111,7 +113,7 @@ def fetch_github_profile(github_url: str) -> Optional[GitHubProfile]:
             print(f"GitHub user not found: {username}")
             return None
         else:
-            print(f"GitHub API error: {response.status_code} - {response.text}")
+            print(f"GitHub API error: {status_code} - {data}")
             return None
 
     except requests.exceptions.RequestException as e:
@@ -232,11 +234,11 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
             )
             return projects
 
-        elif response.status_code == 404:
+        elif status_code == 404:
             print(f"GitHub user not found: {username}")
             return []
         else:
-            print(f"GitHub API error: {response.status_code} - {response.text}")
+            print(f"GitHub API error: {status_code} - {repos_data}")
             return []
 
     except requests.exceptions.RequestException as e:
