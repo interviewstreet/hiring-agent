@@ -91,6 +91,7 @@ class PDFHandler:
                 "messages": [
                     {"role": "system", "content": section_system_message},
                     {"role": "user", "content": prompt},
+                    {"role": "user", "content": text_content},
                 ],
                 "options": {
                     "stream": False,
