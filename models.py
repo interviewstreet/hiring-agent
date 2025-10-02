@@ -226,6 +226,7 @@ class Scores(BaseModel):
     self_projects: CategoryScore
     production: CategoryScore
     technical_skills: CategoryScore
+    job_match: Optional[CategoryScore] = None
 
 
 class BonusPoints(BaseModel):
@@ -247,6 +248,8 @@ class EvaluationData(BaseModel):
     deductions: Deductions
     key_strengths: List[str] = Field(min_items=1, max_items=5)
     areas_for_improvement: List[str] = Field(min_items=1, max_items=5)
+    job_description: Optional[str] = None
+    job_match_analysis: Optional[str] = None
 
 
 class GitHubProfile(BaseModel):

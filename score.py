@@ -3,6 +3,7 @@ import sys
 import json
 import logging
 import csv
+import argparse
 from pdf import PDFHandler
 from github import fetch_and_display_github_info
 from models import JSONResume, EvaluationData
@@ -44,15 +45,16 @@ def print_evaluation_results(
 
     if hasattr(evaluation, "scores") and evaluation.scores:
         for category_name, category_data in evaluation.scores.model_dump().items():
-            category_score = min(category_data["score"], category_data["max"])
-            total_score += category_score
-            max_score += category_data["max"]
+            if category_data is not None:  # Handle optional job_match field
+                category_score = min(category_data["score"], category_data["max"])
+                total_score += category_score
+                max_score += category_data["max"]
 
-            # Log warning if score was capped
-            if category_score < category_data["score"]:
-                print(
-                    f"⚠️  Warning: {category_name} score capped from {category_data['score']} to {category_score} (max: {category_data['max']})"
-                )
+                # Log warning if score was capped
+                if category_score < category_data["score"]:
+                    print(
+                        f"⚠️  Warning: {category_name} score capped from {category_data['score']} to {category_score} (max: {category_data['max']})"
+                    )
 
     # Add bonus points
     if hasattr(evaluation, "bonus_points") and evaluation.bonus_points:
@@ -63,7 +65,7 @@ def print_evaluation_results(
         total_score -= evaluation.deductions.total
 
     # Ensure total score doesn't exceed maximum possible score
-    max_possible_score = max_score + 20  # 120 (100 categories + 20 bonus)
+    max_possible_score = max_score + 20  # 120 (100 categories + 20 bonus) or 170 (150 categories + 20 bonus) with job match
     if total_score > max_possible_score:
         total_score = max_possible_score
         print(f"⚠️  Warning: Total score capped at maximum possible value")
@@ -122,6 +124,16 @@ def print_evaluation_results(
             print(f"   Evidence: {tech_score.evidence}")
             print()
 
+        # Job Match (if available)
+        if (
+            hasattr(evaluation.scores, "job_match")
+            and evaluation.scores.job_match
+        ):
+            job_score = evaluation.scores.job_match
+            print(f"🎯 Job Match:            {job_score.score}/{job_score.max}")
+            print(f"   Evidence: {job_score.evidence}")
+            print()
+
     # Bonus Points
     if hasattr(evaluation, "bonus_points") and evaluation.bonus_points:
         print(f"\n⭐ BONUS POINTS: {evaluation.bonus_points.total}")
@@ -156,11 +168,23 @@ def print_evaluation_results(
         for i, area in enumerate(evaluation.areas_for_improvement, 1):
             print(f"  {i}. {area}")
 
+    # Job Match Analysis (if job description provided)
+    if hasattr(evaluation, "job_match") and evaluation.job_match:
+        print(f"\n🎯 JOB MATCH ANALYSIS:")
+        print("-" * 30)
+        job_score = evaluation.job_match
+        print(f"Match Score: {job_score.score}/{job_score.max}")
+        print(f"Analysis: {job_score.evidence}")
+        
+        if hasattr(evaluation, "job_match_analysis") and evaluation.job_match_analysis:
+            print(f"\nDetailed Analysis:")
+            print(f"{evaluation.job_match_analysis}")
+
     print("\n" + "=" * 80)
 
 
 def _evaluate_resume(
-    resume_data: JSONResume, github_data: dict = None, blog_data: dict = None
+    resume_data: JSONResume, github_data: dict = None, blog_data: dict = None, job_description: str = None
 ) -> Optional[EvaluationData]:
     """Evaluate the resume using AI and display results."""
 
@@ -181,7 +205,7 @@ def _evaluate_resume(
         resume_text += blog_text
 
     # Evaluate the enhanced resume
-    evaluation_result = evaluator.evaluate_resume(resume_text)
+    evaluation_result = evaluator.evaluate_resume(resume_text, job_description)
 
     # print(evaluation_result)
 
@@ -197,7 +221,7 @@ def find_profile(profiles, network):
     )
 
 
-def main(pdf_path):
+def main(pdf_path, job_description=None):
     # Create cache filename based on PDF path
     cache_filename = (
         f"cache/resumecache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
@@ -253,7 +277,7 @@ def main(pdf_path):
                 json.dumps(github_data, indent=2, ensure_ascii=False)
             )
 
-    score = _evaluate_resume(resume_data, github_data)
+    score = _evaluate_resume(resume_data, github_data, None, job_description)
 
     # Get candidate name for display
     candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
@@ -295,13 +319,14 @@ def main(pdf_path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python score.py <pdf_path>")
+    parser = argparse.ArgumentParser(description="Evaluate resume and optionally match against job description")
+    parser.add_argument("pdf_path", help="Path to the resume PDF file")
+    parser.add_argument("-j", "--job-description", help="Optional job description for matching analysis")
+    
+    args = parser.parse_args()
+    
+    if not os.path.exists(args.pdf_path):
+        print(f"Error: File '{args.pdf_path}' does not exist.")
         exit(1)
-    pdf_path = sys.argv[1]
 
-    if not os.path.exists(pdf_path):
-        print(f"Error: File '{pdf_path}' does not exist.")
-        exit(1)
-
-    main(pdf_path)
+    main(args.pdf_path, args.job_description)
