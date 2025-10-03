@@ -13,7 +13,7 @@ from models import ModelProvider
 load_dotenv()
 
 # Constants
-DEFAULT_MODEL_NAME = "gemma3:4b"
+DEFAULT_MODEL_NAME = "tinyllama:1.1b"
 DEFAULT_PROVIDER = ModelProvider.OLLAMA
 
 # Get model and provider from environment or use defaults

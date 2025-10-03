@@ -4,6 +4,7 @@ import json
 import time
 import logging
 import pymupdf
+import re
 
 from models import (
     JSONResume,
@@ -33,10 +34,22 @@ from prompts.template_manager import TemplateManager
 from transform import transform_parsed_data
 
 logger = logging.getLogger(__name__)
-
+def extract_section_snippet(resume_text: str, section: str) -> str:
+    section_headers = {
+        "basics": ["basics", "summary", "profile", "about"],
+        "work": ["work experience", "professional experience", "experience"],
+        "education": ["education", "academic background"],
+        "skills": ["skills", "technical skills"],
+        "projects": ["projects", "personal projects", "academic projects"],
+        "awards": ["awards", "honors"],
+    }
+    headings = section_headers.get(section, [section])
+    # Looks for section heading and extracts until next section or document end
+    pattern = rf"(?:^|\n)({'|'.join([re.escape(h) for h in headings])})[\s\S]+?(?=(\n[A-Z][a-zA-Z ]+(?=\n|$))|\Z)"
+    match = re.search(pattern, resume_text, re.IGNORECASE)
+    return match.group(0).strip() if match else ""
 
 class PDFHandler:
-
     def __init__(self):
         self.template_manager = TemplateManager()
         self._initialize_llm_provider()
@@ -63,52 +76,52 @@ class PDFHandler:
         except Exception as e:
             logger.error(f"An error occurred while reading the PDF: {e}")
             return None
-
     def _call_llm_for_section(
         self, section_name: str, text_content: str, prompt: str, return_model=None
     ) -> Optional[Dict]:
-        try:
-            start_time = time.time()
-            logger.debug(
-                f"🔄 Extracting {section_name} section using {DEFAULT_MODEL}..."
-            )
-
-            model_params = MODEL_PARAMETERS.get(
-                DEFAULT_MODEL, {"temperature": 0.1, "top_p": 0.9}
-            )
-
-            section_system_message = self.template_manager.render_template(
-                "system_message", section_name_param=section_name
-            )
-            if not section_system_message:
-                logger.error(
-                    f"❌ Failed to render system message template for {section_name}"
-                )
-                return None
-
-            chat_params = {
-                "model": DEFAULT_MODEL,
-                "messages": [
-                    {"role": "system", "content": section_system_message},
-                    {"role": "user", "content": prompt},
-                ],
-                "options": {
-                    "stream": False,
-                    "temperature": model_params["temperature"],
-                    "top_p": model_params["top_p"],
-                },
-            }
-
-            kwargs = {}
-            if return_model:
-                kwargs["format"] = return_model.model_json_schema()
-
-            # Use the appropriate provider to make the API call
-            response = self.provider.chat(**chat_params, **kwargs)
-
-            response_text = response["message"]["content"]
-
+        max_retries = 3
+        for attempt in range(max_retries):
             try:
+                start_time = time.time()
+                logger.debug(
+                    f"🔄 Extracting {section_name} section using {DEFAULT_MODEL}, attempt {attempt+1}..."
+                )
+
+                model_params = MODEL_PARAMETERS.get(
+                    DEFAULT_MODEL, {"temperature": 0.1, "top_p": 0.9}
+                )
+
+                section_system_message = self.template_manager.render_template(
+                    "system_message", section_name_param=section_name
+                )
+                if not section_system_message:
+                    logger.error(
+                        f"❌ Failed to render system message template for {section_name}"
+                    )
+                    return None
+
+                chat_params = {
+                    "model": DEFAULT_MODEL,
+                    "messages": [
+                        {"role": "system", "content": section_system_message},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "options": {
+                        "stream": False,
+                        "temperature": model_params["temperature"],
+                        "top_p": model_params["top_p"],
+                    },
+                }
+
+                kwargs = {}
+                if return_model:
+                    kwargs["format"] = return_model.model_json_schema()
+
+                response = self.provider.chat(**chat_params, **kwargs)
+
+                response_text = response["message"]["content"]
+                logger.debug(f"Raw LLM response for {section_name}:\n{response_text}")
+
                 response_text = extract_json_from_response(response_text)
                 json_start = response_text.find("{")
                 json_end = response_text.rfind("}")
@@ -125,70 +138,78 @@ class PDFHandler:
                 )
 
                 return transformed_data
+
             except json.JSONDecodeError as e:
-                logger.error(f"❌ Error parsing JSON for {section_name} section: {e}")
-                logger.error(f"Raw response: {response_text}")
+                logger.error(f"❌ JSON parsing error for {section_name} on attempt {attempt+1}: {e}")
+                if attempt == max_retries - 1:
+                    logger.error(f"❌ Failed to parse JSON for {section_name} after {max_retries} attempts")
+                    return None
+            except Exception as e:
+                logger.error(f"❌ Error calling LLM for {section_name} section on attempt {attempt+1}: {e}")
                 return None
 
-        except Exception as e:
-            logger.error(f"❌ Error calling LLM for {section_name} section: {e}")
-            return None
 
     def extract_basics_section(self, resume_text: str) -> Optional[Dict]:
+        basics_text = extract_section_snippet(resume_text, "basics")
         prompt = self.template_manager.render_template(
-            "basics", text_content=resume_text
+            "basics", text_content=basics_text
         )
         if not prompt:
             logger.error("❌ Failed to render basics template")
             return None
-        return self._call_llm_for_section("basics", resume_text, prompt, BasicsSection)
+        return self._call_llm_for_section("basics", basics_text, prompt, BasicsSection)
 
     def extract_work_section(self, resume_text: str) -> Optional[Dict]:
-        prompt = self.template_manager.render_template("work", text_content=resume_text)
+        work_text = extract_section_snippet(resume_text, "work")
+        prompt = self.template_manager.render_template("work", text_content=work_text)
         if not prompt:
             logger.error("❌ Failed to render work template")
             return None
-        return self._call_llm_for_section("work", resume_text, prompt, WorkSection)
+        return self._call_llm_for_section("work", work_text, prompt, WorkSection)
 
     def extract_education_section(self, resume_text: str) -> Optional[Dict]:
+        education_text = extract_section_snippet(resume_text, "education")
         prompt = self.template_manager.render_template(
-            "education", text_content=resume_text
+            "education", text_content=education_text
         )
         if not prompt:
             logger.error("❌ Failed to render education template")
             return None
         return self._call_llm_for_section(
-            "education", resume_text, prompt, EducationSection
+            "education", education_text, prompt, EducationSection
         )
 
     def extract_skills_section(self, resume_text: str) -> Optional[Dict]:
+        skills_text = extract_section_snippet(resume_text, "skills")
         prompt = self.template_manager.render_template(
-            "skills", text_content=resume_text
+            "skills", text_content=skills_text
         )
         if not prompt:
             logger.error("❌ Failed to render skills template")
             return None
-        return self._call_llm_for_section("skills", resume_text, prompt, SkillsSection)
+        return self._call_llm_for_section("skills", skills_text, prompt, SkillsSection)
 
     def extract_projects_section(self, resume_text: str) -> Optional[Dict]:
+        projects_text = extract_section_snippet(resume_text, "projects")
         prompt = self.template_manager.render_template(
-            "projects", text_content=resume_text
+            "projects", text_content=projects_text
         )
         if not prompt:
             logger.error("❌ Failed to render projects template")
             return None
         return self._call_llm_for_section(
-            "projects", resume_text, prompt, ProjectsSection
+            "projects", projects_text, prompt, ProjectsSection
         )
 
     def extract_awards_section(self, resume_text: str) -> Optional[Dict]:
+        awards_text = extract_section_snippet(resume_text, "awards")
         prompt = self.template_manager.render_template(
-            "awards", text_content=resume_text
+            "awards", text_content=awards_text
         )
         if not prompt:
             logger.error("❌ Failed to render awards template")
             return None
-        return self._call_llm_for_section("awards", resume_text, prompt, AwardsSection)
+        return self._call_llm_for_section("awards", awards_text, prompt, AwardsSection)
 
     def extract_json_from_text(self, resume_text: str) -> Optional[JSONResume]:
         try:
@@ -216,10 +237,8 @@ class PDFHandler:
         except Exception as e:
             logger.error(f"❌ Error during PDF to JSON extraction: {e}")
             return None
-
-    def _extract_section_data(
-        self, text_content: str, section_name: str, return_model=None
-    ) -> Optional[Dict]:
+        
+    def _extract_section_data(self, text_content: str, section_name: str, return_model=None) -> Optional[Dict]:
         section_extractors = {
             "basics": self.extract_basics_section,
             "work": self.extract_work_section,
@@ -234,7 +253,15 @@ class PDFHandler:
             logger.error(f"Valid sections: {list(section_extractors.keys())}")
             return None
 
-        return section_extractors[section_name](text_content)
+        max_retries = 3
+        for attempt in range(max_retries):
+            section_data = section_extractors[section_name](text_content)
+            if section_data:
+                return section_data
+            else:
+                logger.warning(f"⚠️ Attempt {attempt+1} failed to extract {section_name} section")
+        logger.error(f"❌ Failed to extract {section_name} section after {max_retries} attempts")
+        return None
 
     def _extract_single_section(
         self, text_content: str, section_name: str, return_model=None
