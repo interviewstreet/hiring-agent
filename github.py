@@ -238,7 +238,7 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
 
                     # from source repo
                     PR_data = fetch_PR_data(username, source_owner, repo_name)
-                    PR_items = PR_data["items"]
+                    PR_items = PR_data.get("items", [])
 
                     merged_pull_requests = []
 
@@ -348,8 +348,8 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                 1 for p in projects if p["project_type"] == "self_project"
             )
             open_source_contribution_count = sum(
-                os.get("merged_pull_requests_by_user", 0)
-                for os in open_source_contribution_count
+                len(os.get("merged_pull_requests_by_user", []))
+                for os in open_source_contributions
             )
 
             print(f"✅ Found {len(projects)} repositories")
