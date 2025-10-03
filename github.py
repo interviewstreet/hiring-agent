@@ -208,7 +208,6 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                         "stars": repo.get("stargazers_count", 0),
                         "forks": repo.get("forks_count", 0),
                         "language": repo.get("language"),
-                        "description": repo.get("description"),
                         "created_at": repo.get("created_at"),
                         "updated_at": repo.get("updated_at"),
                         "topics": repo.get("topics", []),
