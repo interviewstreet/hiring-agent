@@ -142,20 +142,20 @@ def fetch_contributions_count(owner: str, contributors_data):
     return user_contributions, total_contributions
 
 
-def fetch_repo_contributors(owner: str, repo_name: str) -> int:
+def fetch_repo_contributors(owner: str, repo_name: str) -> list:
     try:
         api_url = f"https://api.github.com/repos/{owner}/{repo_name}/contributors"
-
         status_code, contributors_data = _fetch_github_api(api_url)
 
         if status_code == 200:
-            return len(contributors_data)
+            return contributors_data or []
         else:
-            return 1
+            logger.warning(f"Failed to fetch contributors for {owner}/{repo_name}, status code: {status_code}")
+            return []
 
     except Exception as e:
         logger.error(f"Error fetching contributors for {owner}/{repo_name}: {e}")
-        return 1
+        return []
 
 
 def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
