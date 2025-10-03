@@ -212,7 +212,7 @@ def fetch_repo_contributors(owner: str, repo_name: str) -> List[Dict]:
 
 def fetch_user_pull_requests(username: str, max_prs: int = 50) -> List[Dict]:
     try:
-        # Search for merged PRs authored by the user
+        # Search for PRs authored by the user
         search_query = f"author:{username} type:pr"
         api_url = "https://api.github.com/search/issues"
         params = {
