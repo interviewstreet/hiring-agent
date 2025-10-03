@@ -554,7 +554,7 @@ def generate_open_source_contributions_json(
         template_manager = TemplateManager()
         prompt = template_manager.render_template(
             "github_open_source_contribution_selection",
-            open_source_contributions_json=open_source_contributions_json,
+            open_source_contributions_data=open_source_contributions_data,
         )
 
         print(
@@ -693,7 +693,7 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
         "projects": projects_json,
         "total_projects": len(projects_json),
         "open_source_contributions": open_source_contributions_json,
-        "total_contributions": len(open_source_contributions_json)
+        "total_contributions": len(open_source_contributions_json),
     }
 
     return result
@@ -706,6 +706,10 @@ def main(github_url):
     print("=" * 60)
     print(json.dumps(result, indent=2, ensure_ascii=False))
     print("=" * 60)
+
+    # TESTING:
+    with open("test_final_response.json", "w") as f:
+        f.write(json.dumps(result, indent=2, ensure_ascii=False))
 
     return result
 

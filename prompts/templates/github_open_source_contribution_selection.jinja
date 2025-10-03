@@ -29,7 +29,7 @@ Given a list of GitHub repositories the candidate has contributed to, select the
 -   Consider the impact and reach of the project, not just the size of the individual PR.
 
 **Repository Data:**
-The input data `{{ contributions_data }}` will be a list of repository objects. Each object will include a `merged_pull_requests_by_user` key, which is a list of the candidate's merged PRs in that repository. Each PR object contains a `title` and `body`.
+The input data `{{ open_source_contributions_data }}` will be a list of repository objects. Each object will include a `merged_pull_requests_by_user` key, which is a list of the candidate's merged PRs in that repository. Each PR object contains a `title` and `body`.
 
 **FILTERING STEP:**
 1.  First, filter out all repositories where the `merged_pull_requests_by_user` list is empty.
