@@ -4,7 +4,7 @@ import json
 import logging
 import csv
 from pdf import PDFHandler
-from github import fetch_and_display_github_info
+from github import fetch_github_projects_with_prs
 from models import JSONResume, EvaluationData
 from typing import List, Optional, Dict
 from evaluator import ResumeEvaluator
@@ -206,12 +206,18 @@ def main(pdf_path):
         f"cache/githubcache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
     )
 
-    # Check if cache exists and we're in development mode
+    resume_data = None
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
         print(f"Loading cached data from {cache_filename}")
-        cached_data = json.loads(Path(cache_filename).read_text())
-        resume_data = JSONResume(**cached_data)
-    else:
+        try:
+            cached_data = json.loads(Path(cache_filename).read_text(encoding='utf-8'))
+            resume_data = JSONResume(**cached_data)
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            print(f"Error loading cached resume data: {e}")
+            print("Regenerating resume data...")
+            resume_data = None
+    
+    if resume_data is None:
         logger.debug(
             f"Extracting data from PDF"
             + (" and caching to " + cache_filename if DEVELOPMENT_MODE else "")
@@ -225,14 +231,20 @@ def main(pdf_path):
         if DEVELOPMENT_MODE:
             os.makedirs(os.path.dirname(cache_filename), exist_ok=True)
             Path(cache_filename).write_text(
-                json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False)
+                json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False),
+                encoding='utf-8'
             )
 
     # Check if cache exists and we're in development mode
     github_data = {}
     if DEVELOPMENT_MODE and os.path.exists(github_cache_filename):
         print(f"Loading cached data from {github_cache_filename}")
-        github_data = json.loads(Path(github_cache_filename).read_text())
+        try:
+            github_data = json.loads(Path(github_cache_filename).read_text(encoding='utf-8'))
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            print(f"Error loading cached GitHub data: {e}")
+            print("Regenerating GitHub data...")
+            github_data = {}
     else:
         print(
             f"Fetching GitHub data"
@@ -246,11 +258,14 @@ def main(pdf_path):
         github_profile = find_profile(profiles, "Github")
 
         if github_profile:
-            github_data = fetch_and_display_github_info(github_profile.url)
+            # Fetch both owned repositories and external pull requests
+            github_projects = fetch_github_projects_with_prs(github_profile.url)
+            github_data = {"projects": github_projects}
         if DEVELOPMENT_MODE:
             os.makedirs(os.path.dirname(github_cache_filename), exist_ok=True)
             Path(github_cache_filename).write_text(
-                json.dumps(github_data, indent=2, ensure_ascii=False)
+                json.dumps(github_data, indent=2, ensure_ascii=False),
+                encoding='utf-8'
             )
 
     score = _evaluate_resume(resume_data, github_data)
