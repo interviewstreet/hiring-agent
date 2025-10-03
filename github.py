@@ -142,22 +142,24 @@ def fetch_contributions_count(owner: str, contributors_data):
     return user_contributions, total_contributions
 
 
-def fetch_repo_contributors(owner: str, repo_name: str) -> int:
+# Change 1: Updated return type hint and corrected logic flow (was dead code)
+def fetch_repo_contributors(owner: str, repo_name: str) -> List[Dict[str, Any]]:
     try:
         api_url = f"https://api.github.com/repos/{owner}/{repo_name}/contributors"
 
         status_code, contributors_data = _fetch_github_api(api_url)
 
-        return contributors_data
-
+        # The function's actual purpose is to return the data list for further processing.
         if status_code == 200:
-            return len(contributors_data)
+            return contributors_data 
         else:
-            return 1
+            # Log the failure and return an empty list on API error (e.g., 404)
+            logger.error(f"GitHub API error fetching contributors for {owner}/{repo_name}: Status {status_code}")
+            return [] 
 
     except Exception as e:
         logger.error(f"Error fetching contributors for {owner}/{repo_name}: {e}")
-        return 1
+        return [] # Return empty list on exception
 
 
 def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
@@ -237,18 +239,22 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
             )
             return projects
 
-        elif response.status_code == 404:
+        elif status_code == 404:
             print(f"GitHub user not found: {username}")
             return []
         else:
-            print(f"GitHub API error: {response.status_code} - {response.text}")
+            print(f"GitHub API error: {status_code} - {repos_data}")
             return []
 
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching GitHub repositories: {e}")
+        # Change 2: Improved logging for network errors (Issue #37/General Reliability)
+        logger.error(f"Network error fetching GitHub repositories: {e}")
+        print(f"❌ Network error fetching GitHub repositories (Rate Limit?): {e}")
         return []
     except Exception as e:
-        print(f"Unexpected error fetching GitHub repositories: {e}")
+        # Change 2: Improved logging for unexpected errors
+        logger.error(f"Unexpected error fetching GitHub repositories: {e}", exc_info=True)
+        print(f"❌ Unexpected error fetching GitHub repositories: {e}")
         return []
 
 
