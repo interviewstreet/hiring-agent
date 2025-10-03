@@ -147,6 +147,12 @@ def fetch_repo_contributors(owner: str, repo_name: str) -> int:
         api_url = f"https://api.github.com/repos/{owner}/{repo_name}/contributors"
 
         status_code, contributors_data = _fetch_github_api(api_url)
+        if status_code == 200 and isinstance(contributors_data, list):
+            contributors_data = [
+                contributor
+                for contributor in contributors_data
+                if contributor.get("type", "").lower() != "bot"
+            ]
 
         return contributors_data
 
