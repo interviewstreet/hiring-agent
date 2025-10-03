@@ -526,6 +526,136 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
         return projects_data
 
 
+def generate_open_source_contributions_json(
+    open_source_contributions: List[Dict],
+) -> List[Dict]:
+    if not open_source_contributions:
+        return []
+
+    try:
+        open_source_contributions_data = []
+        for contri in open_source_contributions:
+
+            open_source_contribution_data = {
+                "name": contri.get("name"),
+                "description": contri.get("description"),
+                "github_url": contri.get("github_url"),
+                "live_url": contri.get("live_url"),
+                "technologies": contri.get("technologies", []),
+                "contributor_count": contri.get("contributor_count", 1),
+                "github_details": contri.get("github_details", {}),
+            }
+            open_source_contributions_data.append(open_source_contribution_data)
+
+        open_source_contributions_json = json.dumps(
+            open_source_contributions_data, indent=2
+        )
+
+        template_manager = TemplateManager()
+        prompt = template_manager.render_template(
+            "github_open_source_contribution_selection",
+            open_source_contributions_json=open_source_contributions_json,
+        )
+
+        print(
+            f"🤖 Using LLM to select top 5 contributions from {len(open_source_contributions)} repositories..."
+        )
+
+        # Initialize the LLM provider
+        provider = initialize_llm_provider(DEFAULT_MODEL)
+
+        # Get model parameters
+        model_params = MODEL_PARAMETERS.get(
+            DEFAULT_MODEL, {"temperature": 0.1, "top_p": 0.9}
+        )
+
+        # Prepare chat parameters
+        chat_params = {
+            "model": DEFAULT_MODEL,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are an expert technical recruiter analyzing GitHub repositories to identify the most impressive open source contributions. CRITICAL: You must select exactly 7 UNIQUE organisations - no duplicates allowed. Each project must be different from the others.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            "options": model_params,
+        }
+
+        # Call the LLM provider
+        response = provider.chat(**chat_params)
+
+        response_text = response["message"]["content"]
+
+        try:
+            response_text = response_text.strip()
+            response_text = extract_json_from_response(response_text)
+
+            selected_open_source_contributions = json.loads(response_text)
+
+            unique_open_source_contributions = []
+            seen_names = set()
+
+            for contri in selected_open_source_contributions:
+                contri_name = contri.get("name", "")
+                if contri_name and contri_name not in seen_names:
+                    unique_open_source_contributions.append(contri)
+                    seen_names.add(contri_name)
+
+            if len(unique_open_source_contributions) < 7:
+                print(
+                    f"⚠️ LLM selected {len(selected_open_source_contributions)} projects but {len(unique_open_source_contributions)} are unique"
+                )
+
+                for open_source_contribution in open_source_contributions_data:
+                    if len(unique_open_source_contributions) >= 7:
+                        break
+                    open_source_contribution_name = open_source_contribution.get(
+                        "name", ""
+                    )
+                    if (
+                        open_source_contribution_name
+                        and open_source_contribution_name not in seen_names
+                    ):
+                        unique_open_source_contributions.append(
+                            open_source_contribution
+                        )
+                        seen_names.add(open_source_contribution_name)
+
+            open_source_contribution_names = ", ".join(
+                [proj.get("name", "N/A") for proj in unique_open_source_contributions]
+            )
+            print(
+                f"✅ LLM selected {len(unique_open_source_contributions)} unique top projects: {open_source_contribution_names}"
+            )
+            return unique_open_source_contributions
+
+        except json.JSONDecodeError as e:
+            print(f"ERROR: Error parsing LLM response: {e}")
+            print(f"ERROR: Raw response: {response_text}")
+
+            print("🔄 Falling back to first 7 projects")
+            return open_source_contributions_data[:7]
+
+    except Exception as e:
+        print(f"Error using LLM for project selection: {e}")
+        print("🔄 Falling back to first 7 projects")
+
+        open_source_contributions_data = []
+        for contri in open_source_contributions[:7]:
+            open_source_contribution_data = {
+                "name": contri.get("name"),
+                "description": contri.get("description"),
+                "github_url": contri.get("github_url"),
+                "live_url": contri.get("live_url"),
+                "technologies": contri.get("technologies", []),
+                "github_details": contri.get("github_details", {}),
+            }
+            open_source_contributions_data.append(open_source_contribution_data)
+
+        return open_source_contributions_data
+
+
 def fetch_and_display_github_info(github_url: str) -> Dict:
     logger.info(f"{github_url}")
     github_profile = fetch_github_profile(github_url)
@@ -554,13 +684,16 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
 
     profile_json = generate_profile_json(github_profile)
     projects_json = generate_projects_json(projects)
-    # TODO:
-    # open_source_contributions_json = generate_open_source_contributions_json(open_source_contributions)
+    open_source_contributions_json = generate_open_source_contributions_json(
+        open_source_contributions
+    )
 
     result = {
         "profile": profile_json,
         "projects": projects_json,
         "total_projects": len(projects_json),
+        "open_source_contributions": open_source_contributions_json,
+        "total_contributions": len(open_source_contributions_json)
     }
 
     return result
