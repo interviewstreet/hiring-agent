@@ -160,6 +160,42 @@ def fetch_repo_contributors(owner: str, repo_name: str) -> int:
         return 1
 
 
+def fetch_repo_data(onwer: str, repo_name: str) -> Dict:
+    try:
+        api_url = f"https://api.github.com/repos/{onwer}/{repo_name}"
+
+        status_code, repo_data = _fetch_github_api(api_url)
+
+        if status_code == 200:
+            return repo_data
+        else:
+            return {}
+
+    except Exception as e:
+        logger.error(
+            f"Error fetching repo data while checking for open source contribution for {onwer}/{repo_name}"
+        )
+        return {}
+
+
+def fetch_PR_data(owner: str, source_owner: str, repo_name: str) -> Dict:
+    try:
+        api_url = f"https://api.github.com/search/issues?q=is:pr+is:closed+author:{owner}+repo:{source_owner}/{repo_name}"
+
+        status_code, repo_data = _fetch_github_api(api_url)
+
+        if status_code == 200:
+            return repo_data
+        else:
+            return {}
+
+    except Exception as e:
+        logger.error(
+            f"Error fetching PR data while checking for open source contribution for {source_owner}/{repo_name} made by {owner}"
+        )
+        return {}
+
+
 def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
     try:
         username = extract_github_username(github_url)
@@ -175,54 +211,135 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
 
         if status_code == 200:
             projects = []
+            open_source_contributions = []
+
             for repo in repos_data:
-                if repo.get("fork") and repo.get("forks_count", 0) < 5:
-                    continue
+                # TODO:
+                # Contributions to Open Source aren't counted due to the below condition:
+                # if (repo.get("fork") and repo.get("forks_count") < 5): continue
 
-                repo_name = repo.get("name")
+                # They have forked: true, but still the new owner (user) might have 0 forks_count of that already forked repo
+                # Generate a way to also count Open Source Contributions
 
-                contributors_data = fetch_repo_contributors(username, repo_name)
-                contributor_count = len(contributors_data)
+                if repo.get("fork"):
+                    # TODO:
 
-                user_contributions, total_contributions = fetch_contributions_count(
-                    username, contributors_data
-                )
+                    repo_name = repo.get("name")
 
-                project_type = (
-                    "open_source" if contributor_count > 1 else "self_project"
-                )
+                    repo_data = fetch_repo_data(username, repo_name)
+                    source_owner = (
+                        repo_data.get("source", {}).get("owner", {}).get("login", "")
+                    )
 
-                project = {
-                    "name": repo.get("name"),
-                    "description": repo.get("description"),
-                    "github_url": repo.get("html_url"),
-                    "live_url": repo.get("homepage") if repo.get("homepage") else None,
-                    "technologies": (
-                        [repo.get("language")] if repo.get("language") else []
-                    ),
-                    "project_type": project_type,
-                    "contributor_count": contributor_count,
-                    "author_commit_count": user_contributions,
-                    "total_commit_count": total_contributions,
-                    "github_details": {
-                        "stars": repo.get("stargazers_count", 0),
-                        "forks": repo.get("forks_count", 0),
-                        "language": repo.get("language"),
+                    source_repo = fetch_repo_data(source_owner, repo_name)
+
+                    contributors_data = fetch_repo_contributors(source_owner, repo_name)
+                    contributor_count = len(contributors_data)
+
+                    # from source repo
+                    PR_data = fetch_PR_data(username, source_owner, repo_name)
+                    PR_items = PR_data["items"]
+
+                    merged_pull_requests = []
+
+                    for pr in PR_items:
+                        if (
+                            pr.get("pull_request", {}).get("merged_at", None)
+                            is not None
+                        ):
+                            pull_request = {
+                                "title": pr.get("title"),
+                                "body": pr.get("body"),
+                            }
+                            merged_pull_requests.append(pull_request)
+
+                    if len(merged_pull_requests) == 0:
+                        continue
+
+                    open_source_contribution = {
+                        "name": repo_name,
+                        "source_owner": source_owner,
+                        "description": source_repo.get("description"),
+                        "github_url": source_repo.get("html_url"),
+                        "live_url": (
+                            source_repo.get("homepage")
+                            if source_repo.get("homepage")
+                            else None
+                        ),
+                        "technologies": (
+                            [source_repo.get("language")]
+                            if source_repo.get("language")
+                            else []
+                        ),
+                        "github_details": {
+                            "stars": source_repo.get("stargazers_count", 0),
+                            "forks": source_repo.get("forks_count", 0),
+                            "language": source_repo.get("language"),
+                            "description": source_repo.get("description"),
+                            "created_at": source_repo.get("created_at"),
+                            "updated_at": source_repo.get("updated_at"),
+                            "topics": source_repo.get("topics", []),
+                            "open_issues": source_repo.get("open_issues_count", 0),
+                            "size": source_repo.get("size", 0),
+                            "fork": source_repo.get("fork", False),
+                            "archived": source_repo.get("archived", False),
+                            "default_branch": source_repo.get("default_branch"),
+                            "contributors": contributor_count,
+                        },
+                        "merged_pull_requests_by_user": merged_pull_requests,
+                    }
+                    open_source_contributions.append(open_source_contribution)
+
+                else:
+                    repo_name = repo.get("name")
+
+                    contributors_data = fetch_repo_contributors(username, repo_name)
+                    contributor_count = len(contributors_data)
+
+                    user_contributions, total_contributions = fetch_contributions_count(
+                        username, contributors_data
+                    )
+
+                    project_type = (
+                        "open_source" if contributor_count > 1 else "self_project"
+                    )
+
+                    project = {
+                        "name": repo.get("name"),
                         "description": repo.get("description"),
-                        "created_at": repo.get("created_at"),
-                        "updated_at": repo.get("updated_at"),
-                        "topics": repo.get("topics", []),
-                        "open_issues": repo.get("open_issues_count", 0),
-                        "size": repo.get("size", 0),
-                        "fork": repo.get("fork", False),
-                        "archived": repo.get("archived", False),
-                        "default_branch": repo.get("default_branch"),
-                        "contributors": contributor_count,
-                    },
-                }
-                projects.append(project)
+                        "github_url": repo.get("html_url"),
+                        "live_url": (
+                            repo.get("homepage") if repo.get("homepage") else None
+                        ),
+                        "technologies": (
+                            [repo.get("language")] if repo.get("language") else []
+                        ),
+                        "project_type": project_type,
+                        "contributor_count": contributor_count,
+                        "author_commit_count": user_contributions,
+                        "total_commit_count": total_contributions,
+                        "github_details": {
+                            "stars": repo.get("stargazers_count", 0),
+                            "forks": repo.get("forks_count", 0),
+                            "language": repo.get("language"),
+                            "description": repo.get("description"),
+                            "created_at": repo.get("created_at"),
+                            "updated_at": repo.get("updated_at"),
+                            "topics": repo.get("topics", []),
+                            "open_issues": repo.get("open_issues_count", 0),
+                            "size": repo.get("size", 0),
+                            "fork": repo.get("fork", False),
+                            "archived": repo.get("archived", False),
+                            "default_branch": repo.get("default_branch"),
+                            "contributors": contributor_count,
+                        },
+                    }
+                    projects.append(project)
 
             projects.sort(key=lambda x: x["github_details"]["stars"], reverse=True)
+            open_source_contributions.sort(
+                key=lambda x: x["github_details"]["stars"], reverse=True
+            )
 
             open_source_count = sum(
                 1 for p in projects if p["project_type"] == "open_source"
@@ -230,12 +347,19 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
             self_project_count = sum(
                 1 for p in projects if p["project_type"] == "self_project"
             )
+            open_source_contribution_count = sum(
+                os.get("merged_pull_requests_by_user", 0)
+                for os in open_source_contribution_count
+            )
 
             print(f"✅ Found {len(projects)} repositories")
             print(
                 f"📊 Project classification: {open_source_count} open source, {self_project_count} self projects"
             )
-            return projects
+            print(
+                f"🌐 Found {open_source_contribution_count} contributions merged in {len(open_source_contributions)} open source projects"
+            )
+            return projects, open_source_contributions
 
         elif response.status_code == 404:
             print(f"GitHub user not found: {username}")
@@ -410,13 +534,28 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
         return {}
 
     print("🔍 Fetching all repository details...")
-    projects = fetch_all_github_repos(github_url)
+    # TODO:
+    # instead of just fetching all repo data List[Dict],
+    # fetch two different lists, another one will contain open source contri data Tuple[List[Dict]]]
+    projects, open_source_contributions = fetch_all_github_repos(github_url)
 
     if not projects:
         print("\n❌ No repositories found or failed to fetch repository details.")
 
+    if not open_source_contributions:
+        print(
+            "\n❌ No open source contributions found or failed to fetch repository details."
+        )
+
+    # TESTING
+    # with open("test_repo_data.json", "w") as f:
+    #     f.write(json.dumps(projects, indent=2, ensure_ascii=False) + "\n")
+    #     f.write(json.dumps(open_source_contributions, indent=2, ensure_ascii=False) + "\n")
+
     profile_json = generate_profile_json(github_profile)
     projects_json = generate_projects_json(projects)
+    # TODO:
+    # open_source_contributions_json = generate_open_source_contributions_json(open_source_contributions)
 
     result = {
         "profile": profile_json,
@@ -439,4 +578,4 @@ def main(github_url):
 
 
 if __name__ == "__main__":
-    main("https://github.com/PavitKaur05")
+    main("https://github.com/ppl-call-me-tima")
