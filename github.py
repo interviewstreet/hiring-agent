@@ -148,13 +148,10 @@ def fetch_repo_contributors(owner: str, repo_name: str) -> int:
 
         status_code, contributors_data = _fetch_github_api(api_url)
 
-        return contributors_data
-
         if status_code == 200:
             return len(contributors_data)
         else:
             return 1
-
     except Exception as e:
         logger.error(f"Error fetching contributors for {owner}/{repo_name}: {e}")
         return 1
