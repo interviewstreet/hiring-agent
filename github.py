@@ -233,9 +233,6 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
 
                     source_repo = fetch_repo_data(source_owner, repo_name)
 
-                    contributors_data = fetch_repo_contributors(source_owner, repo_name)
-                    contributor_count = len(contributors_data)
-
                     # from source repo
                     PR_data = fetch_PR_data(username, source_owner, repo_name)
                     PR_items = PR_data.get("items", [])
@@ -284,7 +281,6 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                             "fork": source_repo.get("fork", False),
                             "archived": source_repo.get("archived", False),
                             "default_branch": source_repo.get("default_branch"),
-                            "contributors": contributor_count,
                         },
                         "merged_pull_requests_by_user": merged_pull_requests,
                     }
@@ -683,15 +679,15 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
     #     f.write(json.dumps(open_source_contributions, indent=2, ensure_ascii=False) + "\n")
 
     profile_json = generate_profile_json(github_profile)
-    projects_json = generate_projects_json(projects)
+    # projects_json = generate_projects_json(projects)
     open_source_contributions_json = generate_open_source_contributions_json(
         open_source_contributions
     )
 
     result = {
         "profile": profile_json,
-        "projects": projects_json,
-        "total_projects": len(projects_json),
+        # "projects": projects_json,
+        # "total_projects": len(projects_json),
         "open_source_contributions": open_source_contributions_json,
         "total_contributions": len(open_source_contributions_json),
     }
