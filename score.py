@@ -212,10 +212,7 @@ def main(pdf_path):
         cached_data = json.loads(Path(cache_filename).read_text())
         resume_data = JSONResume(**cached_data)
     else:
-        logger.debug(
-            f"Extracting data from PDF"
-            + (" and caching to " + cache_filename if DEVELOPMENT_MODE else "")
-        )
+        print("📄 Processing PDF file...")
         pdf_handler = PDFHandler()
         resume_data = pdf_handler.extract_json_from_pdf(pdf_path)
 
@@ -234,10 +231,7 @@ def main(pdf_path):
         print(f"Loading cached data from {github_cache_filename}")
         github_data = json.loads(Path(github_cache_filename).read_text())
     else:
-        print(
-            f"Fetching GitHub data"
-            + (" and caching to " + github_cache_filename if DEVELOPMENT_MODE else "")
-        )
+        print("🔍 Fetching GitHub data...")
 
         # Add validation to handle None values
         profiles = []

@@ -237,11 +237,11 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
             )
             return projects
 
-        elif response.status_code == 404:
+        elif status_code == 404:
             print(f"GitHub user not found: {username}")
             return []
         else:
-            print(f"GitHub API error: {response.status_code} - {response.text}")
+            print(f"GitHub API error: {status_code}")
             return []
 
     except requests.exceptions.RequestException as e:
@@ -308,9 +308,7 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
             "github_project_selection", projects_data=projects_json
         )
 
-        print(
-            f"🤖 Using LLM to select top 5 projects from {len(projects)} repositories..."
-        )
+        print(f"🤖 Selecting top projects from {len(projects)} repositories...")
 
         # Initialize the LLM provider
         provider = initialize_llm_provider(DEFAULT_MODEL)
@@ -369,21 +367,19 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
             project_names = ", ".join(
                 [proj.get("name", "N/A") for proj in unique_projects]
             )
-            print(
-                f"✅ LLM selected {len(unique_projects)} unique top projects: {project_names}"
-            )
+            print(f"✅ Selected {len(unique_projects)} top projects: {project_names}\n")
             return unique_projects
 
         except json.JSONDecodeError as e:
             print(f"ERROR: Error parsing LLM response: {e}")
             print(f"ERROR: Raw response: {response_text}")
 
-            print("🔄 Falling back to first 7 projects")
+            print("🔄 Falling back to first 7 projects\n")
             return projects_data[:7]
 
     except Exception as e:
         print(f"Error using LLM for project selection: {e}")
-        print("🔄 Falling back to first 7 projects")
+        print("🔄 Falling back to first 7 projects\n")
 
         projects_data = []
         for project in projects[:7]:
@@ -409,11 +405,11 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
         print("\n❌ Failed to fetch GitHub profile details.")
         return {}
 
-    print("🔍 Fetching all repository details...")
+    print("🔍 Fetching repository details...")
     projects = fetch_all_github_repos(github_url)
 
     if not projects:
-        print("\n❌ No repositories found or failed to fetch repository details.")
+        print("❌ No repositories found or failed to fetch repository details.\n")
 
     profile_json = generate_profile_json(github_profile)
     projects_json = generate_projects_json(projects)
