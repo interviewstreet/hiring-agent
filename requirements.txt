@@ -7,3 +7,7 @@ Jinja2==3.1.6
 google-generativeai==0.4.0
 python-dotenv==1.0.1
 black==25.9.0
+
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.1
