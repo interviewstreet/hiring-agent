@@ -656,12 +656,13 @@ def transform_evaluation_response(
         csv_row["total_projects"] = 0
 
     # Extract GitHub data
-    if github_data:
-        csv_row["github_repos"] = github_data.get("public_repos", 0)
-        csv_row["github_followers"] = github_data.get("followers", 0)
-        csv_row["github_following"] = github_data.get("following", 0)
-        csv_row["github_created_at"] = github_data.get("created_at", "")
-        csv_row["github_bio"] = github_data.get("bio", "")
+    if github_data and "profile" in github_data:
+        profile = github_data.get("profile", {})
+        csv_row["github_repos"] = profile.get("public_repos", 0)
+        csv_row["github_followers"] = profile.get("followers", 0)
+        csv_row["github_following"] = profile.get("following", 0)
+        csv_row["github_created_at"] = profile.get("created_at", "")
+        csv_row["github_bio"] = profile.get("bio", "")
     else:
         csv_row["github_repos"] = 0
         csv_row["github_followers"] = 0
