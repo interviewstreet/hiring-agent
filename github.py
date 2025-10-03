@@ -485,80 +485,6 @@ def _get_pr_summary(pr_details: Dict) -> Dict:
     }
 
 
-def _fallback_project_selection(projects_data: List[Dict]) -> List[Dict]:    
-    if not projects_data:
-        print("No projects data available for fallback selection")
-        return []
-    
-    def get_priority_score(project):
-        if not project or not isinstance(project, dict):
-            return 0
-            
-        score = 0
-        
-        if project.get('contribution_type') == 'pull_request':
-            score += 1000
-
-            opensource_program = project.get('opensource_program') or {}
-            if opensource_program.get('detected'):
-                score += 500
-
-            github_details = project.get('github_details') or {}
-            target_stars = github_details.get('stars', 0) if github_details else 0
-            score += min(target_stars, 1000) 
-        
-
-        elif project.get('project_type') == 'open_source':
-            score += 500
-
-            opensource_program = project.get('opensource_program') or {}
-            if opensource_program.get('detected'):
-                score += 200
-            
-            github_details = project.get('github_details') or {}
-            stars = github_details.get('stars', 0) if github_details else 0
-            score += min(stars, 500)  
-        
-        else:
-            github_details = project.get('github_details') or {}
-            stars = github_details.get('stars', 0) if github_details else 0
-            score += min(stars, 100)  # Cap at 100
-        
-        if project.get('contribution_type') == 'owned_repository':
-            commits = project.get('author_commit_count', 0)
-            if commits >= 15:
-                score += 100
-            elif commits >= 5:
-                score += 50
-        
-        return score
-    
-    valid_projects = [p for p in projects_data if p and isinstance(p, dict)]
-    
-    if not valid_projects:
-        print("No valid projects found for selection")
-        return []
-    
-    sorted_projects = sorted(valid_projects, key=get_priority_score, reverse=True)
-    
-    selected = []
-    seen_names = set()
-    
-    for project in sorted_projects:
-        if len(selected) >= 7:
-            break
-        
-        name = project.get('name', '')
-        if name and name not in seen_names:
-            selected.append(project)
-            seen_names.add(name)
-    
-    project_names = [p.get('name', 'N/A') for p in selected]
-    print(f"Algorithmically selected {len(selected)} projects: {', '.join(project_names)}")
-    
-    return selected
-
-
 def generate_profile_json(profile: GitHubProfile) -> Dict:
     if not profile:
         return {}
@@ -660,7 +586,7 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
         except Exception as llm_error:
             print(f"LLM call failed: {llm_error}")
             print("Falling back to algorithmic selection")
-            return _fallback_project_selection(projects_data)
+            return []
 
         response_text = response["message"]["content"]
 
