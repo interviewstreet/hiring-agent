@@ -180,6 +180,12 @@ def _evaluate_resume(
         blog_text = convert_blog_data_to_text(blog_data)
         resume_text += blog_text
 
+    # TESTING:
+    with open("resume_text.txt", "w") as f:
+        f.write(resume_text)
+    
+    return None
+
     # Evaluate the enhanced resume
     evaluation_result = evaluator.evaluate_resume(resume_text)
 

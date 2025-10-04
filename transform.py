@@ -918,6 +918,29 @@ def convert_github_data_to_text(github_data: dict) -> str:
                 github_text += f"   Language: {details.get('language', 'N/A')}\n"
             github_text += "\n"
 
+    if "open_source_contributions" in github_data:
+        open_source_contributions = github_data["open_source_contributions"]
+        github_text += (
+            f"\nOpen Source Contributions ({len(open_source_contributions)} orgs total):\n"
+        )
+        for i, repo in enumerate(open_source_contributions[:10], 1):
+            github_text += f"{i}. {repo.get('name', 'N/A')}\n"
+            github_text += f"   Description: {repo.get('description', 'N/A')}\n"
+            github_text += f"   URL: {repo.get('github_url', 'N/A')}\n"
+            if "github_details" in repo:
+                details = repo["github_details"]
+                github_text += f"   Stars: {details.get('stars', 'N/A')}\n"
+                github_text += f"   Forks: {details.get('forks', 'N/A')}\n"
+                github_text += f"   Language: {details.get('language', 'N/A')}\n"
+            if "merged_pull_requests_by_user" in repo:
+                merged_pull_requests = repo["merged_pull_requests_by_user"]
+                github_text += f"       Merged Pull Requests ({len(merged_pull_requests)}):\n"
+                for i, pr in enumerate(merged_pull_requests[:10], 1):
+                    github_text += f"       {i}. Title: {pr.get('title', 'N/A')}\n"
+                    github_text += f"          Summary: {pr.get('pr_summary', 'N/A')}\n"
+                github_text += "\n"
+            github_text += "\n"
+
     return github_text
 
 
