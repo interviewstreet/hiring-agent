@@ -3,6 +3,7 @@ import sys
 import json
 import time
 import logging
+import mimetypes
 import pymupdf
 
 from models import (
@@ -45,11 +46,45 @@ class PDFHandler:
         """Initialize the appropriate LLM provider based on the model."""
         self.provider = initialize_llm_provider(DEFAULT_MODEL)
 
+    def _validate_pdf_file(self, pdf_path: str) -> None:
+        """
+        Validate that the file is a valid PDF before processing.
+        
+        Args:
+            pdf_path: Path to the PDF file
+            
+        Raises:
+            FileNotFoundError: If file doesn't exist
+            ValueError: If file validation fails
+        """
+        # Check if file exists
+        if not os.path.exists(pdf_path):
+            raise FileNotFoundError(f"PDF file not found: {pdf_path}")
+        
+        # Validate file extension
+        if not pdf_path.lower().endswith('.pdf'):
+            raise ValueError(f"File must be a PDF: {pdf_path}")
+        
+        # Check file size (max 50MB)
+        file_size = os.path.getsize(pdf_path)
+        max_size = 50 * 1024 * 1024  # 50MB
+        if file_size > max_size:
+            raise ValueError(f"PDF file too large: {file_size / (1024*1024):.1f}MB (max: 50MB)")
+        
+        # Validate MIME type
+        mime_type, _ = mimetypes.guess_type(pdf_path)
+        if mime_type != 'application/pdf':
+            raise ValueError(f"File is not a valid PDF: {pdf_path}")
+        
+        # Check if file is empty
+        if file_size == 0:
+            raise ValueError(f"PDF file is empty: {pdf_path}")
+
     def extract_text_from_pdf(self, pdf_path: str) -> Optional[str]:
         try:
-            if not os.path.exists(pdf_path):
-                raise FileNotFoundError(f"PDF file not found: {pdf_path}")
-
+            # Validate PDF file before processing
+            self._validate_pdf_file(pdf_path)
+            
             doc = pymupdf.open(pdf_path)
             pages = range(doc.page_count)
             resume_text = to_markdown(
@@ -60,7 +95,12 @@ class PDFHandler:
                 f"Extracted text from PDF: {len(resume_text) if resume_text else 0} characters"
             )
             return resume_text
+        except (FileNotFoundError, ValueError) as e:
+            # Handle validation errors with specific messages
+            logger.error(f"PDF validation error: {e}")
+            return None
         except Exception as e:
+            # Handle PyMuPDF and other processing errors
             logger.error(f"An error occurred while reading the PDF: {e}")
             return None
 
