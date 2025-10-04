@@ -530,16 +530,16 @@ def generate_open_source_contributions_json(
 
     try:
         open_source_contributions_data = []
-        for contri in open_source_contributions:
+        for repo in open_source_contributions:
 
             open_source_contribution_data = {
-                "name": contri.get("name"),
-                "description": contri.get("description"),
-                "github_url": contri.get("github_url"),
-                "live_url": contri.get("live_url"),
-                "technologies": contri.get("technologies", []),
-                "contributor_count": contri.get("contributor_count", 1),
-                "github_details": contri.get("github_details", {}),
+                "name": repo.get("name"),
+                "description": repo.get("description"),
+                "github_url": repo.get("github_url"),
+                "live_url": repo.get("live_url"),
+                "technologies": repo.get("technologies", []),
+                "merged_pull_requests_by_user": repo.get("merged_pull_requests_by_user"),
+                "github_details": repo.get("github_details", {}),
             }
             open_source_contributions_data.append(open_source_contribution_data)
 
@@ -550,8 +550,14 @@ def generate_open_source_contributions_json(
         template_manager = TemplateManager()
         prompt = template_manager.render_template(
             "github_open_source_contribution_selection",
-            open_source_contributions_data=open_source_contributions_data,
+            open_source_contributions_data=open_source_contributions_json,
         )
+
+        # TESTING
+        with open("test_llm_prompt.jinja", "w") as f:
+            f.write(prompt)
+
+        return []
 
         print(
             f"🤖 Using LLM to select top 5 contributions from {len(open_source_contributions)} repositories..."
@@ -592,11 +598,11 @@ def generate_open_source_contributions_json(
             unique_open_source_contributions = []
             seen_names = set()
 
-            for contri in selected_open_source_contributions:
-                contri_name = contri.get("name", "")
-                if contri_name and contri_name not in seen_names:
-                    unique_open_source_contributions.append(contri)
-                    seen_names.add(contri_name)
+            for repo in selected_open_source_contributions:
+                repo_name = repo.get("name", "")
+                if repo_name and repo_name not in seen_names:
+                    unique_open_source_contributions.append(repo)
+                    seen_names.add(repo_name)
 
             if len(unique_open_source_contributions) < 7:
                 print(
@@ -638,14 +644,14 @@ def generate_open_source_contributions_json(
         print("🔄 Falling back to first 7 projects")
 
         open_source_contributions_data = []
-        for contri in open_source_contributions[:7]:
+        for repo in open_source_contributions[:7]:
             open_source_contribution_data = {
-                "name": contri.get("name"),
-                "description": contri.get("description"),
-                "github_url": contri.get("github_url"),
-                "live_url": contri.get("live_url"),
-                "technologies": contri.get("technologies", []),
-                "github_details": contri.get("github_details", {}),
+                "name": repo.get("name"),
+                "description": repo.get("description"),
+                "github_url": repo.get("github_url"),
+                "live_url": repo.get("live_url"),
+                "technologies": repo.get("technologies", []),
+                "github_details": repo.get("github_details", {}),
             }
             open_source_contributions_data.append(open_source_contribution_data)
 
