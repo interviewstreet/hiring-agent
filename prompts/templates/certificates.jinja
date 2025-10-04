@@ -1,0 +1,23 @@
+{% raw %}
+## Certificates Extraction
+
+Extract the certificate section from the resume.
+
+Instructions:
+- List all certificates, online courses, training programs, and relevant credentials.
+- For each certificate, include:
+  - Certificate name
+  - Issuing organization
+  - Date obtained (if mentioned)
+  - Description or relevance (if present)
+- Output as a JSON array of objects:
+  [
+    {
+      "name": "Certificate Name",
+      "issuer": "Issuing Organization",
+      "date": "YYYY-MM-DD or Month Year",
+      "description": "Brief description or relevance"
+    },
+    ...
+  ]
+{% endraw %}

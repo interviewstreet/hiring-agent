@@ -34,7 +34,6 @@ from transform import transform_parsed_data
 
 logger = logging.getLogger(__name__)
 
-
 class PDFHandler:
 
     def __init__(self):
@@ -42,7 +41,6 @@ class PDFHandler:
         self._initialize_llm_provider()
 
     def _initialize_llm_provider(self):
-        """Initialize the appropriate LLM provider based on the model."""
         self.provider = initialize_llm_provider(DEFAULT_MODEL)
 
     def extract_text_from_pdf(self, pdf_path: str) -> Optional[str]:
@@ -52,10 +50,7 @@ class PDFHandler:
 
             doc = pymupdf.open(pdf_path)
             pages = range(doc.page_count)
-            resume_text = to_markdown(
-                doc,
-                pages=pages,
-            )
+            resume_text = to_markdown(doc, pages=pages)
             logger.debug(
                 f"Extracted text from PDF: {len(resume_text) if resume_text else 0} characters"
             )
@@ -103,9 +98,7 @@ class PDFHandler:
             if return_model:
                 kwargs["format"] = return_model.model_json_schema()
 
-            # Use the appropriate provider to make the API call
             response = self.provider.chat(**chat_params, **kwargs)
-
             response_text = response["message"]["content"]
 
             try:
@@ -190,6 +183,28 @@ class PDFHandler:
             return None
         return self._call_llm_for_section("awards", resume_text, prompt, AwardsSection)
 
+    
+    def extract_certificates_section(self, resume_text: str) -> Optional[Dict]:
+        prompt = self.template_manager.render_template(
+            "certificates", text_content=resume_text
+        )
+        if not prompt:
+            logger.error("❌ Failed to render certificates template")
+            return None
+        
+        return self._call_llm_for_section("certificates", resume_text, prompt)
+
+    
+    def extract_volunteer_experience_section(self, resume_text: str) -> Optional[Dict]:
+        prompt = self.template_manager.render_template(
+            "volunteer_experience", text_content=resume_text
+        )
+        if not prompt:
+            logger.error("❌ Failed to render volunteer_experience template")
+            return None
+        
+        return self._call_llm_for_section("volunteer_experience", resume_text, prompt)
+
     def extract_json_from_text(self, resume_text: str) -> Optional[JSONResume]:
         try:
             return self._extract_all_sections_separately(resume_text)
@@ -220,6 +235,7 @@ class PDFHandler:
     def _extract_section_data(
         self, text_content: str, section_name: str, return_model=None
     ) -> Optional[Dict]:
+        
         section_extractors = {
             "basics": self.extract_basics_section,
             "work": self.extract_work_section,
@@ -227,6 +243,8 @@ class PDFHandler:
             "skills": self.extract_skills_section,
             "projects": self.extract_projects_section,
             "awards": self.extract_awards_section,
+            "certificates": self.extract_certificates_section,
+            "volunteer_experience": self.extract_volunteer_experience_section,
         }
 
         if section_name not in section_extractors:
@@ -269,7 +287,17 @@ class PDFHandler:
     ) -> Optional[JSONResume]:
         start_time = time.time()
 
-        sections = ["basics", "work", "education", "skills", "projects", "awards"]
+       
+        sections = [
+            "basics",
+            "work",
+            "education",
+            "skills",
+            "projects",
+            "awards",
+            "certificates",
+            "volunteer_experience",
+        ]
 
         complete_resume = {
             "basics": None,
