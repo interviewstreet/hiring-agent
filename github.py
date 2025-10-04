@@ -224,6 +224,9 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> Tuple[List[
 
                     source_repo = fetch_repo_data(source_owner, repo_name)
 
+                    if source_repo.get("forks_count", 0) < 5:
+                        continue
+
                     # from source repo
                     PR_data = fetch_PR_data(username, source_owner, repo_name)
                     PR_items = PR_data.get("items", [])
