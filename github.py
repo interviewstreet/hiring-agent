@@ -237,11 +237,11 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
             )
             return projects
 
-        elif response.status_code == 404:
+        elif status_code == 404:
             print(f"GitHub user not found: {username}")
             return []
         else:
-            print(f"GitHub API error: {response.status_code} - {response.text}")
+            print(f"GitHub API error: {status_code} - {data}")
             return []
 
     except requests.exceptions.RequestException as e:
@@ -341,6 +341,11 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
         try:
             response_text = response_text.strip()
             response_text = extract_json_from_response(response_text)
+            
+            if response_text is None:
+                print("❌ Failed to extract valid JSON from LLM response")
+                print("🔄 Falling back to first 7 projects")
+                return projects_data[:7]
 
             selected_projects = json.loads(response_text)
 
