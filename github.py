@@ -182,10 +182,17 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                 repo_name = repo.get("name")
 
                 contributors_data = fetch_repo_contributors(username, repo_name)
-                contributor_count = len(contributors_data)
+
+                real_contributors = [
+                    c for c in contributors_data
+                    if not c.get("type", "").lower() == "bot"
+                       and not c.get("login", "").endswith("[bot]")
+                ]
+
+                contributor_count = len(real_contributors)
 
                 user_contributions, total_contributions = fetch_contributions_count(
-                    username, contributors_data
+                    username, real_contributors
                 )
 
                 project_type = (
