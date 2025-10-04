@@ -538,8 +538,8 @@ def generate_open_source_contributions_json(
                 "github_url": repo.get("github_url"),
                 "live_url": repo.get("live_url"),
                 "technologies": repo.get("technologies", []),
-                "merged_pull_requests_by_user": repo.get("merged_pull_requests_by_user"),
                 "github_details": repo.get("github_details", {}),
+                "merged_pull_requests_by_user": repo.get("merged_pull_requests_by_user"),
             }
             open_source_contributions_data.append(open_source_contribution_data)
 
@@ -554,10 +554,8 @@ def generate_open_source_contributions_json(
         )
 
         # TESTING
-        with open("test_llm_prompt.jinja", "w") as f:
-            f.write(prompt)
-
-        return []
+        # with open("test_llm_prompt.jinja", "w") as f:
+        #     f.write(prompt)
 
         print(
             f"🤖 Using LLM to select top 5 contributions from {len(open_source_contributions)} repositories..."
