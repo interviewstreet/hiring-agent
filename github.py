@@ -214,13 +214,6 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> Tuple[List[
             open_source_contributions = []
 
             for repo in repos_data:
-                # TODO:
-                # Contributions to Open Source aren't counted due to the below condition:
-                # if (repo.get("fork") and repo.get("forks_count") < 5): continue
-
-                # They have forked: true, but still the new owner (user) might have 0 forks_count of that already forked repo
-                # Generate a way to also count Open Source Contributions
-
                 if repo.get("fork"):
                     repo_name = repo.get("name")
 
@@ -555,10 +548,6 @@ def generate_open_source_contributions_json(
             open_source_contributions_data=open_source_contributions_json,
         )
 
-        # TESTING
-        # with open("test_llm_prompt.jinja", "w") as f:
-        #     f.write(prompt)
-
         print(
             f"🤖 Using LLM to select top 5 contributions from {len(open_source_contributions)} repositories..."
         )
@@ -666,11 +655,6 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
         return {}
 
     print("🔍 Fetching all repository details...")
-    # TODO:
-    # instead of just fetching all repo data List[Dict],
-    # fetch two different lists, another one will contain open source contri data Tuple[List[Dict]]]
-    # TODO:
-    # change return type of fetch_all_gh_repos from List[Dict] to Tuple[List[Dict]] and handle error cases
     projects, open_source_contributions = fetch_all_github_repos(github_url)
 
     if not projects:
@@ -680,11 +664,6 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
         print(
             "\n❌ No open source contributions found or failed to fetch repository details."
         )
-
-    # TESTING
-    # with open("test_repo_data.json", "w") as f:
-    #     f.write(json.dumps(projects, indent=2, ensure_ascii=False) + "\n")
-    #     f.write(json.dumps(open_source_contributions, indent=2, ensure_ascii=False) + "\n")
 
     profile_json = generate_profile_json(github_profile)
     projects_json = generate_projects_json(projects)
@@ -715,10 +694,6 @@ def main(github_url):
     print("=" * 60)
     print(json.dumps(result, indent=2, ensure_ascii=False))
     print("=" * 60)
-
-    # TESTING:
-    # with open("test_final_response.json", "w") as f:
-    #     f.write(json.dumps(result, indent=2, ensure_ascii=False))
 
     return result
 

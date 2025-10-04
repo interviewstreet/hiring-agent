@@ -224,8 +224,3 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-
-# TESTING
-test_final_response.json
-test_llm_prompt.jinja
-resume_text.txt
