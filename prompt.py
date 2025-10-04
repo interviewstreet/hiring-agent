@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from models import ModelProvider
 
 # Load environment variables
-load_dotenv()
+load_dotenv(override=True)
 
 # Constants
 DEFAULT_MODEL_NAME = "gemma3:4b"
@@ -39,25 +39,23 @@ MODEL_PARAMETERS = {
     "gemini-2.5-pro": {"temperature": 0.1, "top_p": 0.9},
     "gemini-2.5-flash": {"temperature": 0.1, "top_p": 0.9},
     "gemini-2.5-flash-lite": {"temperature": 0.1, "top_p": 0.9},
+    # Groq Models
+    "openai/gpt-oss-20b": {"temperature": 0.1, "top_p": 0.9},
+    "openai/gpt-oss-120b": {"temperature": 0.1, "top_p": 0.9},
+    "llama-3.3-70b-versatile": {"temperature": 0.1, "top_p": 0.9},
 }
 
 # Model provider mapping
 # Maps model names to their provider
 MODEL_PROVIDER_MAPPING = {
     # Ollama models
-    "qwen3:1.7b": ModelProvider.OLLAMA,
-    "gemma3:1b": ModelProvider.OLLAMA,
-    "qwen3:4b": ModelProvider.OLLAMA,
-    "gemma3:4b": ModelProvider.OLLAMA,
-    "gemma3:12b": ModelProvider.OLLAMA,
-    "mistral:7b": ModelProvider.OLLAMA,
+    "ollama": ModelProvider.OLLAMA,
     # Google Gemini models
-    "gemini-2.0-flash": ModelProvider.GEMINI,
-    "gemini-2.0-flash-lite": ModelProvider.GEMINI,
-    "gemini-2.5-flash": ModelProvider.GEMINI,
-    "gemini-2.5-flash-lite": ModelProvider.GEMINI,
-    "gemini-2.5-pro": ModelProvider.GEMINI,
+    "gemini": ModelProvider.GEMINI,
+    # Groq models
+    "groq": ModelProvider.GROQ,
 }
 
 # Get API keys from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")

@@ -1,6 +1,7 @@
 from typing import List, Optional, Dict, Tuple, Any, Protocol, runtime_checkable
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum
+import time
 
 
 class ModelProvider(Enum):
@@ -8,6 +9,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    GROQ = "groq"
 
 
 @runtime_checkable
@@ -19,7 +21,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -281,7 +283,7 @@ class OllamaProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
 
@@ -313,18 +315,20 @@ class OllamaProvider:
 class GeminiProvider:
     """Google Gemini API provider implementation."""
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, min_delay: float = 0.1):
         import google.generativeai as genai
 
         genai.configure(api_key=api_key)
         self.client = genai
+        self._last_call_time = 0.0
+        self.min_delay = min_delay  # Minimum delay between API calls in seconds
 
     def chat(
         self,
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Google Gemini API."""
         # Map options to Gemini parameters
@@ -347,7 +351,57 @@ class GeminiProvider:
             gemini_messages.append({"role": role, "parts": [msg["content"]]})
 
         # Send the chat request
+        now = time.time()
+        elapsed = now - self._last_call_time
+        if elapsed < self.min_delay:
+            time.sleep(self.min_delay - elapsed)
+        self._last_call_time = time.time()
         response = gemini_model.generate_content(gemini_messages)
 
         # Convert Gemini response to Ollama-like format for compatibility
         return {"message": {"role": "assistant", "content": response.text}}
+
+
+class GroqProvider:
+    """Groq API provider implementation using official SDK."""
+
+    def __init__(self, api_key: str, min_delay: float = 0.1):
+        from groq import Groq
+
+        self.client = Groq(api_key=api_key)
+        self._last_call_time = 0.0
+        self.min_delay = min_delay  # Minimum delay between API calls in seconds
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Send a chat request to Groq API."""
+        completion_args = {
+            "model": model,  # Example: "llama3-8b-8192"
+            "messages": messages,
+        }
+
+        # Map optional parameters
+        if options:
+            if "temperature" in options:
+                completion_args["temperature"] = options["temperature"]
+            if "top_p" in options:
+                completion_args["top_p"] = options["top_p"]
+
+        # Call Groq API
+        now = time.time()
+        elapsed = now - self._last_call_time
+        if elapsed < self.min_delay:
+            time.sleep(self.min_delay - elapsed)
+        self._last_call_time = time.time()
+        response = self.client.chat.completions.create(**completion_args)
+
+        # Extract response text
+        content = response.choices[0].message.content
+
+        # Return in Ollama-like format
+        return {"message": {"role": "assistant", "content": content}}
