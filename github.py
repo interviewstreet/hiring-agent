@@ -1,15 +1,17 @@
+import json
 import os
 import re
-import json
 import requests
-from pathlib import Path
 
-from typing import Dict, List, Optional, Any
-from models import GitHubProfile
-from pdf import logger
-from prompts.template_manager import TemplateManager
-from prompt import DEFAULT_MODEL, MODEL_PARAMETERS
 from llm_utils import initialize_llm_provider, extract_json_from_response
+from pathlib import Path
+from pdf import logger
+from typing import Dict, List, Optional, Any
+
+from models import GitHubProfile
+from prompts.template_manager import TemplateManager
+
+from prompt import DEFAULT_MODEL, MODEL_PARAMETERS
 from config import DEVELOPMENT_MODE
 
 

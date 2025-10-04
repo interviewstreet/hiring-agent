@@ -1,22 +1,25 @@
-import os
-import sys
+import csv
 import json
 import logging
-import csv
-from pdf import PDFHandler
-from github import fetch_and_display_github_info
-from models import JSONResume, EvaluationData
-from typing import List, Optional, Dict
-from evaluator import ResumeEvaluator
+import os
+import sys
+from typing import Dict, List, Optional
+
 from pathlib import Path
-from prompt import DEFAULT_MODEL, MODEL_PARAMETERS
+
+from evaluator import ResumeEvaluator
+from github import fetch_and_display_github_info
+from models import EvaluationData, JSONResume
+from pdf import PDFHandler
 from transform import (
-    transform_evaluation_response,
-    convert_json_resume_to_text,
-    convert_github_data_to_text,
     convert_blog_data_to_text,
+    convert_github_data_to_text,
+    convert_json_resume_to_text,
+    transform_evaluation_response,
 )
+
 from config import DEVELOPMENT_MODE
+from prompt import DEFAULT_MODEL, MODEL_PARAMETERS
 
 logger = logging.getLogger(__name__)
 
