@@ -222,8 +222,6 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                 # Generate a way to also count Open Source Contributions
 
                 if repo.get("fork"):
-                    # TODO:
-
                     repo_name = repo.get("name")
 
                     repo_data = fetch_repo_data(username, repo_name)
@@ -344,11 +342,11 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                 1 for p in projects if p["project_type"] == "self_project"
             )
             open_source_contribution_count = sum(
-                len(os.get("merged_pull_requests_by_user", []))
-                for os in open_source_contributions
+                len(repo.get("merged_pull_requests_by_user", []))
+                for repo in open_source_contributions
             )
 
-            print(f"✅ Found {len(projects)} repositories")
+            print(f"✅ Found {len(projects) + len(open_source_contributions)} repositories")
             print(
                 f"📊 Project classification: {open_source_count} open source, {self_project_count} self projects"
             )
@@ -669,6 +667,8 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
     # TODO:
     # instead of just fetching all repo data List[Dict],
     # fetch two different lists, another one will contain open source contri data Tuple[List[Dict]]]
+    # TODO:
+    # change return type of fetch_all_gh_repos from List[Dict] to Tuple[List[Dict]] and handle error cases
     projects, open_source_contributions = fetch_all_github_repos(github_url)
 
     if not projects:
@@ -685,7 +685,7 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
     #     f.write(json.dumps(open_source_contributions, indent=2, ensure_ascii=False) + "\n")
 
     profile_json = generate_profile_json(github_profile)
-    # projects_json = generate_projects_json(projects)
+    projects_json = generate_projects_json(projects)
     open_source_contributions_json = generate_open_source_contributions_json(
         open_source_contributions
     )
@@ -697,8 +697,8 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
 
     result = {
         "profile": profile_json,
-        # "projects": projects_json,
-        # "total_projects": len(projects_json),
+        "projects": projects_json,
+        "total_projects": len(projects_json),
         "open_source_contributions": open_source_contributions_json,
         "total_contributions": total_contributions,
     }
