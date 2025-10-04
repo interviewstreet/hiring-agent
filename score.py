@@ -179,7 +179,7 @@ def _evaluate_resume(
     if blog_data:
         blog_text = convert_blog_data_to_text(blog_data)
         resume_text += blog_text
-
+    
     # Evaluate the enhanced resume
     evaluation_result = evaluator.evaluate_resume(resume_text)
 

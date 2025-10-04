@@ -43,6 +43,7 @@ class TemplateManager:
             "awards": "awards.jinja",
             "system_message": "system_message.jinja",
             "github_project_selection": "github_project_selection.jinja",
+            "github_open_source_contribution_selection": "github_open_source_contribution_selection.jinja",
             "resume_evaluation_criteria": "resume_evaluation_criteria.jinja",
             "resume_evaluation_system_message": "resume_evaluation_system_message.jinja",
         }

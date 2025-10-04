@@ -4,7 +4,7 @@ import json
 import requests
 from pathlib import Path
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Tuple, Any
 from models import GitHubProfile
 from pdf import logger
 from prompts.template_manager import TemplateManager
@@ -160,12 +160,48 @@ def fetch_repo_contributors(owner: str, repo_name: str) -> int:
         return 1
 
 
-def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
+def fetch_repo_data(onwer: str, repo_name: str) -> Dict:
+    try:
+        api_url = f"https://api.github.com/repos/{onwer}/{repo_name}"
+
+        status_code, repo_data = _fetch_github_api(api_url)
+
+        if status_code == 200:
+            return repo_data
+        else:
+            return {}
+
+    except Exception as e:
+        logger.error(
+            f"Error fetching repo data while checking for open source contribution for {onwer}/{repo_name}"
+        )
+        return {}
+
+
+def fetch_PR_data(owner: str, source_owner: str, repo_name: str) -> Dict:
+    try:
+        api_url = f"https://api.github.com/search/issues?q=is:pr+is:closed+author:{owner}+repo:{source_owner}/{repo_name}"
+
+        status_code, repo_data = _fetch_github_api(api_url)
+
+        if status_code == 200:
+            return repo_data
+        else:
+            return {}
+
+    except Exception as e:
+        logger.error(
+            f"Error fetching PR data while checking for open source contribution for {source_owner}/{repo_name} made by {owner}"
+        )
+        return {}
+
+
+def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> Tuple[List[Dict]]:
     try:
         username = extract_github_username(github_url)
         if not username:
             print(f"Could not extract username from: {github_url}")
-            return []
+            return ([], [])
 
         api_url = f"https://api.github.com/users/{username}/repos"
 
@@ -175,54 +211,125 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
 
         if status_code == 200:
             projects = []
+            open_source_contributions = []
+
             for repo in repos_data:
-                if repo.get("fork") and repo.get("forks_count", 0) < 5:
-                    continue
+                if repo.get("fork"):
+                    repo_name = repo.get("name")
 
-                repo_name = repo.get("name")
+                    repo_data = fetch_repo_data(username, repo_name)
+                    source_owner = (
+                        repo_data.get("source", {}).get("owner", {}).get("login", "")
+                    )
 
-                contributors_data = fetch_repo_contributors(username, repo_name)
-                contributor_count = len(contributors_data)
+                    source_repo = fetch_repo_data(source_owner, repo_name)
 
-                user_contributions, total_contributions = fetch_contributions_count(
-                    username, contributors_data
-                )
+                    if source_repo.get("forks_count", 0) < 5:
+                        continue
 
-                project_type = (
-                    "open_source" if contributor_count > 1 else "self_project"
-                )
+                    # from source repo
+                    PR_data = fetch_PR_data(username, source_owner, repo_name)
+                    PR_items = PR_data.get("items", [])
 
-                project = {
-                    "name": repo.get("name"),
-                    "description": repo.get("description"),
-                    "github_url": repo.get("html_url"),
-                    "live_url": repo.get("homepage") if repo.get("homepage") else None,
-                    "technologies": (
-                        [repo.get("language")] if repo.get("language") else []
-                    ),
-                    "project_type": project_type,
-                    "contributor_count": contributor_count,
-                    "author_commit_count": user_contributions,
-                    "total_commit_count": total_contributions,
-                    "github_details": {
-                        "stars": repo.get("stargazers_count", 0),
-                        "forks": repo.get("forks_count", 0),
-                        "language": repo.get("language"),
+                    merged_pull_requests = []
+
+                    for pr in PR_items:
+                        if (
+                            pr.get("pull_request", {}).get("merged_at", None)
+                            is not None
+                        ):
+                            pull_request = {
+                                "title": pr.get("title"),
+                                "body": pr.get("body"),
+                            }
+                            merged_pull_requests.append(pull_request)
+
+                    if len(merged_pull_requests) == 0:
+                        continue
+
+                    open_source_contribution = {
+                        "name": repo_name,
+                        "source_owner": source_owner,
+                        "description": source_repo.get("description"),
+                        "github_url": source_repo.get("html_url"),
+                        "live_url": (
+                            source_repo.get("homepage")
+                            if source_repo.get("homepage")
+                            else None
+                        ),
+                        "technologies": (
+                            [source_repo.get("language")]
+                            if source_repo.get("language")
+                            else []
+                        ),
+                        "github_details": {
+                            "stars": source_repo.get("stargazers_count", 0),
+                            "forks": source_repo.get("forks_count", 0),
+                            "language": source_repo.get("language"),
+                            "description": source_repo.get("description"),
+                            "created_at": source_repo.get("created_at"),
+                            "updated_at": source_repo.get("updated_at"),
+                            "topics": source_repo.get("topics", []),
+                            "open_issues": source_repo.get("open_issues_count", 0),
+                            "size": source_repo.get("size", 0),
+                            "fork": source_repo.get("fork", False),
+                            "archived": source_repo.get("archived", False),
+                            "default_branch": source_repo.get("default_branch"),
+                        },
+                        "merged_pull_requests_by_user": merged_pull_requests,
+                    }
+                    open_source_contributions.append(open_source_contribution)
+
+                else:
+                    repo_name = repo.get("name")
+
+                    contributors_data = fetch_repo_contributors(username, repo_name)
+                    contributor_count = len(contributors_data)
+
+                    user_contributions, total_contributions = fetch_contributions_count(
+                        username, contributors_data
+                    )
+
+                    project_type = (
+                        "open_source" if contributor_count > 1 else "self_project"
+                    )
+
+                    project = {
+                        "name": repo.get("name"),
                         "description": repo.get("description"),
-                        "created_at": repo.get("created_at"),
-                        "updated_at": repo.get("updated_at"),
-                        "topics": repo.get("topics", []),
-                        "open_issues": repo.get("open_issues_count", 0),
-                        "size": repo.get("size", 0),
-                        "fork": repo.get("fork", False),
-                        "archived": repo.get("archived", False),
-                        "default_branch": repo.get("default_branch"),
-                        "contributors": contributor_count,
-                    },
-                }
-                projects.append(project)
+                        "github_url": repo.get("html_url"),
+                        "live_url": (
+                            repo.get("homepage") if repo.get("homepage") else None
+                        ),
+                        "technologies": (
+                            [repo.get("language")] if repo.get("language") else []
+                        ),
+                        "project_type": project_type,
+                        "contributor_count": contributor_count,
+                        "author_commit_count": user_contributions,
+                        "total_commit_count": total_contributions,
+                        "github_details": {
+                            "stars": repo.get("stargazers_count", 0),
+                            "forks": repo.get("forks_count", 0),
+                            "language": repo.get("language"),
+                            "description": repo.get("description"),
+                            "created_at": repo.get("created_at"),
+                            "updated_at": repo.get("updated_at"),
+                            "topics": repo.get("topics", []),
+                            "open_issues": repo.get("open_issues_count", 0),
+                            "size": repo.get("size", 0),
+                            "fork": repo.get("fork", False),
+                            "archived": repo.get("archived", False),
+                            "default_branch": repo.get("default_branch"),
+                            "contributors": contributor_count,
+                        },
+                    }
+                    projects.append(project)
 
             projects.sort(key=lambda x: x["github_details"]["stars"], reverse=True)
+            open_source_contributions.sort(
+                key=lambda x: x["github_details"]["stars"], reverse=True
+            )
 
             open_source_count = sum(
                 1 for p in projects if p["project_type"] == "open_source"
@@ -230,26 +337,35 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
             self_project_count = sum(
                 1 for p in projects if p["project_type"] == "self_project"
             )
+            open_source_contribution_count = sum(
+                len(repo.get("merged_pull_requests_by_user", []))
+                for repo in open_source_contributions
+            )
 
-            print(f"✅ Found {len(projects)} repositories")
+            print(
+                f"✅ Found {len(projects) + len(open_source_contributions)} repositories"
+            )
             print(
                 f"📊 Project classification: {open_source_count} open source, {self_project_count} self projects"
             )
-            return projects
+            print(
+                f"🌐 Found {open_source_contribution_count} contributions merged in {len(open_source_contributions)} open source projects"
+            )
+            return projects, open_source_contributions
 
         elif response.status_code == 404:
             print(f"GitHub user not found: {username}")
-            return []
+            return ([], [])
         else:
             print(f"GitHub API error: {response.status_code} - {response.text}")
-            return []
+            return ([], [])
 
     except requests.exceptions.RequestException as e:
         print(f"Error fetching GitHub repositories: {e}")
-        return []
+        return ([], [])
     except Exception as e:
         print(f"Unexpected error fetching GitHub repositories: {e}")
-        return []
+        return ([], [])
 
 
 def generate_profile_json(profile: GitHubProfile) -> Dict:
@@ -402,6 +518,138 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
         return projects_data
 
 
+def generate_open_source_contributions_json(
+    open_source_contributions: List[Dict],
+) -> List[Dict]:
+    if not open_source_contributions:
+        return []
+
+    try:
+        open_source_contributions_data = []
+        for repo in open_source_contributions:
+
+            open_source_contribution_data = {
+                "name": repo.get("name"),
+                "description": repo.get("description"),
+                "github_url": repo.get("github_url"),
+                "live_url": repo.get("live_url"),
+                "technologies": repo.get("technologies", []),
+                "github_details": repo.get("github_details", {}),
+                "merged_pull_requests_by_user": repo.get(
+                    "merged_pull_requests_by_user"
+                ),
+            }
+            open_source_contributions_data.append(open_source_contribution_data)
+
+        open_source_contributions_json = json.dumps(
+            open_source_contributions_data, indent=2
+        )
+
+        template_manager = TemplateManager()
+        prompt = template_manager.render_template(
+            "github_open_source_contribution_selection",
+            open_source_contributions_data=open_source_contributions_json,
+        )
+
+        print(
+            f"🤖 Using LLM to select top 5 contributions from {len(open_source_contributions)} repositories..."
+        )
+
+        # Initialize the LLM provider
+        provider = initialize_llm_provider(DEFAULT_MODEL)
+
+        # Get model parameters
+        model_params = MODEL_PARAMETERS.get(
+            DEFAULT_MODEL, {"temperature": 0.1, "top_p": 0.9}
+        )
+
+        # Prepare chat parameters
+        chat_params = {
+            "model": DEFAULT_MODEL,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are an expert technical recruiter analyzing GitHub repositories to identify the most impressive open source contributions. CRITICAL: You must select exactly 7 UNIQUE organisations - no duplicates allowed. Each project must be different from the others.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            "options": model_params,
+        }
+
+        # Call the LLM provider
+        response = provider.chat(**chat_params)
+
+        response_text = response["message"]["content"]
+
+        try:
+            response_text = response_text.strip()
+            response_text = extract_json_from_response(response_text)
+
+            selected_open_source_contributions = json.loads(response_text)
+
+            unique_open_source_contributions = []
+            seen_names = set()
+
+            for repo in selected_open_source_contributions:
+                repo_name = repo.get("name", "")
+                if repo_name and repo_name not in seen_names:
+                    unique_open_source_contributions.append(repo)
+                    seen_names.add(repo_name)
+
+            if len(unique_open_source_contributions) < 7:
+                print(
+                    f"⚠️ LLM selected {len(selected_open_source_contributions)} repos but {len(unique_open_source_contributions)} are unique"
+                )
+
+                for open_source_contribution in open_source_contributions_data:
+                    if len(unique_open_source_contributions) >= 7:
+                        break
+                    open_source_contribution_name = open_source_contribution.get(
+                        "name", ""
+                    )
+                    if (
+                        open_source_contribution_name
+                        and open_source_contribution_name not in seen_names
+                    ):
+                        unique_open_source_contributions.append(
+                            open_source_contribution
+                        )
+                        seen_names.add(open_source_contribution_name)
+
+            open_source_contribution_names = ", ".join(
+                [proj.get("name", "N/A") for proj in unique_open_source_contributions]
+            )
+            print(
+                f"✅ LLM selected {len(unique_open_source_contributions)} unique top repos: {open_source_contribution_names}"
+            )
+            return unique_open_source_contributions
+
+        except json.JSONDecodeError as e:
+            print(f"ERROR: Error parsing LLM response: {e}")
+            print(f"ERROR: Raw response: {response_text}")
+
+            print("🔄 Falling back to first 7 projects")
+            return open_source_contributions_data[:7]
+
+    except Exception as e:
+        print(f"Error using LLM for project selection: {e}")
+        print("🔄 Falling back to first 7 projects")
+
+        open_source_contributions_data = []
+        for repo in open_source_contributions[:7]:
+            open_source_contribution_data = {
+                "name": repo.get("name"),
+                "description": repo.get("description"),
+                "github_url": repo.get("github_url"),
+                "live_url": repo.get("live_url"),
+                "technologies": repo.get("technologies", []),
+                "github_details": repo.get("github_details", {}),
+            }
+            open_source_contributions_data.append(open_source_contribution_data)
+
+        return open_source_contributions_data
+
+
 def fetch_and_display_github_info(github_url: str) -> Dict:
     logger.info(f"{github_url}")
     github_profile = fetch_github_profile(github_url)
@@ -410,18 +658,33 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
         return {}
 
     print("🔍 Fetching all repository details...")
-    projects = fetch_all_github_repos(github_url)
+    projects, open_source_contributions = fetch_all_github_repos(github_url)
 
     if not projects:
         print("\n❌ No repositories found or failed to fetch repository details.")
 
+    if not open_source_contributions:
+        print(
+            "\n❌ No open source contributions found or failed to fetch repository details."
+        )
+
     profile_json = generate_profile_json(github_profile)
     projects_json = generate_projects_json(projects)
+    open_source_contributions_json = generate_open_source_contributions_json(
+        open_source_contributions
+    )
+
+    total_contributions = sum(
+        len(repo.get("merged_pull_requests_by_user", []))
+        for repo in open_source_contributions_json
+    )
 
     result = {
         "profile": profile_json,
         "projects": projects_json,
         "total_projects": len(projects_json),
+        "open_source_contributions": open_source_contributions_json,
+        "total_contributions": total_contributions,
     }
 
     return result
