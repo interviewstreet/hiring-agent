@@ -5,6 +5,7 @@ import time
 import logging
 import mimetypes
 import pymupdf
+from config_loader import get_config
 
 from models import (
     JSONResume,
@@ -40,6 +41,7 @@ class PDFHandler:
 
     def __init__(self):
         self.template_manager = TemplateManager()
+        self.config = get_config()
         self._initialize_llm_provider()
 
     def _initialize_llm_provider(self):
@@ -65,11 +67,12 @@ class PDFHandler:
         if not pdf_path.lower().endswith('.pdf'):
             raise ValueError(f"File must be a PDF: {pdf_path}")
         
-        # Check file size (max 50MB)
+        # Check file size from configuration
         file_size = os.path.getsize(pdf_path)
-        max_size = 50 * 1024 * 1024  # 50MB
+        max_size_mb = self.config.get("file_processing.pdf.max_size_mb", 50)
+        max_size = max_size_mb * 1024 * 1024
         if file_size > max_size:
-            raise ValueError(f"PDF file too large: {file_size / (1024*1024):.1f}MB (max: 50MB)")
+            raise ValueError(f"PDF file too large: {file_size / (1024*1024):.1f}MB (max: {max_size_mb}MB)")
         
         # Validate MIME type
         mime_type, _ = mimetypes.guess_type(pdf_path)

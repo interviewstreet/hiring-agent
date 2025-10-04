@@ -11,6 +11,7 @@ from prompts.template_manager import TemplateManager
 from prompt import DEFAULT_MODEL, MODEL_PARAMETERS
 from llm_utils import initialize_llm_provider, extract_json_from_response
 from config import DEVELOPMENT_MODE
+from config_loader import get_config
 
 
 def _create_cache_filename(api_url: str, params: dict = None) -> str:
@@ -160,8 +161,15 @@ def fetch_repo_contributors(owner: str, repo_name: str) -> int:
         return 1
 
 
-def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
+def fetch_all_github_repos(github_url: str, max_repos: int = None) -> List[Dict]:
     try:
+        # Get configuration
+        config = get_config()
+        
+        # Use configuration default if max_repos not provided
+        if max_repos is None:
+            max_repos = config.get("file_processing.github.max_repos", 100)
+        
         username = extract_github_username(github_url)
         if not username:
             print(f"Could not extract username from: {github_url}")
@@ -175,8 +183,11 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
 
         if status_code == 200:
             projects = []
+            # Get fork threshold from configuration
+            fork_threshold = config.get("file_processing.github.fork_threshold", 5)
+            
             for repo in repos_data:
-                if repo.get("fork") and repo.get("forks_count", 0) < 5:
+                if repo.get("fork") and repo.get("forks_count", 0) < fork_threshold:
                     continue
 
                 repo_name = repo.get("name")
@@ -308,8 +319,11 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
             "github_project_selection", projects_data=projects_json
         )
 
+        # Get max projects to select from configuration
+        max_projects = config.get("file_processing.project_selection.max_projects_to_select", 7)
+        
         print(
-            f"🤖 Using LLM to select top 5 projects from {len(projects)} repositories..."
+            f"🤖 Using LLM to select top {max_projects} projects from {len(projects)} repositories..."
         )
 
         # Initialize the LLM provider
@@ -326,7 +340,7 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are an expert technical recruiter analyzing GitHub repositories to identify the most impressive projects. CRITICAL: You must select exactly 7 UNIQUE projects - no duplicates allowed. Each project must be different from the others.",
+                    "content": f"You are an expert technical recruiter analyzing GitHub repositories to identify the most impressive projects. CRITICAL: You must select exactly {max_projects} UNIQUE projects - no duplicates allowed. Each project must be different from the others.",
                 },
                 {"role": "user", "content": prompt},
             ],
@@ -353,13 +367,13 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
                     unique_projects.append(project)
                     seen_names.add(project_name)
 
-            if len(unique_projects) < 7:
+            if len(unique_projects) < max_projects:
                 print(
                     f"⚠️ LLM selected {len(selected_projects)} projects but {len(unique_projects)} are unique"
                 )
 
                 for project in projects_data:
-                    if len(unique_projects) >= 7:
+                    if len(unique_projects) >= max_projects:
                         break
                     project_name = project.get("name", "")
                     if project_name and project_name not in seen_names:
@@ -378,15 +392,15 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
             print(f"ERROR: Error parsing LLM response: {e}")
             print(f"ERROR: Raw response: {response_text}")
 
-            print("🔄 Falling back to first 7 projects")
-            return projects_data[:7]
+            print(f"🔄 Falling back to first {max_projects} projects")
+            return projects_data[:max_projects]
 
     except Exception as e:
         print(f"Error using LLM for project selection: {e}")
-        print("🔄 Falling back to first 7 projects")
+        print(f"🔄 Falling back to first {max_projects} projects")
 
         projects_data = []
-        for project in projects[:7]:
+        for project in projects[:max_projects]:
             project_data = {
                 "name": project.get("name"),
                 "description": project.get("description"),
