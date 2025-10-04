@@ -198,6 +198,18 @@ class AwardsSection(BaseModel):
     awards: Optional[List[Award]] = None
 
 
+class CertificatesSection(BaseModel):
+    """Certificates section containing a list of certificates."""
+
+    certificates: Optional[List[Certificate]] = None
+
+
+class PublicationsSection(BaseModel):
+    """Publications section containing a list of publications."""
+
+    publications: Optional[List[Publication]] = None
+
+
 class JSONResume(BaseModel):
     """Complete JSON Resume format model."""
 
