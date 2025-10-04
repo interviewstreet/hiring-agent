@@ -184,8 +184,6 @@ def _evaluate_resume(
     with open("resume_text.txt", "w") as f:
         f.write(resume_text)
     
-    return None
-
     # Evaluate the enhanced resume
     evaluation_result = evaluator.evaluate_resume(resume_text)
 

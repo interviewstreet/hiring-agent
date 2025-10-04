@@ -606,7 +606,7 @@ def generate_open_source_contributions_json(
 
             if len(unique_open_source_contributions) < 7:
                 print(
-                    f"⚠️ LLM selected {len(selected_open_source_contributions)} projects but {len(unique_open_source_contributions)} are unique"
+                    f"⚠️ LLM selected {len(selected_open_source_contributions)} repos but {len(unique_open_source_contributions)} are unique"
                 )
 
                 for open_source_contribution in open_source_contributions_data:
@@ -628,7 +628,7 @@ def generate_open_source_contributions_json(
                 [proj.get("name", "N/A") for proj in unique_open_source_contributions]
             )
             print(
-                f"✅ LLM selected {len(unique_open_source_contributions)} unique top projects: {open_source_contribution_names}"
+                f"✅ LLM selected {len(unique_open_source_contributions)} unique top repos: {open_source_contribution_names}"
             )
             return unique_open_source_contributions
 
