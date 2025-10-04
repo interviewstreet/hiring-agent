@@ -539,7 +539,9 @@ def generate_open_source_contributions_json(
                 "live_url": repo.get("live_url"),
                 "technologies": repo.get("technologies", []),
                 "github_details": repo.get("github_details", {}),
-                "merged_pull_requests_by_user": repo.get("merged_pull_requests_by_user"),
+                "merged_pull_requests_by_user": repo.get(
+                    "merged_pull_requests_by_user"
+                ),
             }
             open_source_contributions_data.append(open_source_contribution_data)
 
@@ -688,12 +690,17 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
         open_source_contributions
     )
 
+    total_contributions = sum(
+        len(repo.get("merged_pull_requests_by_user", []))
+        for repo in open_source_contributions_json
+    )
+
     result = {
         "profile": profile_json,
         # "projects": projects_json,
         # "total_projects": len(projects_json),
         "open_source_contributions": open_source_contributions_json,
-        "total_contributions": len(open_source_contributions_json),
+        "total_contributions": total_contributions,
     }
 
     return result
