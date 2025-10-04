@@ -39,7 +39,8 @@ Input data will be a list of repository objects. Each object will include a merg
 - If fewer than 7 qualifying repositories exist, select ALL of them.
 - **HARD REQUIREMENT**: Only select repositories where the candidate has one or more merged pull requests.
 - **HARD REQUIREMENT**: Start your selection from the projects with the highest star counts.
-- The "reason_for_project_selection" must specifically reference the nature and impact of the candidate's merged PRs.
+- The "reason_for_pr_selection" must specifically reference the nature and impact of the candidate's merged PRs.
+- The "pr_summary" must describe a summary of what changes were made by the candidate in the PR, and of what scale.
 
 **JSON Output Format:**
 [
@@ -68,11 +69,13 @@ Input data will be a list of repository objects. Each object will include a merg
         "title": "PR 1 title",
         "body": "PR 1 body",
         "reason_for_pr_selection": "Reason why PR 1 contribution is selected, focusing on the PR's impact and the project's popularity.",
+        "pr_summary": "A descriptive summary of what changes were made in PR 2 and the scale of changes that were made to the codebase if extractable from the description.",
       },
       {
         "title": "PR2 title",
         "body": "PR2 body",
         "reason_for_pr_selection": "Reason why PR 2 contribution is selected, focusing on the PR's impact and the project's popularity.",
+        "pr_summary": "A descriptive summary of what changes were made in PR 2 and the scale of changes that were made to the codebase if extractable from the description.",
       }
     ]
   }
