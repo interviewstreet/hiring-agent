@@ -1,5 +1,6 @@
-from typing import Dict, List, Optional
 import pdb
+from typing import Dict, List, Optional
+
 from models import JSONResume
 
 

@@ -7,6 +7,7 @@ section-specific resume extraction prompts.
 
 import os
 from typing import Dict, Optional
+
 from jinja2 import Environment, FileSystemLoader, Template
 
 

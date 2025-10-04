@@ -1,36 +1,40 @@
+import json
+import logging
 import os
 import sys
-import json
 import time
-import logging
+from typing import List, Optional, Dict, Any
+
 import pymupdf
 
-from models import (
-    JSONResume,
-    Basics,
-    Work,
-    Education,
-    Skill,
-    Project,
-    Award,
-    BasicsSection,
-    WorkSection,
-    EducationSection,
-    SkillsSection,
-    ProjectsSection,
-    AwardsSection,
-)
 from llm_utils import initialize_llm_provider, extract_json_from_response
 from pymupdf_rag import to_markdown
-from typing import List, Optional, Dict, Any
-from prompt import (
-    DEFAULT_MODEL,
-    MODEL_PARAMETERS,
-    MODEL_PROVIDER_MAPPING,
-    GEMINI_API_KEY,
-)
+
 from prompts.template_manager import TemplateManager
 from transform import transform_parsed_data
+
+from models import (
+    Award,
+    AwardsSection,
+    Basics,
+    BasicsSection,
+    Education,
+    EducationSection,
+    JSONResume,
+    Project,
+    ProjectsSection,
+    Skill,
+    SkillsSection,
+    Work,
+    WorkSection,
+)
+
+from prompt import (
+    DEFAULT_MODEL,
+    GEMINI_API_KEY,
+    MODEL_PARAMETERS,
+    MODEL_PROVIDER_MAPPING,
+)
 
 logger = logging.getLogger(__name__)
 
