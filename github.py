@@ -4,7 +4,7 @@ import json
 import requests
 from pathlib import Path
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Tuple, Any
 from models import GitHubProfile
 from pdf import logger
 from prompts.template_manager import TemplateManager
@@ -196,12 +196,12 @@ def fetch_PR_data(owner: str, source_owner: str, repo_name: str) -> Dict:
         return {}
 
 
-def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
+def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> Tuple[List[Dict]]:
     try:
         username = extract_github_username(github_url)
         if not username:
             print(f"Could not extract username from: {github_url}")
-            return []
+            return ([], [])
 
         api_url = f"https://api.github.com/users/{username}/repos"
 
@@ -346,7 +346,9 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                 for repo in open_source_contributions
             )
 
-            print(f"✅ Found {len(projects) + len(open_source_contributions)} repositories")
+            print(
+                f"✅ Found {len(projects) + len(open_source_contributions)} repositories"
+            )
             print(
                 f"📊 Project classification: {open_source_count} open source, {self_project_count} self projects"
             )
@@ -357,17 +359,17 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
 
         elif response.status_code == 404:
             print(f"GitHub user not found: {username}")
-            return []
+            return ([], [])
         else:
             print(f"GitHub API error: {response.status_code} - {response.text}")
-            return []
+            return ([], [])
 
     except requests.exceptions.RequestException as e:
         print(f"Error fetching GitHub repositories: {e}")
-        return []
+        return ([], [])
     except Exception as e:
         print(f"Unexpected error fetching GitHub repositories: {e}")
-        return []
+        return ([], [])
 
 
 def generate_profile_json(profile: GitHubProfile) -> Dict:
@@ -715,8 +717,8 @@ def main(github_url):
     print("=" * 60)
 
     # TESTING:
-    with open("test_final_response.json", "w") as f:
-        f.write(json.dumps(result, indent=2, ensure_ascii=False))
+    # with open("test_final_response.json", "w") as f:
+    #     f.write(json.dumps(result, indent=2, ensure_ascii=False))
 
     return result
 
