@@ -110,6 +110,10 @@ class PDFHandler:
 
             try:
                 response_text = extract_json_from_response(response_text)
+                if response_text is None:
+                    logger.error(f"❌ Failed to extract valid JSON for {section_name} section")
+                    return None
+                    
                 json_start = response_text.find("{")
                 json_end = response_text.rfind("}")
                 if json_start != -1 and json_end != -1:
