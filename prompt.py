@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from models import ModelProvider
 
 # Load environment variables
-load_dotenv(override=True)
+load_dotenv()
 
 # Constants
 DEFAULT_MODEL_NAME = "gemma3:4b"
