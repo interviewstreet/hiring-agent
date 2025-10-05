@@ -3,6 +3,7 @@ import sys
 import json
 import logging
 import csv
+from filelock import FileLock
 from pdf import PDFHandler
 from github import fetch_and_display_github_info
 from models import JSONResume, EvaluationData
@@ -209,9 +210,18 @@ def main(pdf_path):
     # Check if cache exists and we're in development mode
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
         print(f"Loading cached data from {cache_filename}")
-        cached_data = json.loads(Path(cache_filename).read_text())
-        resume_data = JSONResume(**cached_data)
+        lock_filename = cache_filename + '.lock'
+        try:
+            with FileLock(lock_filename, timeout=10):
+                cached_data = json.loads(Path(cache_filename).read_text())
+                resume_data = JSONResume(**cached_data)
+        except Exception as e:
+            print(f"Error reading cache file {cache_filename}: {e}")
+            resume_data = None
     else:
+        resume_data = None
+
+    if resume_data is None:
         logger.debug(
             f"Extracting data from PDF"
             + (" and caching to " + cache_filename if DEVELOPMENT_MODE else "")
@@ -224,16 +234,28 @@ def main(pdf_path):
 
         if DEVELOPMENT_MODE:
             os.makedirs(os.path.dirname(cache_filename), exist_ok=True)
-            Path(cache_filename).write_text(
-                json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False)
-            )
+            lock_filename = cache_filename + '.lock'
+            try:
+                with FileLock(lock_filename, timeout=10):
+                    Path(cache_filename).write_text(
+                        json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False)
+                    )
+            except Exception as e:
+                print(f"Error writing cache file {cache_filename}: {e}")
 
     # Check if cache exists and we're in development mode
     github_data = {}
     if DEVELOPMENT_MODE and os.path.exists(github_cache_filename):
         print(f"Loading cached data from {github_cache_filename}")
-        github_data = json.loads(Path(github_cache_filename).read_text())
-    else:
+        lock_filename = github_cache_filename + '.lock'
+        try:
+            with FileLock(lock_filename, timeout=10):
+                github_data = json.loads(Path(github_cache_filename).read_text())
+        except Exception as e:
+            print(f"Error reading GitHub cache file {github_cache_filename}: {e}")
+            github_data = {}
+    
+    if not github_data:
         print(
             f"Fetching GitHub data"
             + (" and caching to " + github_cache_filename if DEVELOPMENT_MODE else "")
@@ -247,11 +269,16 @@ def main(pdf_path):
 
         if github_profile:
             github_data = fetch_and_display_github_info(github_profile.url)
-        if DEVELOPMENT_MODE:
+        if DEVELOPMENT_MODE and github_data:
             os.makedirs(os.path.dirname(github_cache_filename), exist_ok=True)
-            Path(github_cache_filename).write_text(
-                json.dumps(github_data, indent=2, ensure_ascii=False)
-            )
+            lock_filename = github_cache_filename + '.lock'
+            try:
+                with FileLock(lock_filename, timeout=10):
+                    Path(github_cache_filename).write_text(
+                        json.dumps(github_data, indent=2, ensure_ascii=False)
+                    )
+            except Exception as e:
+                print(f"Error writing GitHub cache file {github_cache_filename}: {e}")
 
     score = _evaluate_resume(resume_data, github_data)
 

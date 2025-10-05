@@ -3,6 +3,7 @@ import re
 import json
 import requests
 from pathlib import Path
+from filelock import FileLock
 
 from typing import Dict, List, Optional, Any
 from models import GitHubProfile
@@ -31,11 +32,14 @@ def _fetch_github_api(api_url, params=None):
         headers["Authorization"] = f"token {github_token}"
 
     cache_filename = _create_cache_filename(api_url, params)
+    lock_filename = cache_filename + '.lock'
+    
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
         print(f"Loading cached GitHub data from {cache_filename}")
         try:
-            cached_data = json.loads(Path(cache_filename).read_text())
-            return 200, cached_data
+            with FileLock(lock_filename, timeout=10):
+                cached_data = json.loads(Path(cache_filename).read_text())
+                return 200, cached_data
         except Exception as e:
             print(f"Error reading cache file {cache_filename}: {e}")
 
@@ -46,9 +50,10 @@ def _fetch_github_api(api_url, params=None):
     if DEVELOPMENT_MODE and status_code == 200:
         try:
             os.makedirs("cache", exist_ok=True)
-            Path(cache_filename).write_text(
-                json.dumps(data, indent=2, ensure_ascii=False)
-            )
+            with FileLock(lock_filename, timeout=10):
+                Path(cache_filename).write_text(
+                    json.dumps(data, indent=2, ensure_ascii=False)
+                )
             print(f"Cached GitHub data to {cache_filename}")
         except Exception as e:
             print(f"Error caching GitHub data to {cache_filename}: {e}")
