@@ -205,6 +205,15 @@ class PDFHandler:
             if not text_content:
                 logger.error("❌ Failed to extract text from PDF")
                 return None
+                 # 🛑 Validate resume content before sending to LLM
+            required_keywords = ["experience", "project", "skill", "education"]
+            missing_keywords = [
+                word for word in required_keywords if word.lower() not in text_content.lower()
+            ]
+            if len(text_content.strip()) < 500 or len(missing_keywords) >= 3:
+                 logger.error(f"❌ Invalid or incomplete resume. Missing: {', '.join(missing_keywords)}")
+                 print(f"❌ Invalid PDF: Missing key sections: {', '.join(missing_keywords)}")
+                 return None  # 🚫 Stop before calling LLM
 
             logger.debug(
                 f"✅ Successfully extracted {len(text_content)} characters from PDF"
