@@ -2,7 +2,7 @@ name: Hiring Agent MVP Pipeline
 
 on:
   push:
-    branches: [ "feature/add-ci-and-precommit-setup" ]
+    branches: [ "main" ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
