@@ -41,6 +41,7 @@ class TemplateManager:
             "skills": "skills.jinja",
             "projects": "projects.jinja",
             "awards": "awards.jinja",
+            "scholarships": "scholarships.jinja",
             "system_message": "system_message.jinja",
             "github_project_selection": "github_project_selection.jinja",
             "resume_evaluation_criteria": "resume_evaluation_criteria.jinja",
