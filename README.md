@@ -83,11 +83,10 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
 
   The repository pins `.python-version` to 3.11.13.
 
-- **One LLM backend**
+- **One LLM backend** (either of them)
 
   - **Ollama** for local models
     Install from the [official site](https://ollama.com/), then run `ollama serve`.
-    **or**
   - **Google Gemini** if you have an API key, get it from [here](https://aistudio.google.com/api-keys).
 
 ### Quick setup with pip
