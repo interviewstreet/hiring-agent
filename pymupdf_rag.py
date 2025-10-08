@@ -44,6 +44,35 @@ from pymupdf4llm.helpers.get_text_lines import get_raw_lines, is_white
 from pymupdf4llm.helpers.multi_column import column_boxes
 from dataclasses import dataclass
 from collections import defaultdict
+import numpy as np
+
+def extract_text_multicolumn(page):
+    """
+    Detect and extract text properly from two-column resume layouts.
+    Keeps reading order column-wise to prevent text mixing.
+    """
+    blocks = page.get_text("blocks")
+    if not blocks:
+        return []
+
+    # Compute median x position to split columns
+    x_coords = [b[0] for b in blocks]
+    median_x = np.median(x_coords)
+
+    # Separate blocks into left and right columns
+    left_blocks = [b for b in blocks if b[0] < median_x]
+    right_blocks = [b for b in blocks if b[0] >= median_x]
+
+    # Sort blocks within each column
+    left_sorted = sorted(left_blocks, key=lambda b: (b[1], b[0]))  # top to bottom
+    right_sorted = sorted(right_blocks, key=lambda b: (b[1], b[0]))
+
+    # Combine in reading order (left column first)
+    ordered_blocks = left_sorted + right_sorted
+
+    # Convert each block's rectangle into a PyMuPDF Rect
+    text_rects = [pymupdf.Rect(b[:4]) for b in ordered_blocks]
+    return text_rects
 
 pymupdf.TOOLS.unset_quad_corrections(True)
 
@@ -1097,6 +1126,7 @@ def to_markdown(
             Markdown string of page content and image, table and vector
             graphics information.
         """
+        nonlocal IGNORE_GRAPHICS
         page = doc[pno]
         page.remove_rotation()  # make sure we work on rotation=0
         parms = Parameters()  # all page information
@@ -1178,6 +1208,7 @@ def to_markdown(
         # catch too-many-graphics situation
         graphics_count = len([b for b in page.get_bboxlog() if "path" in b[0]])
         if GRAPHICS_LIMIT and graphics_count > GRAPHICS_LIMIT:
+            nonlocal IGNORE_GRAPHICS
             IGNORE_GRAPHICS = True
 
         # Locate all tables on page
@@ -1257,16 +1288,37 @@ def to_markdown(
 
         parms.vg_clusters = dict((i, r) for i, r in enumerate(parms.vg_clusters0))
         # identify text bboxes on page, avoiding tables, images and graphics
-        text_rects = column_boxes(
-            parms.page,
-            paths=parms.actual_paths,
-            no_image_text=not force_text,
-            textpage=parms.textpage,
-            avoid=parms.tab_rects0 + parms.vg_clusters0,
-            footer_margin=margins[3],
-            header_margin=margins[1],
-            ignore_images=IGNORE_IMAGES,
-        )
+        # --- MULTI-COLUMN EXTRACTION PATCH (Fix for issue #81) ---
+        try:
+            # Try multi-column detection first
+            text_rects = extract_text_multicolumn(parms.page)
+
+            # If not enough blocks found, fallback to original extraction
+            if len(text_rects) < 5:
+                text_rects = column_boxes(
+                    parms.page,
+                    paths=parms.actual_paths,
+                    no_image_text=not force_text,
+                    textpage=parms.textpage,
+                    avoid=parms.tab_rects0 + parms.vg_clusters0,
+                    footer_margin=margins[3],
+                    header_margin=margins[1],
+                    ignore_images=IGNORE_IMAGES,
+                )
+        except Exception as e:
+            print(f"[WARN] Multi-column extraction failed: {e}")
+            text_rects = column_boxes(
+                parms.page,
+                paths=parms.actual_paths,
+                no_image_text=not force_text,
+                textpage=parms.textpage,
+                avoid=parms.tab_rects0 + parms.vg_clusters0,
+                footer_margin=margins[3],
+                header_margin=margins[1],
+                ignore_images=IGNORE_IMAGES,
+            )
+        # --- END MULTI-COLUMN PATCH ---
+
 
         """
         ------------------------------------------------------------------
