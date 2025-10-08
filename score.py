@@ -3,7 +3,8 @@ import sys
 import json
 import logging
 import csv
-from pdf import PDFHandler
+# near the top of score.py
+from pdf import PDFHandler, extract_text_from_docx 
 from github import fetch_and_display_github_info
 from models import JSONResume, EvaluationData
 from typing import List, Optional, Dict
@@ -197,14 +198,13 @@ def find_profile(profiles, network):
     )
 
 
-def main(pdf_path):
-    # Create cache filename based on PDF path
-    cache_filename = (
-        f"cache/resumecache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
-    )
-    github_cache_filename = (
-        f"cache/githubcache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
-    )
+def main(file_path):
+    ## NEW: Generic cache filename generation ##
+    base_name = os.path.basename(file_path)
+    cache_base_name = os.path.splitext(base_name)[0]
+    
+    cache_filename = f"cache/resumecache_{cache_base_name}.json"
+    github_cache_filename = f"cache/githubcache_{cache_base_name}.json"
 
     # Check if cache exists and we're in development mode
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
@@ -217,9 +217,16 @@ def main(pdf_path):
             + (" and caching to " + cache_filename if DEVELOPMENT_MODE else "")
         )
         pdf_handler = PDFHandler()
-        resume_data = pdf_handler.extract_json_from_pdf(pdf_path)
+        file_extension = os.path.splitext(file_path)[1].lower()
 
-        if resume_data == None:
+        if file_extension == '.pdf':
+            resume_data = pdf_handler.extract_json_from_pdf(file_path)
+        elif file_extension == '.docx':
+            resume_data = pdf_handler.extract_json_from_docx(file_path)
+        else:
+            raise ValueError(f"Unsupported file type: '{file_extension}'")
+
+        if resume_data is None:
             return None
 
         if DEVELOPMENT_MODE:
