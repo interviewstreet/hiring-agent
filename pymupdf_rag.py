@@ -1162,7 +1162,8 @@ def to_markdown(
 
         img_info = img_info[:30]  # only accept the largest up to 30 images
         # run from back to front (= small to large)
-        for i in range(len(img_info) - 1, 0, -1):
+        # include index 0 in the reverse iteration (stop should be -1)
+        for i in range(len(img_info) - 1, -1, -1):
             r = img_info[i]["bbox"]
             if r.is_empty:
                 del img_info[i]
