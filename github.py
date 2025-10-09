@@ -47,7 +47,8 @@ def _fetch_github_api(api_url, params=None):
         try:
             os.makedirs("cache", exist_ok=True)
             Path(cache_filename).write_text(
-                json.dumps(data, indent=2, ensure_ascii=False)
+                json.dumps(data, indent=2, ensure_ascii=False),
+                encoding='utf-8'
             )
             print(f"Cached GitHub data to {cache_filename}")
         except Exception as e:
