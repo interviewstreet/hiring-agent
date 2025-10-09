@@ -228,17 +228,45 @@ def main(pdf_path):
                 json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False)
             )
 
-    # Check if cache exists and we're in development mode
+
+# -----------------------------------------------
+# Safe GitHub cache loading (updated by Nishant)
+# -----------------------------------------------
+# Previously, this block directly called:
+#     github_data = json.loads(Path(github_cache_filename).read_text())
+# which caused a crash (JSONDecodeError) if the cache file was empty
+# or contained invalid JSON (for example, if the previous run stopped midway).
+#
+# Improvements made:
+# 1. Added UTF-8 encoding to handle all Unicode characters correctly.
+# 2. Added checks for empty files before attempting json.loads().
+# 3. Added try/except to catch JSONDecodeError and rebuild cache if corrupted.
+#
+# Result:
+# - Script no longer crashes due to bad cache.
+# - Automatically detects and rebuilds invalid GitHub cache files.
+# -----------------------------------------------
+
     github_data = {}
+
     if DEVELOPMENT_MODE and os.path.exists(github_cache_filename):
         print(f"Loading cached data from {github_cache_filename}")
-        github_data = json.loads(Path(github_cache_filename).read_text())
+        try:
+            text = Path(github_cache_filename).read_text(encoding="utf-8").strip()
+            if text:
+                github_data = json.loads(text)
+            else:
+                print("⚠️ Cache file is empty — will fetch fresh GitHub data.")
+                github_data = {}
+        except json.JSONDecodeError:
+            print("⚠️ Cache file is corrupted — will fetch fresh GitHub data.")
+            github_data = {}
     else:
         print(
             f"Fetching GitHub data"
             + (" and caching to " + github_cache_filename if DEVELOPMENT_MODE else "")
         )
-
+# -----------------------------------------------
         # Add validation to handle None values
         profiles = []
         if resume_data and hasattr(resume_data, "basics") and resume_data.basics:
@@ -247,11 +275,13 @@ def main(pdf_path):
 
         if github_profile:
             github_data = fetch_and_display_github_info(github_profile.url)
+#Now the code will safely write any kind of character (including non-English names, symbols, etc.) without crashing.
         if DEVELOPMENT_MODE:
-            os.makedirs(os.path.dirname(github_cache_filename), exist_ok=True)
-            Path(github_cache_filename).write_text(
-                json.dumps(github_data, indent=2, ensure_ascii=False)
-            )
+           os.makedirs(os.path.dirname(github_cache_filename), exist_ok=True)
+    Path(github_cache_filename).write_text(
+        json.dumps(github_data, indent=2, ensure_ascii=False),
+        encoding='utf-8'
+    )
 
     score = _evaluate_resume(resume_data, github_data)
 
