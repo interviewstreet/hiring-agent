@@ -37,11 +37,14 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 - Significant contributions to well-known projects
 - Google Summer of Code (GSoC) participation
 - Substantial community involvement
+- External PRs to repositories they don't own (true open source contributions)
+- Merged PRs to major projects (10000+ stars)
 
 **MEDIUM SCORES (15-24 points):**
 - Contributions to smaller open source projects
 - Active GitHub presence with meaningful contributions to other repositories
 - Participation in open source programs
+- Some external PRs merged to popular projects
 
 **LOW SCORES (5-10 points):**
 - Only personal GitHub repositories with no contributions to other projects
@@ -57,7 +60,10 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 **CRITICAL RULES:**
 - Having personal GitHub repositories does NOT constitute open source contribution
 - True open source contribution means contributing to OTHER people's projects
-- When GitHub data shows all projects are 'self_project' type, open source score MUST be 10 points or less
+- Use open_source_analysis data to determine actual external contributions
+- Prioritize external PRs over personal repository activity
+- When GitHub data shows all projects are 'self_project' type AND no external PRs, open source score MUST be 10 points or less
+- If open_source_analysis shows external_prs > 0, this indicates true open source involvement
 
 ### Self Projects (0-30 points)
 **HIGH SCORES (20-30 points):**

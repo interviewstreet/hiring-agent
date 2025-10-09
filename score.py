@@ -27,7 +27,7 @@ logging.basicConfig(
 
 
 def print_evaluation_results(
-    evaluation: EvaluationData, candidate_name: str = "Candidate"
+    evaluation: EvaluationData, candidate_name: str = "Candidate", github_data: dict = None
 ):
     """Print evaluation results in a readable format."""
     print("\n" + "=" * 80)
@@ -90,6 +90,41 @@ def print_evaluation_results(
             capped_score = min(os_score.score, category_maxes["open_source"])
             print(f"🌐 Open Source:          {capped_score}/{os_score.max}")
             print(f"   Evidence: {os_score.evidence}")
+            
+            if github_data and "open_source_analysis" in github_data:
+                analysis = github_data["open_source_analysis"]
+                if analysis.get("total_prs", 0) > 0:
+                    print(f"\n   📊 DETAILED OPEN SOURCE METRICS:")
+                    print(f"      📝 Total PRs: {analysis.get('total_prs', 0)}")
+                    print(f"      🏠 Own Repo PRs: {analysis.get('own_repo_prs', 0)}")
+                    print(f"      🌍 External PRs: {analysis.get('external_prs', 0)}")
+                    
+                    external_prs = analysis.get('external_prs', 0)
+                    merged_external = analysis.get('merged_external_prs', 0)
+                    if external_prs > 0:
+                        merge_rate = (merged_external / external_prs) * 100
+                        print(f"      ✅ Merged External: {merged_external}/{external_prs} ({merge_rate:.1f}%)")
+                    
+                    print(f"      🌟 Popular Projects (1K+ stars): {analysis.get('popular_project_contributions', 0)}")
+                    print(f"      🔥 Major Projects (10K+ stars): {analysis.get('major_project_contributions', 0)}")
+                    print(f"      💯 Analysis Score: {analysis.get('open_source_score', 0)}/100")
+                    print(f"      📈 Quality: {analysis.get('contribution_quality', 'N/A')}")
+                    
+                    # Show top 3 external contributions
+                    external_contributions = analysis.get('external_contributions', [])
+                    if external_contributions:
+                        print(f"\n      🏆 Top External Contributions:")
+                        unique_repos = {}
+                        for contrib in external_contributions:
+                            repo = contrib.get('repository', '')
+                            if repo and repo not in unique_repos:
+                                unique_repos[repo] = contrib.get('repository_stars', 0)
+                        
+                        # Sort by stars and show top 3
+                        top_repos = sorted(unique_repos.items(), key=lambda x: x[1], reverse=True)[:3]
+                        for i, (repo, stars) in enumerate(top_repos, 1):
+                            print(f"         {i}. {repo} ({stars:,} ⭐)")
+            
             print()
 
         # Self Projects
@@ -266,7 +301,7 @@ def main(pdf_path):
         candidate_name = resume_data.basics.name
 
     # Print evaluation results in readable format
-    print_evaluation_results(score, candidate_name)
+    print_evaluation_results(score, candidate_name, github_data)
 
     if DEVELOPMENT_MODE:
         csv_row = transform_evaluation_response(

@@ -142,22 +142,61 @@ def fetch_contributions_count(owner: str, contributors_data):
     return user_contributions, total_contributions
 
 
-def fetch_repo_contributors(owner: str, repo_name: str) -> int:
+def determine_enhanced_project_type(repo: Dict, contributor_count: int, user_contributions: int, username: str) -> str:
+    """
+    Enhanced project type determination that better detects open source projects.
+    """
+    # Check if it's a fork with significant contributions
+    if repo.get("fork", False):
+        if user_contributions > 10:
+            return "open_source"
+        elif user_contributions > 0:
+            return "fork_contribution"
+    
+    # Check for multiple contributors (classic open source indicator)
+    if contributor_count > 1:
+        return "open_source"
+    
+    # Check for community engagement indicators
+    stars = repo.get("stargazers_count", 0)
+    forks = repo.get("forks_count", 0)
+    topics = repo.get("topics", [])
+    
+    # If repository has community engagement, it's likely open source
+    if stars > 10 or forks > 5 or len(topics) > 0:
+        return "open_source"
+    
+    # Check if it's a well-maintained project with good activity
+    if (user_contributions > 20 and 
+        repo.get("updated_at") and 
+        not repo.get("archived", False)):
+        return "open_source"
+    
+    # Check for popular languages that indicate serious projects
+    language = repo.get("language", "")
+    serious_languages = ["Python", "JavaScript", "TypeScript", "Java", "C++", "Go", "Rust", "C#"]
+    if (language in serious_languages and 
+        user_contributions > 5 and 
+        stars > 2):
+        return "open_source"
+    
+    return "self_project"
+
+
+def fetch_repo_contributors(owner: str, repo_name: str) -> List[Dict]:
+    """Fetch repository contributors data."""
     try:
         api_url = f"https://api.github.com/repos/{owner}/{repo_name}/contributors"
-
         status_code, contributors_data = _fetch_github_api(api_url)
-
-        return contributors_data
-
+        
         if status_code == 200:
-            return len(contributors_data)
+            return contributors_data
         else:
-            return 1
+            return []
 
     except Exception as e:
         logger.error(f"Error fetching contributors for {owner}/{repo_name}: {e}")
-        return 1
+        return []
 
 
 def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
@@ -188,8 +227,8 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                     username, contributors_data
                 )
 
-                project_type = (
-                    "open_source" if contributor_count > 1 else "self_project"
+                project_type = determine_enhanced_project_type(
+                    repo, contributor_count, user_contributions, username
                 )
 
                 project = {
@@ -237,11 +276,11 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
             )
             return projects
 
-        elif response.status_code == 404:
+        elif status_code == 404:
             print(f"GitHub user not found: {username}")
             return []
         else:
-            print(f"GitHub API error: {response.status_code} - {response.text}")
+            print(f"GitHub API error: {status_code} - {data}")
             return []
 
     except requests.exceptions.RequestException as e:
@@ -333,7 +372,6 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
             "options": model_params,
         }
 
-        # Call the LLM provider
         response = provider.chat(**chat_params)
 
         response_text = response["message"]["content"]
@@ -402,6 +440,233 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
         return projects_data
 
 
+def fetch_user_pull_requests(username: str, state: str = "all") -> List[Dict]:
+    """
+    Fetch all pull requests created by the user with accurate merged status.
+    This includes PRs to repositories they don't own (true open source contributions).
+    """
+    try:
+        all_prs = []
+        
+        # Fetch merged PRs separately for accurate status
+        if state in ["all", "merged"]:
+            merged_params = {
+                "q": f"author:{username} type:pr is:merged",
+                "sort": "created",
+                "order": "desc",
+                "per_page": 100
+            }
+            status_code, merged_data = _fetch_github_api("https://api.github.com/search/issues", params=merged_params)
+            if status_code == 200:
+                for item in merged_data.get("items", []):
+                    all_prs.append({
+                        "title": item.get("title", ""),
+                        "url": item.get("html_url", ""),
+                        "state": "merged",
+                        "created_at": item.get("created_at", ""),
+                        "updated_at": item.get("updated_at", ""),
+                        "repository": item.get("repository_url", "").replace("https://api.github.com/repos/", ""),
+                        "number": item.get("number", 0),
+                        "merged": True,
+                        "draft": False,
+                        "is_own_repo": item.get("repository_url", "").replace("https://api.github.com/repos/", "").startswith(f"{username}/"),
+                    })
+        
+        # Fetch open PRs
+        if state in ["all", "open"]:
+            open_params = {
+                "q": f"author:{username} type:pr is:open",
+                "sort": "created",
+                "order": "desc",
+                "per_page": 100
+            }
+            status_code, open_data = _fetch_github_api("https://api.github.com/search/issues", params=open_params)
+            if status_code == 200:
+                for item in open_data.get("items", []):
+                    all_prs.append({
+                        "title": item.get("title", ""),
+                        "url": item.get("html_url", ""),
+                        "state": "open",
+                        "created_at": item.get("created_at", ""),
+                        "updated_at": item.get("updated_at", ""),
+                        "repository": item.get("repository_url", "").replace("https://api.github.com/repos/", ""),
+                        "number": item.get("number", 0),
+                        "merged": False,
+                        "draft": item.get("draft", False),
+                        "is_own_repo": item.get("repository_url", "").replace("https://api.github.com/repos/", "").startswith(f"{username}/"),
+                    })
+        
+        # Fetch closed (unmerged) PRs
+        if state in ["all", "closed"]:
+            closed_params = {
+                "q": f"author:{username} type:pr is:closed is:unmerged",
+                "sort": "created",
+                "order": "desc",
+                "per_page": 100
+            }
+            status_code, closed_data = _fetch_github_api("https://api.github.com/search/issues", params=closed_params)
+            if status_code == 200:
+                for item in closed_data.get("items", []):
+                    all_prs.append({
+                        "title": item.get("title", ""),
+                        "url": item.get("html_url", ""),
+                        "state": "closed",
+                        "created_at": item.get("created_at", ""),
+                        "updated_at": item.get("updated_at", ""),
+                        "repository": item.get("repository_url", "").replace("https://api.github.com/repos/", ""),
+                        "number": item.get("number", 0),
+                        "merged": False,
+                        "draft": False,
+                        "is_own_repo": item.get("repository_url", "").replace("https://api.github.com/repos/", "").startswith(f"{username}/"),
+                    })
+        
+        print(f"✅ Found {len(all_prs)} pull requests for {username}")
+        return all_prs
+            
+    except Exception as e:
+        print(f"❌ Error fetching pull requests: {e}")
+        return []
+
+
+def analyze_open_source_contributions(username: str) -> Dict:
+    """
+    Analyze open source contributions by fetching PRs and analyzing them.
+    """
+    try:
+        print(f"🔍 Analyzing open source contributions for {username}...")
+        
+        # Fetch all PRs created by the user
+        all_prs = fetch_user_pull_requests(username)
+        
+        # Categorize PRs
+        own_repo_prs = [pr for pr in all_prs if pr.get("is_own_repo", False)]
+        external_prs = [pr for pr in all_prs if not pr.get("is_own_repo", False)]
+        merged_prs = [pr for pr in all_prs if pr.get("merged", False)]
+        
+        # Analyze external contributions (true open source)
+        external_contributions = []
+        for pr in external_prs:
+            repo_name = pr.get("repository", "")
+            if repo_name:
+                repo_api_url = f"https://api.github.com/repos/{repo_name}"
+                status_code, repo_data = _fetch_github_api(repo_api_url)
+                
+                if status_code == 200:
+                    contribution = {
+                        "repository": repo_name,
+                        "repository_stars": repo_data.get("stargazers_count", 0),
+                        "repository_forks": repo_data.get("forks_count", 0),
+                        "repository_language": repo_data.get("language", ""),
+                        "repository_description": repo_data.get("description", ""),
+                        "repository_topics": repo_data.get("topics", []),
+                        "pr_title": pr.get("title", ""),
+                        "pr_url": pr.get("url", ""),
+                        "pr_state": pr.get("state", ""),
+                        "pr_merged": pr.get("merged", False),
+                        "pr_created_at": pr.get("created_at", ""),
+                        "pr_labels": pr.get("labels", []),
+                        "is_popular_project": repo_data.get("stargazers_count", 0) >= 1000,
+                        "is_major_project": repo_data.get("stargazers_count", 0) >= 10000,
+                    }
+                    external_contributions.append(contribution)
+        
+        # Calculate metrics
+        total_external_prs = len(external_prs)
+        merged_external_prs = len([pr for pr in external_prs if pr.get("merged", False)])
+        popular_project_contributions = len([
+            c for c in external_contributions if c.get("is_popular_project", False)
+        ])
+        major_project_contributions = len([
+            c for c in external_contributions if c.get("is_major_project", False)
+        ])
+        
+        analysis = {
+            "total_prs": len(all_prs),
+            "own_repo_prs": len(own_repo_prs),
+            "external_prs": total_external_prs,
+            "merged_prs": len(merged_prs),
+            "merged_external_prs": merged_external_prs,
+            "popular_project_contributions": popular_project_contributions,
+            "major_project_contributions": major_project_contributions,
+            "external_contributions": external_contributions,
+            "open_source_score": calculate_open_source_score(external_contributions),
+            "contribution_quality": assess_contribution_quality(external_contributions)
+        }
+        
+        return analysis
+        
+    except Exception as e:
+        print(f"❌ Error analyzing open source contributions: {e}")
+        return {
+            "total_prs": 0,
+            "own_repo_prs": 0,
+            "external_prs": 0,
+            "merged_prs": 0,
+            "merged_external_prs": 0,
+            "popular_project_contributions": 0,
+            "major_project_contributions": 0,
+            "external_contributions": [],
+            "open_source_score": 0,
+            "contribution_quality": "No contributions"
+        }
+
+
+def calculate_open_source_score(contributions: List[Dict]) -> int:
+    """Calculate open source score based on contributions."""
+    if not contributions:
+        return 0
+    
+    score = 0
+    
+    for contribution in contributions:
+        # Base score for any external contribution
+        score += 5
+        
+        # Bonus for merged PRs
+        if contribution.get("pr_merged", False):
+            score += 10
+        
+        # Bonus for popular projects (1000+ stars)
+        if contribution.get("is_popular_project", False):
+            score += 15
+        
+        # Bonus for major projects (10000+ stars)
+        if contribution.get("is_major_project", False):
+            score += 25
+        
+        # Bonus for multiple contributions to same project
+        repo_name = contribution.get("repository", "")
+        if repo_name:
+            same_repo_count = len([c for c in contributions if c.get("repository") == repo_name])
+            if same_repo_count > 1:
+                score += same_repo_count * 5
+    
+    return min(score, 100)  # Cap at 100
+
+
+def assess_contribution_quality(contributions: List[Dict]) -> str:
+    """Assess the quality of open source contributions."""
+    if not contributions:
+        return "No open source contributions"
+    
+    merged_count = len([c for c in contributions if c.get("pr_merged", False)])
+    popular_count = len([c for c in contributions if c.get("is_popular_project", False)])
+    major_count = len([c for c in contributions if c.get("is_major_project", False)])
+    
+    if major_count > 0:
+        return "Exceptional - contributions to major projects"
+    elif popular_count > 2:
+        return "Excellent - multiple contributions to popular projects"
+    elif popular_count > 0:
+        return "Good - contributions to popular projects"
+    elif merged_count > 2:
+        return "Good - multiple merged contributions"
+    elif merged_count > 0:
+        return "Fair - some merged contributions"
+    else:
+        return "Basic - contributions present but not merged"
+
+
 def fetch_and_display_github_info(github_url: str) -> Dict:
     logger.info(f"{github_url}")
     github_profile = fetch_github_profile(github_url)
@@ -415,6 +680,13 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
     if not projects:
         print("\n❌ No repositories found or failed to fetch repository details.")
 
+    # Get username for PR analysis
+    username = extract_github_username(github_url)
+    open_source_analysis = {}
+    if username:
+        print("🔍 Analyzing open source contributions...")
+        open_source_analysis = analyze_open_source_contributions(username)
+
     profile_json = generate_profile_json(github_profile)
     projects_json = generate_projects_json(projects)
 
@@ -422,6 +694,7 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
         "profile": profile_json,
         "projects": projects_json,
         "total_projects": len(projects_json),
+        "open_source_analysis": open_source_analysis,
     }
 
     return result
