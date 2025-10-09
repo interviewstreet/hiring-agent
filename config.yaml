@@ -1,0 +1,168 @@
+# Hiring Agent Configuration File
+# This file contains all configurable settings for the hiring agent
+
+# Application Settings
+app:
+  name: "Hiring Agent"
+  version: "1.0.0"
+  development_mode: true
+  cache_directory: "cache"
+  output_directory: "output"
+
+# Evaluation Settings
+evaluation:
+  # Scoring weights for different categories (must sum to 100)
+  scoring_weights:
+    open_source: 35
+    self_projects: 30
+    production: 25
+    technical_skills: 10
+  
+  # Maximum possible scores for each category
+  max_scores:
+    open_source: 35
+    self_projects: 30
+    production: 25
+    technical_skills: 10
+  
+  # Bonus points configuration
+  bonus_points:
+    max_total: 20
+    criteria:
+      - "Published research papers or articles"
+      - "Contributed to major open source projects (1000+ stars)"
+      - "Has technical certifications"
+      - "Active in developer communities"
+      - "Has speaking experience at conferences"
+  
+  # Deduction rules
+  deductions:
+    max_total: 20
+    rules:
+      - "Missing contact information: -5"
+      - "No GitHub profile: -10"
+      - "No project descriptions: -5"
+      - "Very short work experience (< 1 year): -5"
+      - "No technical skills listed: -10"
+  
+  # Minimum and maximum final scores
+  score_limits:
+    min_final_score: -20
+    max_final_score: 120
+
+# Model Configuration
+models:
+  # Default model to use
+  default: "gemma3:4b"
+  
+  # Model parameters for different models
+  parameters:
+    # Ollama models
+    "qwen3:1.7b":
+      temperature: 0.0
+      top_p: 0.9
+    "gemma3:1b":
+      temperature: 0.0
+      top_p: 0.9
+    "qwen3:4b":
+      temperature: 0.1
+      top_p: 0.4
+    "gemma3:4b":
+      temperature: 0.1
+      top_p: 0.9
+    "gemma3:12b":
+      temperature: 0.1
+      top_p: 0.9
+    "mistral:7b":
+      temperature: 0.1
+      top_p: 0.9
+    
+    # Google Gemini models
+    "gemini-2.0-flash":
+      temperature: 0.1
+      top_p: 0.9
+    "gemini-2.0-flash-lite":
+      temperature: 0.1
+      top_p: 0.9
+    "gemini-2.5-pro":
+      temperature: 0.1
+      top_p: 0.9
+    "gemini-2.5-flash":
+      temperature: 0.1
+      top_p: 0.9
+    "gemini-2.5-flash-lite":
+      temperature: 0.1
+      top_p: 0.9
+  
+  # Model provider mapping
+  provider_mapping:
+    "qwen3:1.7b": "ollama"
+    "gemma3:1b": "ollama"
+    "qwen3:4b": "ollama"
+    "gemma3:4b": "ollama"
+    "gemma3:12b": "ollama"
+    "mistral:7b": "ollama"
+    "gemini-2.0-flash": "gemini"
+    "gemini-2.0-flash-lite": "gemini"
+    "gemini-2.5-flash": "gemini"
+    "gemini-2.5-flash-lite": "gemini"
+    "gemini-2.5-pro": "gemini"
+
+# File Processing Settings
+file_processing:
+  # PDF file limits
+  pdf:
+    max_size_mb: 50
+    supported_extensions: [".pdf"]
+    min_file_size_bytes: 100
+  
+  # GitHub API settings
+  github:
+    max_repos: 100
+    max_contributors_per_repo: 100
+    min_commit_threshold: 1
+    fork_threshold: 5  # Ignore forks with less than 5 forks
+  
+  # Project selection
+  project_selection:
+    max_projects_to_select: 7
+    min_author_commits: 1
+    prefer_open_source: true
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)5s - %(lineno)5d - %(funcName)33s - %(levelname)5s - %(message)s"
+  file: "hiring_agent.log"
+  max_file_size_mb: 10
+  backup_count: 5
+
+# Cache Settings
+cache:
+  enabled: true
+  ttl_hours: 24
+  max_size_mb: 100
+  cleanup_interval_hours: 6
+
+# API Settings
+api:
+  github:
+    timeout_seconds: 10
+    retry_attempts: 3
+    retry_delay_seconds: 1
+  llm:
+    timeout_seconds: 30
+    retry_attempts: 2
+    retry_delay_seconds: 2
+
+# Output Settings
+output:
+  csv:
+    filename: "resume_evaluations.csv"
+    include_timestamp: true
+  json:
+    pretty_print: true
+    include_metadata: true
+  reports:
+    include_charts: false
+    template: "default"

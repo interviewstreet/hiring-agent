@@ -2,13 +2,18 @@ from typing import Dict, List, Optional, Tuple, Any
 from pydantic import BaseModel, Field, field_validator
 from models import JSONResume, EvaluationData
 from llm_utils import initialize_llm_provider, extract_json_from_response
+from config_loader import get_config
 import logging
 import json
 import re
 
-MAX_BONUS_POINTS = 20
-MIN_FINAL_SCORE = -20
-MAX_FINAL_SCORE = 120
+# Get configuration
+config = get_config()
+
+# Get scoring limits from configuration
+MAX_BONUS_POINTS = config.get("evaluation.bonus_points.max_total", 20)
+MIN_FINAL_SCORE = config.get("evaluation.score_limits.min_final_score", -20)
+MAX_FINAL_SCORE = config.get("evaluation.score_limits.max_final_score", 120)
 
 from prompt import (
     DEFAULT_MODEL,
