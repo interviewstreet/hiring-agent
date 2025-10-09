@@ -18,11 +18,11 @@ DEFAULT_PROVIDER = ModelProvider.OLLAMA
 
 # Get model and provider from environment or use defaults
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", DEFAULT_MODEL_NAME)
-PROVIDER = os.getenv("LLM_PROVIDER", DEFAULT_PROVIDER.value)
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", DEFAULT_PROVIDER.value)
 
 # Validate provider
-if PROVIDER not in [p.value for p in ModelProvider]:
-    PROVIDER = DEFAULT_PROVIDER.value
+if LLM_PROVIDER not in [p.value for p in ModelProvider]:
+    LLM_PROVIDER = DEFAULT_PROVIDER.value
 
 # Model-specific parameters
 MODEL_PARAMETERS = {

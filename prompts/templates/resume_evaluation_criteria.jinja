@@ -1,6 +1,6 @@
 You are evaluating a resume for a Software Intern position at HackerRank. Analyze the resume data and provide scores based on these criteria:
 
-**MANDATORY: You MUST always fill ALL FOUR categories: open_source, self_projects, production, technical_skills.**
+**MANDATORY: You MUST always fill ALL FOUR categories: open_source, self_projects, production, technical_skills, scholarship_mentorship.**
 
 ## CRITICAL FAIRNESS REQUIREMENTS
 **SCORES MUST NEVER DEPEND ON:**
@@ -86,6 +86,21 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 - Analyze the 'work' and 'volunteer' sections for real-world, internship, or production experience
 - **SPECIAL CONSIDERATION**: Give extra points for founder roles, co-founder positions, or early-stage engineer roles (first 10-20 employees) at startups
 
+### Scholarship & Mentorship (0-10 points)
+**HIGH SCORES (7-10 points):**
+- Prestigious, well-known scholarships (e.g., national/international academic awards).
+- Recognized mentorship roles in formal programs (e.g., community or technical mentoring).
+
+**MEDIUM SCORES (4-6 points):**
+- University-level scholarships or academic honors.
+- Significant achievements in academic competitions.
+
+**LOW SCORES (1-3 points):**
+- Minor awards or honorable mentions.
+
+**ZERO SCORES (0 points):**
+- No scholarships, mentorships, or relevant awards listed.
+
 ### Technical Skills (0-10 points)
 - Analyze the 'skills', 'languages', and evidence of technical breadth or problem-solving in projects, work, or competitions
 
@@ -160,6 +175,7 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
   - self_projects: 0-30 points (maximum 30)
   - production: 0-25 points (maximum 25)
   - technical_skills: 0-10 points (maximum 10)
+  - scholarship_mentorship: 0-10 points (maximum 10)
 - Bonus points total must be <= 20 (maximum 20 points)
 - **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed 120 points
 
@@ -173,6 +189,7 @@ Analyze the following resume and provide a JSON response with this EXACT structu
         "self_projects": {"score": 0, "max": 30, "evidence": "string"},
         "production": {"score": 0, "max": 25, "evidence": "string"},
         "technical_skills": {"score": 0, "max": 10, "evidence": "string"}
+        "scholarship_mentorship": {"score": 0, "max": 10, "evidence": "string"}
     },
     "bonus_points": {"total": 0, "breakdown": "string"},
     "deductions": {"total": 0, "reasons": "string"},
