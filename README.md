@@ -83,7 +83,7 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
 
   The repository pins `.python-version` to 3.11.13.
 
-- **One LLM backend**
+- **One LLM backend** (either of them)
 
   - **Ollama** for local models
     Install from the [official site](https://ollama.com/), then run `ollama serve`.
@@ -92,16 +92,16 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
 ### Quick setup with pip
 
 ```bash
-git clone https://github.com/interviewstreet/hiring-agent
-cd hiring-agent
+$ git clone https://github.com/interviewstreet/hiring-agent
+$ cd hiring-agent
 
-python -m venv .venv
+$ python -m venv .venv
 # Linux or macOS
-source .venv/bin/activate
+$ source .venv/bin/activate
 # Windows
 # .venv\Scripts\activate
 
-pip install -r requirements.txt
+$ pip install -r requirements.txt
 ```
 
 ### Ollama Models
@@ -109,17 +109,17 @@ pip install -r requirements.txt
 Pull the model you want to use. For example:
 
 ```bash
-ollama pull gemma3:4b
+$ ollama pull gemma3:4b
 ```
 
 If you want different results, you can pull other models such as:
 
 ```bash
 # For higher system configuration
-ollama pull gemma3:12b
+$ ollama pull gemma3:12b
 
 # For lower system configuration
-ollama pull gemma3:1b
+$ ollama pull gemma3:1b
 ```
 
 ## Configuration
@@ -127,7 +127,7 @@ ollama pull gemma3:1b
 Copy the template and set your environment variables.
 
 ```bash
-cp .env.example .env
+$ cp .env.example .env
 ```
 
 **Environment variables**
@@ -202,7 +202,7 @@ You can leave it on during iteration. See the next section for details.
 Provide a path to a resume PDF.
 
 ```bash
-python score.py /path/to/resume.pdf
+$ python score.py /path/to/resume.pdf
 ```
 
 What happens:
