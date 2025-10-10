@@ -26,7 +26,9 @@
   - [Ollama models](#ollama-models)
 - [Configuration](#configuration)
 - [How it works](#how-it-works)
+- [CLI usage](#cli-usage)
 - [Directory layout](#directory-layout)
+- [Provider details](#provider-details)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -122,6 +124,8 @@ $ ollama pull gemma3:12b
 $ ollama pull gemma3:1b
 ```
 
+---
+
 ## Configuration
 
 Copy the template and set your environment variables.
@@ -211,6 +215,8 @@ What happens:
 2. If a GitHub profile is found in the resume, repositories are fetched and cached to `cache/githubcache_<basename>.json`.
 3. The evaluator prints a report and, in development mode, appends a CSV row to `resume_evaluations.csv`.
 
+---
+
 ## Directory layout
 
 ```text
@@ -264,13 +270,14 @@ What happens:
 
 ## Contributing
 
+Please read the [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines on filing issues, proposing changes, and submitting pull requests. Key principles include:
+
 - Keep prompts declarative and provider-agnostic.
 - Validate changes with a couple of real resumes under different providers.
 - Add or adjust unit-free smoke tests that call each stage with minimal inputs.
 
-## Contributing
+---
 
-Please read the [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on filing issues, proposing changes, and submitting pull requests.
 
 ## License
 
