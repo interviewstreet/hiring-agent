@@ -67,100 +67,181 @@ bullet = tuple(
 GRAPHICS_TEXT = "\n![](%s)\n"
 
 
-class IdentifyHeaders:
-    """Compute data for identifying header text.
-
-    All non-white text from all selected pages is extracted and its font size
-    noted as a rounded value.
-    The most frequent font size (and all smaller ones) is taken as body text
-    font size.
-    Larger font sizes are mapped to strings of multiples of '#', the header
-    tag in Markdown, which in turn is Markdown's representation of HTML's
-    header tags <h1> to <h6>.
-    Larger font sizes than body text but smaller than the <h6> font size are
-    represented as <h6>.
+class AdvancedHeaderIdentifier:
+    """
+    Smarter header identification using multiple heuristics.
+    Instead of relying only on font size, this class scores potential headers
+    based on boldness, being all-caps, and relative font size.
     """
 
-    def __init__(
-        self,
-        doc: str,
-        pages: list = None,
-        body_limit: float = 12,  # force this to be body text
-        max_levels: int = 6,  # accept this many header levels
-    ):
-        """Read all text and make a dictionary of fontsizes.
-
-        Args:
-            doc: PDF document or filename
-            pages: consider these page numbers only
-            body_limit: treat text with larger font size as a header
+    def __init__(self, doc: pymupdf.Document, pages: list = None):
         """
-        if not isinstance(max_levels, int) or max_levels not in range(1, 7):
-            raise ValueError("max_levels must be an integer between 1 and 6")
-        if isinstance(doc, pymupdf.Document):
-            mydoc = doc
-        else:
-            mydoc = pymupdf.open(doc)
-
-        if pages is None:  # use all pages if omitted
-            pages = range(mydoc.page_count)
+        Analyzes the document to establish a baseline for text properties.
+        """
+        if pages is None:
+            pages = range(doc.page_count)
 
         fontsizes = defaultdict(int)
+
+        # First pass: gather statistics about font sizes to find the body text size
         for pno in pages:
-            page = mydoc.load_page(pno)
+            page = doc.load_page(pno)
             blocks = page.get_text("dict", flags=pymupdf.TEXTFLAGS_TEXT)["blocks"]
-            for span in [  # look at all non-empty horizontal spans
+            for span in [
                 s
                 for b in blocks
                 for l in b["lines"]
                 for s in l["spans"]
                 if not is_white(s["text"])
             ]:
-                fontsz = round(span["size"])  # # compute rounded fontsize
-                fontsizes[fontsz] += len(span["text"].strip())  # add character count
+                font_size = round(span["size"])
+                char_count = len(span["text"].strip())
+                fontsizes[font_size] += char_count
 
-        if mydoc != doc:
-            # if opened here, close it now
-            mydoc.close()
+        if not fontsizes:
+            self.body_size = 10  # Default body size if no text is found
+            return
 
-        # maps a fontsize to a string of multiple # header tag characters
-        self.header_id = {}
+        # Determine the most common font size as the body text size
+        self.body_size = max(fontsizes, key=fontsizes.get)
 
-        # If not provided, choose the most frequent font size as body text.
-        # If no text at all on all pages, just use body_limit.
-        # In any case all fonts not exceeding
-        temp = sorted(
-            [(k, v) for k, v in fontsizes.items()], key=lambda i: (i[1], i[0])
-        )
-        if temp:
-            # most frequent font size
-            self.body_limit = max(body_limit, temp[-1][0])
-        else:
-            self.body_limit = body_limit
-
-        # identify up to 6 font sizes as header candidates
-        sizes = sorted(
-            [f for f in fontsizes.keys() if f > self.body_limit],
-            reverse=True,
-        )[:max_levels]
-
-        # make the header tag dictionary
-        for i, size in enumerate(sizes, start=1):
-            self.header_id[size] = "#" * i + " "
-        if self.header_id.keys():
-            self.body_limit = min(self.header_id.keys()) - 1
-
-    def get_header_id(self, span: dict, page=None) -> str:
-        """Return appropriate markdown header prefix.
-
-        Given a text span from a "dict"/"rawdict" extraction, determine the
-        markdown header prefix string of 0 to n concatenated '#' characters.
+    def get_header_id(self, line_spans: list, page=None) -> str:
         """
-        fontsize = round(span["size"])  # compute fontsize
-        if fontsize <= self.body_limit:
+        Return appropriate markdown header prefix based on a scoring system.
+        A line is considered a header if it meets multiple criteria.
+        """
+        if not line_spans:
             return ""
-        hdr_id = self.header_id.get(fontsize, "")
-        return hdr_id
+
+        line_text = " ".join([s["text"] for s in line_spans]).strip()
+        if not line_text:
+            return ""
+
+        # --- Heuristic Scoring System ---
+        score = 0
+
+        # Heuristic 1: Is the entire line bold?
+        # A span's "flags" is a bitfield. Bit 4 (16) means bold.
+        is_all_bold = all((s["flags"] & 16) for s in line_spans if s["text"].strip())
+        if is_all_bold:
+            score += 1
+
+        # Heuristic 2: Is the text all-caps (and a reasonable length)?
+        is_all_caps = line_text.isupper() and len(line_text) > 3
+        if is_all_caps:
+            score += 1
+
+        # Heuristic 3: Is the font size larger than the body text?
+        span_size = round(line_spans[0]["size"])
+        if span_size > self.body_size:
+            score += 1
+
+        # Heuristic 4: Is the line short (suggesting a title)?
+        if len(line_text.split()) < 5:
+            score += 1
+
+        # A score of 2 or more is a strong indicator of a header.
+        # This threshold can be adjusted if needed.
+        if score >= 2:
+            return "## "  # Return a standard H2 header for sections
+
+        return ""
+
+
+# class IdentifyHeaders:
+#     """Compute data for identifying header text.
+
+#     All non-white text from all selected pages is extracted and its font size
+#     noted as a rounded value.
+#     The most frequent font size (and all smaller ones) is taken as body text
+#     font size.
+#     Larger font sizes are mapped to strings of multiples of '#', the header
+#     tag in Markdown, which in turn is Markdown's representation of HTML's
+#     header tags <h1> to <h6>.
+#     Larger font sizes than body text but smaller than the <h6> font size are
+#     represented as <h6>.
+#     """
+
+#     def __init__(
+#         self,
+#         doc: str,
+#         pages: list = None,
+#         body_limit: float = 12,  # force this to be body text
+#         max_levels: int = 6,  # accept this many header levels
+#     ):
+#         """Read all text and make a dictionary of fontsizes.
+
+#         Args:
+#             doc: PDF document or filename
+#             pages: consider these page numbers only
+#             body_limit: treat text with larger font size as a header
+#         """
+#         if not isinstance(max_levels, int) or max_levels not in range(1, 7):
+#             raise ValueError("max_levels must be an integer between 1 and 6")
+#         if isinstance(doc, pymupdf.Document):
+#             mydoc = doc
+#         else:
+#             mydoc = pymupdf.open(doc)
+
+#         if pages is None:  # use all pages if omitted
+#             pages = range(mydoc.page_count)
+
+#         fontsizes = defaultdict(int)
+#         for pno in pages:
+#             page = mydoc.load_page(pno)
+#             blocks = page.get_text("dict", flags=pymupdf.TEXTFLAGS_TEXT)["blocks"]
+#             for span in [  # look at all non-empty horizontal spans
+#                 s
+#                 for b in blocks
+#                 for l in b["lines"]
+#                 for s in l["spans"]
+#                 if not is_white(s["text"])
+#             ]:
+#                 fontsz = round(span["size"])  # # compute rounded fontsize
+#                 fontsizes[fontsz] += len(span["text"].strip())  # add character count
+
+#         if mydoc != doc:
+#             # if opened here, close it now
+#             mydoc.close()
+
+#         # maps a fontsize to a string of multiple # header tag characters
+#         self.header_id = {}
+
+#         # If not provided, choose the most frequent font size as body text.
+#         # If no text at all on all pages, just use body_limit.
+#         # In any case all fonts not exceeding
+#         temp = sorted(
+#             [(k, v) for k, v in fontsizes.items()], key=lambda i: (i[1], i[0])
+#         )
+#         if temp:
+#             # most frequent font size
+#             self.body_limit = max(body_limit, temp[-1][0])
+#         else:
+#             self.body_limit = body_limit
+
+#         # identify up to 6 font sizes as header candidates
+#         sizes = sorted(
+#             [f for f in fontsizes.keys() if f > self.body_limit],
+#             reverse=True,
+#         )[:max_levels]
+
+#         # make the header tag dictionary
+#         for i, size in enumerate(sizes, start=1):
+#             self.header_id[size] = "#" * i + " "
+#         if self.header_id.keys():
+#             self.body_limit = min(self.header_id.keys()) - 1
+
+#     def get_header_id(self, span: dict, page=None) -> str:
+#         """Return appropriate markdown header prefix.
+
+#         Given a text span from a "dict"/"rawdict" extraction, determine the
+#         markdown header prefix string of 0 to n concatenated '#' characters.
+#         """
+#         fontsize = round(span["size"])  # compute fontsize
+#         if fontsize <= self.body_limit:
+#             return ""
+#         hdr_id = self.header_id.get(fontsize, "")
+#         return hdr_id
 
 
 class TocHeaders:
@@ -411,23 +492,37 @@ def to_markdown(
 
     # If "hdr_info" is not an object with a method "get_header_id", scan the
     # document and use font sizes as header level indicators.
+    # --- START: REPLACE THE OLD LOGIC WITH THIS ---
+    if hdr_info is None:
+        # Default to our new advanced identifier if nothing is passed.
+        hdr_info = AdvancedHeaderIdentifier(doc, pages=pages)
+
     if callable(hdr_info):
         get_header_id = hdr_info
     elif hasattr(hdr_info, "get_header_id") and callable(hdr_info.get_header_id):
         get_header_id = hdr_info.get_header_id
-    elif hdr_info is False:
-        get_header_id = lambda s, page=None: ""
     else:
-        hdr_info = IdentifyHeaders(doc)
-        get_header_id = hdr_info.get_header_id
+        # Fallback for old behavior if a boolean is passed
+        get_header_id = lambda s, page=None: ""
 
     def max_header_id(spans, page):
-        hdr_ids = sorted(
-            [l for l in set([len(get_header_id(s, page=page)) for s in spans]) if l > 0]
-        )
-        if not hdr_ids:
-            return ""
-        return "#" * (hdr_ids[0] - 1) + " "
+        # The new AdvancedHeaderIdentifier expects a list of spans for the whole line.
+        # This handles that, while providing a fallback for other identifier types.
+        if isinstance(hdr_info, AdvancedHeaderIdentifier):
+            return get_header_id(spans, page=page)
+        else:
+            # Fallback for TocHeaders or other custom identifiers
+            hdr_ids = sorted(
+                [
+                    len(get_header_id(s, page=page))
+                    for s in spans
+                    if get_header_id(s, page=page)
+                ],
+                reverse=True,
+            )
+            if not hdr_ids:
+                return ""
+            return "#" * (hdr_ids[0]) + " "
 
     def resolve_links(links, span):
         """Accept a span and return a markdown link string.
@@ -1267,6 +1362,7 @@ def to_markdown(
             header_margin=margins[1],
             ignore_images=IGNORE_IMAGES,
         )
+        text_rects.sort(key=lambda r: (r.y0, r.x0))
 
         """
         ------------------------------------------------------------------
