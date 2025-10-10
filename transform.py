@@ -922,15 +922,22 @@ def convert_github_data_to_text(github_data: dict) -> str:
         analysis = github_data["open_source_analysis"]
         github_text += f"\n=== OPEN SOURCE CONTRIBUTIONS ANALYSIS ===\n"
         github_text += f"Total Pull Requests: {analysis.get('total_prs', 0)}\n"
-        github_text += f"External PRs (to other repos): {analysis.get('external_prs', 0)}\n"
-        github_text += f"Merged External PRs: {analysis.get('merged_external_prs', 0)}\n"
+        github_text += (
+            f"External PRs (to other repos): {analysis.get('external_prs', 0)}\n"
+        )
+        github_text += (
+            f"Merged External PRs: {analysis.get('merged_external_prs', 0)}\n"
+        )
         github_text += f"Popular Project Contributions: {analysis.get('popular_project_contributions', 0)}\n"
-        github_text += f"Major Project Contributions: {analysis.get('major_project_contributions', 0)}\n"
-        github_text += f"Open Source Score: {analysis.get('open_source_score', 0)}/100\n"
-        github_text += f"Contribution Quality: {analysis.get('contribution_quality', 'N/A')}\n"
-        
+        github_text += (
+            f"Open Source Score: {analysis.get('open_source_score', 0)}/100\n"
+        )
+        github_text += (
+            f"Contribution Quality: {analysis.get('contribution_quality', 'N/A')}\n"
+        )
+
         # Add detailed external contributions
-        external_contributions = analysis.get('external_contributions', [])
+        external_contributions = analysis.get("external_contributions", [])
         if external_contributions:
             github_text += f"\nExternal Contributions Details:\n"
             for i, contrib in enumerate(external_contributions[:5], 1):
@@ -939,8 +946,12 @@ def convert_github_data_to_text(github_data: dict) -> str:
                 github_text += f"   PR Title: {contrib.get('pr_title', 'N/A')}\n"
                 github_text += f"   PR State: {contrib.get('pr_state', 'N/A')}\n"
                 github_text += f"   Merged: {contrib.get('pr_merged', False)}\n"
-                github_text += f"   Popular Project: {contrib.get('is_popular_project', False)}\n"
-                github_text += f"   Major Project: {contrib.get('is_major_project', False)}\n"
+                github_text += (
+                    f"   Popular Project: {contrib.get('is_popular_project', False)}\n"
+                )
+                github_text += (
+                    f"   Major Project: {contrib.get('is_major_project', False)}\n"
+                )
                 github_text += "\n"
 
     return github_text
