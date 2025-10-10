@@ -9,7 +9,12 @@ from models import GitHubProfile
 from pdf import logger
 from prompts.template_manager import TemplateManager
 from prompt import DEFAULT_MODEL, MODEL_PARAMETERS
-from llm_utils import initialize_llm_provider, extract_json_from_response
+from llm_utils import (
+    initialize_llm_provider,
+    extract_json_from_response,
+    parse_llm_response,
+    supports_structured_output,
+)
 from config import DEVELOPMENT_MODE
 
 
@@ -340,9 +345,10 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
 
         try:
             response_text = response_text.strip()
-            response_text = extract_json_from_response(response_text)
-
-            selected_projects = json.loads(response_text)
+            # GitHub project selection doesn't use structured output yet (no schema defined)
+            selected_projects = parse_llm_response(
+                response_text, structured_output=False
+            )
 
             unique_projects = []
             seen_names = set()
