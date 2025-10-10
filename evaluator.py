@@ -1,7 +1,12 @@
 from typing import Dict, List, Optional, Tuple, Any
 from pydantic import BaseModel, Field, field_validator
 from models import JSONResume, EvaluationData
-from llm_utils import initialize_llm_provider, extract_json_from_response
+from llm_utils import (
+    initialize_llm_provider,
+    extract_json_from_response,
+    parse_llm_response,
+    supports_structured_output,
+)
 import logging
 import json
 import re
@@ -78,11 +83,20 @@ class ResumeEvaluator:
             response = self.provider.chat(**chat_params, **kwargs)
 
             response_text = response["message"]["content"]
-            response_text = extract_json_from_response(response_text)
-            logger.error(f"🔤 Prompt response: {response_text}")
+            logger.info(f"🔤 Prompt response: {response_text}")
 
-            evaluation_dict = json.loads(response_text)
+            # Check if we used structured output
+            used_structured_output = supports_structured_output(
+                self.provider, self.model_name
+            )
+            evaluation_dict = parse_llm_response(
+                response_text, structured_output=used_structured_output
+            )
             evaluation_data = EvaluationData(**evaluation_dict)
+
+            logger.info(
+                f"✅ Successfully parsed evaluation (structured_output: {used_structured_output})"
+            )
 
             return evaluation_data
 
