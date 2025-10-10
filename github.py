@@ -2,6 +2,8 @@ import os
 import re
 import json
 import requests
+import asyncio
+import httpx
 from pathlib import Path
 
 from typing import Dict, List, Optional, Any
@@ -24,7 +26,7 @@ def _create_cache_filename(api_url: str, params: dict = None) -> str:
     return filename
 
 
-def _fetch_github_api(api_url, params=None):
+async def _fetch_github_api(api_url, params=None):
     headers = {}
     github_token = os.environ.get("GITHUB_TOKEN")
     if github_token:
@@ -39,9 +41,10 @@ def _fetch_github_api(api_url, params=None):
         except Exception as e:
             print(f"Error reading cache file {cache_filename}: {e}")
 
-    response = requests.get(api_url, params, timeout=10, headers=headers)
-    status_code = response.status_code
-    data = response.json() if response.status_code == 200 else {}
+    async with httpx.AsyncClient() as client:
+        response = await client.get(api_url, params=params, timeout=10, headers=headers)
+        status_code = response.status_code
+        data = response.json() if response.status_code == 200 else {}
 
     if DEVELOPMENT_MODE and status_code == 200:
         try:
@@ -91,7 +94,7 @@ def fetch_github_profile(github_url: str) -> Optional[GitHubProfile]:
 
         api_url = f"https://api.github.com/users/{username}"
 
-        status_code, data = _fetch_github_api(api_url)
+        status_code, data = asyncio.run(_fetch_github_api(api_url))
 
         if status_code == 200:
             profile = GitHubProfile(
@@ -142,11 +145,11 @@ def fetch_contributions_count(owner: str, contributors_data):
     return user_contributions, total_contributions
 
 
-def fetch_repo_contributors(owner: str, repo_name: str) -> int:
+async def fetch_repo_contributors(owner: str, repo_name: str) -> int:
     try:
         api_url = f"https://api.github.com/repos/{owner}/{repo_name}/contributors"
 
-        status_code, contributors_data = _fetch_github_api(api_url)
+        status_code, contributors_data = await _fetch_github_api(api_url)
 
         return contributors_data
 
@@ -160,7 +163,7 @@ def fetch_repo_contributors(owner: str, repo_name: str) -> int:
         return 1
 
 
-def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
+async def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
     try:
         username = extract_github_username(github_url)
         if not username:
@@ -171,18 +174,25 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
 
         params = {"sort": "updated", "per_page": min(max_repos, 100), "type": "all"}
 
-        status_code, repos_data = _fetch_github_api(api_url, params=params)
+        status_code, repos_data = await _fetch_github_api(api_url, params=params)
 
         if status_code == 200:
-            projects = []
+            valid_repos = []
             for repo in repos_data:
                 if repo.get("fork") and repo.get("forks_count", 0) < 5:
                     continue
+                valid_repos.append(repo)
 
-                repo_name = repo.get("name")
+            print(f"🔄 Fetching contributors for {len(valid_repos)} repositories...")
+            contributor_tasks = [
+                fetch_repo_contributors(username, repo.get("name"))
+                for repo in valid_repos
+            ]
+            all_contributors_data = await asyncio.gather(*contributor_tasks)
 
-                contributors_data = fetch_repo_contributors(username, repo_name)
-                contributor_count = len(contributors_data)
+            projects = []
+            for repo, contributors_data in zip(valid_repos, all_contributors_data):
+                contributor_count = len(contributors_data) if contributors_data else 0
 
                 user_contributions, total_contributions = fetch_contributions_count(
                     username, contributors_data
@@ -237,16 +247,13 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
             )
             return projects
 
-        elif response.status_code == 404:
+        elif status_code == 404:
             print(f"GitHub user not found: {username}")
             return []
         else:
-            print(f"GitHub API error: {response.status_code} - {response.text}")
+            print(f"GitHub API error: {status_code}")
             return []
 
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching GitHub repositories: {e}")
-        return []
     except Exception as e:
         print(f"Unexpected error fetching GitHub repositories: {e}")
         return []
@@ -410,7 +417,7 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
         return {}
 
     print("🔍 Fetching all repository details...")
-    projects = fetch_all_github_repos(github_url)
+    projects = asyncio.run(fetch_all_github_repos(github_url))
 
     if not projects:
         print("\n❌ No repositories found or failed to fetch repository details.")
