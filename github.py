@@ -565,8 +565,7 @@ def analyze_open_source_contributions(username: str) -> Dict:
                         "pr_merged": pr.get("merged", False),
                         "pr_created_at": pr.get("created_at", ""),
                         "pr_labels": pr.get("labels", []),
-                        "is_popular_project": repo_data.get("stargazers_count", 0) >= 1000,
-                        "is_major_project": repo_data.get("stargazers_count", 0) >= 10000,
+                        "is_popular_project": repo_data.get("stargazers_count", 0) >= 500,
                     }
                     external_contributions.append(contribution)
         
@@ -576,9 +575,6 @@ def analyze_open_source_contributions(username: str) -> Dict:
         popular_project_contributions = len([
             c for c in external_contributions if c.get("is_popular_project", False)
         ])
-        major_project_contributions = len([
-            c for c in external_contributions if c.get("is_major_project", False)
-        ])
         
         analysis = {
             "total_prs": len(all_prs),
@@ -587,7 +583,6 @@ def analyze_open_source_contributions(username: str) -> Dict:
             "merged_prs": len(merged_prs),
             "merged_external_prs": merged_external_prs,
             "popular_project_contributions": popular_project_contributions,
-            "major_project_contributions": major_project_contributions,
             "external_contributions": external_contributions,
             "open_source_score": calculate_open_source_score(external_contributions),
             "contribution_quality": assess_contribution_quality(external_contributions)
@@ -604,7 +599,6 @@ def analyze_open_source_contributions(username: str) -> Dict:
             "merged_prs": 0,
             "merged_external_prs": 0,
             "popular_project_contributions": 0,
-            "major_project_contributions": 0,
             "external_contributions": [],
             "open_source_score": 0,
             "contribution_quality": "No contributions"
@@ -626,13 +620,9 @@ def calculate_open_source_score(contributions: List[Dict]) -> int:
         if contribution.get("pr_merged", False):
             score += 10
         
-        # Bonus for popular projects (1000+ stars)
+        # Bonus for popular projects (500+ stars)
         if contribution.get("is_popular_project", False):
             score += 15
-        
-        # Bonus for major projects (10000+ stars)
-        if contribution.get("is_major_project", False):
-            score += 25
         
         # Bonus for multiple contributions to same project
         repo_name = contribution.get("repository", "")
@@ -651,11 +641,8 @@ def assess_contribution_quality(contributions: List[Dict]) -> str:
     
     merged_count = len([c for c in contributions if c.get("pr_merged", False)])
     popular_count = len([c for c in contributions if c.get("is_popular_project", False)])
-    major_count = len([c for c in contributions if c.get("is_major_project", False)])
-    
-    if major_count > 0:
-        return "Exceptional - contributions to major projects"
-    elif popular_count > 2:
+
+    if popular_count > 2:
         return "Excellent - multiple contributions to popular projects"
     elif popular_count > 0:
         return "Good - contributions to popular projects"
