@@ -37,9 +37,11 @@ logger = logging.getLogger(__name__)
 
 class PDFHandler:
 
-    def __init__(self):
+    def __init__(self, provider=None):
         self.template_manager = TemplateManager()
-        self._initialize_llm_provider()
+        self.provider = provider
+        if self.provider is None:
+            self._initialize_llm_provider()
 
     def _initialize_llm_provider(self):
         """Initialize the appropriate LLM provider based on the model."""

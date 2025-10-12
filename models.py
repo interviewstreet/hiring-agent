@@ -287,7 +287,7 @@ class OllamaProvider:
 
         ollama_options = options.copy() if options else {}
 
-        # remove steam from ollama options
+        # remove stream from ollama options
         ollama_options.pop("stream", None)
 
         # Add num_ctx 32K context window to options

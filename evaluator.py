@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class ResumeEvaluator:
-    def __init__(self, model_name: str = DEFAULT_MODEL, model_params: dict = None):
+    def __init__(self, model_name: str = DEFAULT_MODEL, model_params: dict = None, provider=None):
         if not model_name:
             raise ValueError("Model name cannot be empty")
 
@@ -31,7 +31,9 @@ class ResumeEvaluator:
             model_name, {"temperature": 0.5, "top_p": 0.9}
         )
         self.template_manager = TemplateManager()
-        self._initialize_llm_provider()
+        self.provider = provider
+        if self.provider is None:
+            self._initialize_llm_provider()
 
     def _initialize_llm_provider(self):
         """Initialize the appropriate LLM provider based on the model."""
@@ -79,7 +81,7 @@ class ResumeEvaluator:
 
             response_text = response["message"]["content"]
             response_text = extract_json_from_response(response_text)
-            logger.error(f"🔤 Prompt response: {response_text}")
+            logger.info(f"🔤 Prompt response: {response_text}")
 
             evaluation_dict = json.loads(response_text)
             evaluation_data = EvaluationData(**evaluation_dict)

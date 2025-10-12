@@ -197,7 +197,7 @@ You can leave it on during iteration. See the next section for details.
 
 ## CLI usage
 
-### End to end scoring
+### Single resume scoring
 
 Provide a path to a resume PDF.
 
@@ -210,6 +210,60 @@ What happens:
 1. If development mode is on, the PDF extraction result is cached to `cache/resumecache_<basename>.json`.
 2. If a GitHub profile is found in the resume, repositories are fetched and cached to `cache/githubcache_<basename>.json`.
 3. The evaluator prints a report and, in development mode, appends a CSV row to `resume_evaluations.csv`.
+
+### Batch processing (folder)
+
+Process multiple resumes from a folder with the `-f` or `--folder` flag.
+
+```bash
+# Process all PDFs in a folder (non-recursive)
+$ python score.py -f /path/to/resumes/
+
+# Process all PDFs recursively (including subfolders)
+$ python score.py -f -r /path/to/resumes/
+```
+
+What happens:
+
+1. The tool discovers all PDF files in the specified folder (optionally recursive with `-r`).
+2. Each resume is processed sequentially with a progress indicator: `[1/5] Processing john_doe.pdf...`
+3. A summary line is printed for each resume: `✓ John Doe: Score 87.5/100`
+4. A batch summary is displayed at the end with success/failure counts.
+5. In development mode, all results are appended to `resume_evaluations.csv` for comparison.
+
+**Example output:**
+
+```
+📁 Found 3 PDF file(s) in 'resumes/'
+================================================================================
+
+[1/3] Processing john_doe.pdf...
+✓ John Doe: Score 87.5/100
+
+[2/3] Processing jane_smith.pdf...
+✓ Jane Smith: Score 92.0/100
+
+[3/3] Processing bob_wilson.pdf...
+✓ Bob Wilson: Score 68.0/100
+
+================================================================================
+📊 BATCH PROCESSING SUMMARY
+================================================================================
+Total files: 3
+✓ Successfully processed: 3
+❌ Failed: 0
+
+Results saved to: resume_evaluations.csv
+================================================================================
+```
+
+### Help and options
+
+View all available options:
+
+```bash
+$ python score.py --help
+```
 
 ## Directory layout
 
