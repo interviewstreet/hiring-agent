@@ -19,6 +19,8 @@ from models import (
     SkillsSection,
     ProjectsSection,
     AwardsSection,
+    CertificatesSection,
+    PublicationsSection,
 )
 from llm_utils import initialize_llm_provider, extract_json_from_response
 from pymupdf_rag import to_markdown
@@ -181,6 +183,29 @@ class PDFHandler:
             "projects", resume_text, prompt, ProjectsSection
         )
 
+    def extract_certificates_section(self, resume_text: str) -> Optional[Dict]:
+        prompt = self.template_manager.render_template(
+            "certifications", text_content=resume_text
+        )
+        if not prompt:
+            logger.error("❌ Failed to render certifications template")
+            return None
+        return self._call_llm_for_section(
+            "certificates", resume_text, prompt, CertificatesSection
+        )
+
+    def extract_publications_section(self, resume_text: str) -> Optional[Dict]:
+        prompt = self.template_manager.render_template(
+            "publications", text_content=resume_text
+        )
+        if not prompt:
+            logger.error("❌ Failed to render publications template")
+            return None
+        return self._call_llm_for_section(
+            "publications", resume_text, prompt, PublicationsSection
+        )
+
+
     def extract_awards_section(self, resume_text: str) -> Optional[Dict]:
         prompt = self.template_manager.render_template(
             "awards", text_content=resume_text
@@ -227,6 +252,8 @@ class PDFHandler:
             "skills": self.extract_skills_section,
             "projects": self.extract_projects_section,
             "awards": self.extract_awards_section,
+            "certificates": self.extract_certificates_section,
+            "publications": self.extract_publications_section,
         }
 
         if section_name not in section_extractors:
@@ -269,7 +296,17 @@ class PDFHandler:
     ) -> Optional[JSONResume]:
         start_time = time.time()
 
-        sections = ["basics", "work", "education", "skills", "projects", "awards"]
+        sections = [
+    "basics",
+    "work",
+    "education",
+    "skills",
+    "projects",
+    "awards",
+    "certificates",
+    "publications",
+]
+
 
         complete_resume = {
             "basics": None,
