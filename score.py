@@ -1,5 +1,7 @@
 import os
 import sys
+import argparse
+import datetime
 import json
 import logging
 import csv
@@ -297,13 +299,53 @@ def main(pdf_path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python score.py <pdf_path>")
-        exit(1)
-    pdf_path = sys.argv[1]
+    parser = argparse.ArgumentParser(description="Evaluate a resume PDF and print a score")
+    parser.add_argument("pdf_path", help="Path to the PDF resume to evaluate")
+    parser.add_argument(
+        "--profile",
+        action="store_true",
+        help="Run the evaluation under pyinstrument profiler and save HTML output to profiles/",
+    )
+
+    args = parser.parse_args()
+
+    pdf_path = args.pdf_path
 
     if not os.path.exists(pdf_path):
         print(f"Error: File '{pdf_path}' does not exist.")
         exit(1)
 
-    main(pdf_path)
+    if args.profile:
+        try:
+            from pyinstrument import Profiler
+        except Exception as e:
+            print(
+                "pyinstrument is required for profiling. Install it with: pip install pyinstrument"
+            )
+            print(f"Import error: {e}")
+            exit(1)
+
+        profiler = Profiler()
+        profiler.start()
+        try:
+            main(pdf_path)
+        finally:
+            profiler.stop()
+
+            # Ensure profiles directory exists
+            profiles_dir = Path("profiles")
+            profiles_dir.mkdir(parents=True, exist_ok=True)
+
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            safe_name = os.path.basename(pdf_path).replace(".pdf", "")
+            out_path = profiles_dir / f"profile_{safe_name}_{timestamp}.html"
+
+            # Write HTML report
+            try:
+                with open(out_path, "w", encoding="utf-8") as f:
+                    f.write(profiler.output_html())
+                print(f"Profile saved to: {out_path}")
+            except Exception as e:
+                print(f"Failed to write profile report: {e}")
+    else:
+        main(pdf_path)
