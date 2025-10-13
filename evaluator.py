@@ -45,10 +45,9 @@ class ResumeEvaluator:
             raise ValueError("Failed to load resume evaluation criteria template")
         return criteria_template
 
-    def evaluate_resume(self, resume_text: str) -> EvaluationData:
+    async def evaluate_resume(self, resume_text: str) -> EvaluationData:
         self._last_resume_text = resume_text
         full_prompt = self._load_evaluation_prompt(resume_text)
-        # logger.info(f"🔤 Evaluation prompt being sent: {full_prompt}")
         try:
             system_message = self.template_manager.render_template(
                 "resume_evaluation_system_message"
@@ -58,7 +57,6 @@ class ResumeEvaluator:
                     "Failed to load resume evaluation system message template"
                 )
 
-            # Prepare chat parameters
             chat_params = {
                 "model": self.model_name,
                 "messages": [
@@ -72,10 +70,8 @@ class ResumeEvaluator:
                 },
             }
 
-            # Add format parameter for structured output
             kwargs = {"format": EvaluationData.model_json_schema()}
-            # Use the appropriate provider to make the API call
-            response = self.provider.chat(**chat_params, **kwargs)
+            response = await self.provider.chat(**chat_params, **kwargs)
 
             response_text = response["message"]["content"]
             response_text = extract_json_from_response(response_text)

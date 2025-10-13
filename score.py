@@ -3,6 +3,7 @@ import sys
 import json
 import logging
 import csv
+import asyncio
 from pdf import PDFHandler
 from github import fetch_and_display_github_info
 from models import JSONResume, EvaluationData
@@ -159,7 +160,7 @@ def print_evaluation_results(
     print("\n" + "=" * 80)
 
 
-def _evaluate_resume(
+async def _evaluate_resume(
     resume_data: JSONResume, github_data: dict = None, blog_data: dict = None
 ) -> Optional[EvaluationData]:
     """Evaluate the resume using AI and display results."""
@@ -167,24 +168,17 @@ def _evaluate_resume(
     model_params = MODEL_PARAMETERS.get(DEFAULT_MODEL)
     evaluator = ResumeEvaluator(model_name=DEFAULT_MODEL, model_params=model_params)
 
-    # Convert JSON resume data to text
     resume_text = convert_json_resume_to_text(resume_data)
 
-    # Add GitHub data if available
     if github_data:
         github_text = convert_github_data_to_text(github_data)
         resume_text += github_text
 
-    # Add blog data if available
     if blog_data:
         blog_text = convert_blog_data_to_text(blog_data)
         resume_text += blog_text
 
-    # Evaluate the enhanced resume
-    evaluation_result = evaluator.evaluate_resume(resume_text)
-
-    # print(evaluation_result)
-
+    evaluation_result = await evaluator.evaluate_resume(resume_text)
     return evaluation_result
 
 
@@ -197,8 +191,7 @@ def find_profile(profiles, network):
     )
 
 
-def main(pdf_path):
-    # Create cache filename based on PDF path
+async def main(pdf_path):
     cache_filename = (
         f"cache/resumecache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
     )
@@ -206,7 +199,6 @@ def main(pdf_path):
         f"cache/githubcache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
     )
 
-    # Check if cache exists and we're in development mode
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
         print(f"Loading cached data from {cache_filename}")
         cached_data = json.loads(Path(cache_filename).read_text())
@@ -217,9 +209,12 @@ def main(pdf_path):
             + (" and caching to " + cache_filename if DEVELOPMENT_MODE else "")
         )
         pdf_handler = PDFHandler()
-        resume_data = pdf_handler.extract_json_from_pdf(pdf_path)
 
-        if resume_data == None:
+        # ✅ Use async if extract_json_from_pdf is async
+        resume_data = await pdf_handler.extract_json_from_pdf(pdf_path)
+
+        # ✅ Handle None result safely
+        if resume_data is None:
             return None
 
         if DEVELOPMENT_MODE:
@@ -229,8 +224,6 @@ def main(pdf_path):
                 encoding='utf-8'
             )
 
-    # Check if cache exists and we're in development mode
-    github_data = {}
     if DEVELOPMENT_MODE and os.path.exists(github_cache_filename):
         print(f"Loading cached data from {github_cache_filename}")
         github_data = json.loads(Path(github_cache_filename).read_text())
@@ -240,14 +233,15 @@ def main(pdf_path):
             + (" and caching to " + github_cache_filename if DEVELOPMENT_MODE else "")
         )
 
-        # Add validation to handle None values
         profiles = []
         if resume_data and hasattr(resume_data, "basics") and resume_data.basics:
             profiles = resume_data.basics.profiles or []
         github_profile = find_profile(profiles, "Github")
 
+        github_data = {}
         if github_profile:
             github_data = fetch_and_display_github_info(github_profile.url)
+
         if DEVELOPMENT_MODE:
             os.makedirs(os.path.dirname(github_cache_filename), exist_ok=True)
             Path(github_cache_filename).write_text(
@@ -255,9 +249,8 @@ def main(pdf_path):
                 encoding='utf-8'
             )
 
-    score = _evaluate_resume(resume_data, github_data)
+    score = await _evaluate_resume(resume_data, github_data)
 
-    # Get candidate name for display
     candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
     if (
         resume_data
@@ -267,7 +260,6 @@ def main(pdf_path):
     ):
         candidate_name = resume_data.basics.name
 
-    # Print evaluation results in readable format
     print_evaluation_results(score, candidate_name)
 
     if DEVELOPMENT_MODE:
@@ -278,7 +270,6 @@ def main(pdf_path):
             github_data=github_data,
         )
 
-        # Write CSV row to file
         csv_path = "resume_evaluations.csv"
         file_exists = os.path.exists(csv_path)
 
@@ -286,11 +277,9 @@ def main(pdf_path):
             fieldnames = list(csv_row.keys())
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
-            # Write headers if file doesn't exist
             if not file_exists:
                 writer.writeheader()
 
-            # Write the row
             writer.writerow(csv_row)
 
     return score
@@ -306,4 +295,4 @@ if __name__ == "__main__":
         print(f"Error: File '{pdf_path}' does not exist.")
         exit(1)
 
-    main(pdf_path)
+    asyncio.run(main(pdf_path))
