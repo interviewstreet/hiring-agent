@@ -236,11 +236,11 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
             )
             return projects
 
-        elif response.status_code == 404:
+        elif status_code == 404:
             print(f"GitHub user not found: {username}")
             return []
         else:
-            print(f"GitHub API error: {response.status_code} - {response.text}")
+            print(f"GitHub API error: {status_code} - {repos_data}")
             return []
 
     except requests.exceptions.RequestException as e:
