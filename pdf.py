@@ -4,6 +4,7 @@ import json
 import time
 import logging
 import pymupdf
+import docx
 
 from models import (
     JSONResume,
@@ -34,6 +35,25 @@ from transform import transform_parsed_data
 
 logger = logging.getLogger(__name__)
 
+def extract_text_from_docx(file_path):
+        """
+        Extracts text from a .docx file.
+
+        Args:
+            file_path (str): The path to the .docx file.
+
+        Returns:
+            str: The extracted text from the document.
+        """
+        try:
+            doc = docx.Document(file_path)
+            full_text = []
+            for para in doc.paragraphs:
+                full_text.append(para.text)
+            return '\n'.join(full_text)
+        except Exception as e:
+            print(f"Error reading docx file: {e}")
+            return None
 
 class PDFHandler:
 
@@ -44,6 +64,7 @@ class PDFHandler:
     def _initialize_llm_provider(self):
         """Initialize the appropriate LLM provider based on the model."""
         self.provider = initialize_llm_provider(DEFAULT_MODEL)
+
 
     def extract_text_from_pdf(self, pdf_path: str) -> Optional[str]:
         try:
@@ -195,6 +216,26 @@ class PDFHandler:
             return self._extract_all_sections_separately(resume_text)
         except Exception as e:
             logger.error(f"Error calling Ollama: {e}")
+            return None
+    def extract_json_from_docx(self, docx_path: str) -> Optional[JSONResume]:
+        try:
+            logger.debug(f"📄 Extracting text from DOCX: {docx_path}")
+            text_content = extract_text_from_docx(docx_path) # Calls the function you wrote
+
+            if not text_content:
+                logger.error("❌ Failed to extract text from DOCX")
+                return None
+
+            logger.debug(
+                f"✅ Successfully extracted {len(text_content)} characters from DOCX"
+            )
+
+            logger.debug("🔄 Extracting all sections separately...")
+            # Re-uses the existing LLM parsing logic!
+            return self._extract_all_sections_separately(text_content)
+
+        except Exception as e:
+            logger.error(f"❌ Error during DOCX to JSON extraction: {e}")
             return None
 
     def extract_json_from_pdf(self, pdf_path: str) -> Optional[JSONResume]:
