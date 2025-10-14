@@ -236,33 +236,35 @@ class PDFHandler:
 
         return section_extractors[section_name](text_content)
 
-    def _extract_single_section(
-        self, text_content: str, section_name: str, return_model=None
-    ) -> Optional[Dict]:
-        section_data = self._extract_section_data(
-            text_content, section_name, return_model
-        )
-        if section_data:
-            complete_resume = {
-                "basics": None,
-                "work": None,
-                "volunteer": None,
-                "education": None,
-                "awards": None,
-                "certificates": None,
-                "publications": None,
-                "skills": None,
-                "languages": None,
-                "interests": None,
-                "references": None,
-                "projects": None,
-                "meta": None,
-            }
+    # Not being used currently, keeping it for future reference
 
-            complete_resume.update(section_data)
-            return complete_resume
+    # def _extract_single_section(
+    #     self, text_content: str, section_name: str, return_model=None
+    # ) -> Optional[Dict]:
+    #     section_data = self._extract_section_data(
+    #         text_content, section_name, return_model
+    #     )
+    #     if section_data:
+    #         complete_resume = {
+    #             "basics": None,
+    #             "work": None,
+    #             "volunteer": None,
+    #             "education": None,
+    #             "awards": None,
+    #             "certificates": None,
+    #             "publications": None,
+    #             "skills": None,
+    #             "languages": None,
+    #             "interests": None,
+    #             "references": None,
+    #             "projects": None,
+    #             "meta": None,
+    #         }
 
-        return None
+    #         complete_resume.update(section_data)
+    #         return complete_resume
+
+    #     return None
 
     def _extract_all_sections_separately(
         self, text_content: str
