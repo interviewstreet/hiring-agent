@@ -225,7 +225,8 @@ def main(pdf_path):
         if DEVELOPMENT_MODE:
             os.makedirs(os.path.dirname(cache_filename), exist_ok=True)
             Path(cache_filename).write_text(
-                json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False)
+                json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False),
+                encoding='utf-8'
             )
 
     # Check if cache exists and we're in development mode
@@ -250,7 +251,8 @@ def main(pdf_path):
         if DEVELOPMENT_MODE:
             os.makedirs(os.path.dirname(github_cache_filename), exist_ok=True)
             Path(github_cache_filename).write_text(
-                json.dumps(github_data, indent=2, ensure_ascii=False)
+                json.dumps(github_data, indent=2, ensure_ascii=False),
+                encoding='utf-8'
             )
 
     score = _evaluate_resume(resume_data, github_data)

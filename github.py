@@ -50,7 +50,8 @@ async def _fetch_github_api(api_url, params=None):
         try:
             os.makedirs("cache", exist_ok=True)
             Path(cache_filename).write_text(
-                json.dumps(data, indent=2, ensure_ascii=False)
+                json.dumps(data, indent=2, ensure_ascii=False),
+                encoding='utf-8'
             )
             print(f"Cached GitHub data to {cache_filename}")
         except Exception as e:
@@ -145,7 +146,7 @@ def fetch_contributions_count(owner: str, contributors_data):
     return user_contributions, total_contributions
 
 
-async def fetch_repo_contributors(owner: str, repo_name: str) -> int:
+async def fetch_repo_contributors(owner: str, repo_name: str) -> list[dict]:
     try:
         api_url = f"https://api.github.com/repos/{owner}/{repo_name}/contributors"
 
@@ -154,13 +155,13 @@ async def fetch_repo_contributors(owner: str, repo_name: str) -> int:
         return contributors_data
 
         if status_code == 200:
-            return len(contributors_data)
+            return contributors_data
         else:
-            return 1
+            return []
 
     except Exception as e:
         logger.error(f"Error fetching contributors for {owner}/{repo_name}: {e}")
-        return 1
+        return []
 
 
 async def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
@@ -251,7 +252,7 @@ async def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[
             print(f"GitHub user not found: {username}")
             return []
         else:
-            print(f"GitHub API error: {status_code}")
+            print(f"GitHub API error: {status_code} - {repos_data}")
             return []
 
     except Exception as e:
