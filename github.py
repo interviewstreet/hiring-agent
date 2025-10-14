@@ -148,8 +148,7 @@ def fetch_repo_contributors(owner: str, repo_name: str) -> int:
 
         status_code, contributors_data = _fetch_github_api(api_url)
 
-        return contributors_data
-
+        # FIXED: Remove the early return and keep the proper logic
         if status_code == 200:
             return len(contributors_data)
         else:
@@ -237,11 +236,11 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
             )
             return projects
 
-        elif response.status_code == 404:
+        elif status_code == 404:  # ← Change 'response' to 'status_code'
             print(f"GitHub user not found: {username}")
             return []
         else:
-            print(f"GitHub API error: {response.status_code} - {response.text}")
+            print(f"GitHub API error: {status_code} - {repos_data}")   
             return []
 
     except requests.exceptions.RequestException as e:
