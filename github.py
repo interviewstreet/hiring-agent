@@ -41,7 +41,7 @@ def _fetch_github_api(api_url, params=None):
         except Exception as e:
             print(f"Error reading cache file {cache_filename}: {e}")
 
-    response = requests.get(api_url, params, timeout=10, headers=headers)
+    response = requests.get(api_url, params=params, timeout=10, headers=headers)
     status_code = response.status_code
     
     # Check GitHub rate limit headers
@@ -177,21 +177,21 @@ def fetch_contributions_count(owner: str, contributors_data):
 
     return user_contributions, total_contributions
 
-
-def fetch_repo_contributors(owner: str, repo_name: str) -> list[dict]:
+def fetch_repo_contributors(owner: str, repo_name: str) -> List[Dict]:
+    """Fetch repository contributors data."""
     try:
         api_url = f"https://api.github.com/repos/{owner}/{repo_name}/contributors"
 
         status_code, contributors_data = _fetch_github_api(api_url)
 
         if status_code == 200:
-            return contributors_data
+            return contributors_data  # Return the actual contributor data, not count
         else:
-            return []
+            return []  # Return empty list on error
 
     except Exception as e:
         logger.error(f"Error fetching contributors for {owner}/{repo_name}: {e}")
-        return []
+        return []  # Return empty list on exception
 
 
 def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
@@ -271,11 +271,11 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
             )
             return projects
 
-        elif status_code == 404:
+        elif status_code == 404:  # ← Change 'response' to 'status_code'
             print(f"GitHub user not found: {username}")
             return []
         else:
-            print(f"GitHub API error: {status_code} - {repos_data}")
+            print(f"GitHub API error: {status_code} - {repos_data}")   
             return []
 
     except requests.exceptions.RequestException as e:
