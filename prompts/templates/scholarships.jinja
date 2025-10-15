@@ -1,0 +1,40 @@
+You are an expert data extractor. Your task is to extract all scholarships and mentorships from the provided resume markdown.
+
+The items may appear as a single block of text or as separate bullet points. Identify each distinct scholarship or mentorship role. If no scholarships or mentorships are found, return an empty list.
+
+Follow this example precisely.
+
+--- EXAMPLE ---
+INPUT TEXT:
+**Some Other Section**
+...
+**Scholarships & Mentorships**
+**University Merit Award**, for academic excellence (2023).
+**Mentor at Coding Club**, guided students (2024).
+**Another Section**
+...
+
+OUTPUT JSON:
+{
+  "scholarships": [
+    {
+      "title": "University Merit Award",
+      "date": "2023",
+      "awarder": null,
+      "summary": "For academic excellence"
+    },
+    {
+      "title": "Mentor at Coding Club",
+      "date": "2024",
+      "awarder": null,
+      "summary": "Guided students"
+    }
+  ]
+}
+--- END EXAMPLE ---
+
+--- ACTUAL TASK ---
+INPUT TEXT:
+{{ text_content }}
+
+OUTPUT JSON:

@@ -27,6 +27,9 @@ def transform_parsed_data(parsed_data: Dict) -> Dict:
                             ),
                         )
                     ),
+                    "scholarships": transform_achievements(
+                        parsed_data.get("scholarships", [])
+                    ),
                     "certificates": parsed_data.get("certificates", []),
                     "publications": parsed_data.get("publications", []),
                     "skills": transform_skills_comprehensive(parsed_data),

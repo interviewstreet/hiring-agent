@@ -82,6 +82,7 @@ def print_evaluation_results(
             "self_projects": 30,
             "production": 25,
             "technical_skills": 10,
+            "scholarship_mentorship": 10,
         }
 
         # Open Source
@@ -120,6 +121,17 @@ def print_evaluation_results(
             capped_score = min(tech_score.score, category_maxes["technical_skills"])
             print(f"💻 Technical Skills:     {capped_score}/{tech_score.max}")
             print(f"   Evidence: {tech_score.evidence}")
+            print()
+
+        # Scholarship & Mentorship
+        if (
+            hasattr(evaluation.scores, "scholarship_mentorship")
+            and evaluation.scores.scholarship_mentorship
+        ):
+            sm_score = evaluation.scores.scholarship_mentorship
+            capped_score = min(sm_score.score, category_maxes["scholarship_mentorship"])
+            print(f"🎓 Scholarship & Mentorship: {capped_score}/{sm_score.max}")
+            print(f"   Evidence: {sm_score.evidence}")
             print()
 
     # Bonus Points
