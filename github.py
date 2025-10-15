@@ -83,8 +83,7 @@ def _fetch_github_api(api_url, params=None):
         try:
             os.makedirs("cache", exist_ok=True)
             Path(cache_filename).write_text(
-                json.dumps(data, indent=2, ensure_ascii=False),
-                encoding='utf-8'
+                json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
             )
         except Exception as e:
             logger.error(f"Error caching GitHub data to {cache_filename}: {e}")
@@ -209,15 +208,92 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
 
         if status_code == 200:
             projects = []
+
             for repo in repos_data:
-                if repo.get("fork") and repo.get("forks_count", 0) < 5:
+                repo_name = repo.get("name")
+                is_fork = repo.get("fork", False)
+
+                if is_fork:
+                    # Get detailed repo info to access parent data
+                    detailed_repo_url = (
+                        f"https://api.github.com/repos/{repo.get('full_name')}"
+                    )
+                    detail_status, detailed_repo = _fetch_github_api(detailed_repo_url)
+
+                    if detail_status == 200 and detailed_repo:
+                        parent = detailed_repo.get("parent")
+                        if parent:
+                            original_repo_full_name = parent.get("full_name")
+
+                            # Check if user is contributor to original repo
+                            contributors_url = f"https://api.github.com/repos/{original_repo_full_name}/contributors"
+                            status_code, contributors_data = _fetch_github_api(
+                                contributors_url
+                            )
+
+                            if status_code == 200 and contributors_data:
+                                user_found = False
+                                user_contributions = 0
+
+                                for contributor in contributors_data:
+                                    if (
+                                        contributor.get("login", "").lower()
+                                        == username.lower()
+                                    ):
+                                        user_contributions = contributor.get(
+                                            "contributions", 0
+                                        )
+                                        user_found = True
+                                        break
+
+                                if user_found and user_contributions > 0:
+                                    original_stars = parent.get("stargazers_count", 0)
+                                    original_forks = parent.get("forks_count", 0)
+
+                                    if original_stars > 10 or original_forks > 5:
+                                        project = {
+                                            "name": repo_name,
+                                            "description": repo.get("description")
+                                            or parent.get("description"),
+                                            "github_url": repo.get("html_url"),
+                                            "live_url": repo.get("homepage"),
+                                            "technologies": (
+                                                [repo.get("language")]
+                                                if repo.get("language")
+                                                else []
+                                            ),
+                                            "project_type": "open_source",
+                                            "contributor_count": 1,
+                                            "author_commit_count": user_contributions,
+                                            "total_commit_count": user_contributions,
+                                            "github_details": {
+                                                "stars": original_stars,
+                                                "forks": original_forks,
+                                                "language": parent.get("language"),
+                                                "description": parent.get(
+                                                    "description"
+                                                ),
+                                                "created_at": repo.get("created_at"),
+                                                "updated_at": repo.get("updated_at"),
+                                                "topics": repo.get("topics", []),
+                                                "open_issues": repo.get(
+                                                    "open_issues_count", 0
+                                                ),
+                                                "size": repo.get("size", 0),
+                                                "fork": True,
+                                                "original_contribution": True,
+                                                "contributors": 1,
+                                            },
+                                        }
+                                        projects.append(project)
                     continue
 
-                repo_name = repo.get("name")
+                # Ignore regular fork repositories
+                if repo.get("forks_count", 0) < 5:
+                    continue
 
                 contributors_data = fetch_repo_contributors(username, repo_name)
                 contributor_count = len(contributors_data)
-
                 user_contributions, total_contributions = fetch_contributions_count(
                     username, contributors_data
                 )
@@ -227,7 +303,7 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                 )
 
                 project = {
-                    "name": repo.get("name"),
+                    "name": repo_name,
                     "description": repo.get("description"),
                     "github_url": repo.get("html_url"),
                     "live_url": repo.get("homepage") if repo.get("homepage") else None,
