@@ -138,11 +138,11 @@ $ cp .env.example .env
 
 | Variable         | Values                                      | Description                                                            |
 | ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `LLM_PROVIDER`   | `ollama` or `gemini`                        | Chooses provider. Defaults to Ollama.                                  |
+| `LLM_PROVIDER`   | `ollama` or `gemini` or `groq`              | Chooses provider. Defaults to Ollama.                                  |
 | `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
 | `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
-
+| `GROQ_API_KEY`   | string                                      | Required when `LLM_PROVIDER=groq`.                                   |
 Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
 
 ```python
@@ -266,6 +266,11 @@ What happens:
 - Provide `GEMINI_API_KEY`
 - The wrapper in `models.GeminiProvider` adapts responses to a unified format
 
+## Groq
+- Set `LLM_PROVIDER=groq`
+- Set `DEFAULT_MODEL` to a supported Groq model, for example `openai/gpt-oss-120b`
+- Provide `GROQ_API_KEY`
+- The wrapper in `models.GroqProvider` adapts responses to a unified format
 ---
 
 ## Contributing
