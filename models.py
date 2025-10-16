@@ -19,7 +19,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -216,9 +216,9 @@ class JSONResume(BaseModel):
 
 
 class CategoryScore(BaseModel):
-    score: float = Field(ge=0, description="Score achieved in this category")
-    max: int = Field(gt=0, description="Maximum possible score")
-    evidence: str = Field(min_length=1, description="Evidence supporting the score")
+    score: float = Field(description="Score achieved in this category")
+    max: int = Field(description="Maximum possible score")
+    evidence: str = Field(description="Evidence supporting the score")
 
 
 class Scores(BaseModel):
@@ -229,14 +229,13 @@ class Scores(BaseModel):
 
 
 class BonusPoints(BaseModel):
-    total: float = Field(ge=0, le=20, description="Total bonus points")
+    total: float = Field(description="Total bonus points")
     breakdown: str = Field(description="Breakdown of bonus points")
 
 
 class Deductions(BaseModel):
     total: float = Field(
-        ge=0,
-        description="Total deduction points (stored as positive, applied as negative)",
+        description="Total deduction points (stored as positive, applied as negative)"
     )
     reasons: str = Field(description="Reasons for deductions")
 
@@ -245,8 +244,10 @@ class EvaluationData(BaseModel):
     scores: Scores
     bonus_points: BonusPoints
     deductions: Deductions
-    key_strengths: List[str] = Field(min_items=1, max_items=5)
-    areas_for_improvement: List[str] = Field(min_items=1, max_items=5)
+    key_strengths: List[str] = Field(description="Key strengths (1-5 items)")
+    areas_for_improvement: List[str] = Field(
+        description="Areas for improvement (1-3 items)"
+    )
 
 
 class GitHubProfile(BaseModel):
@@ -281,7 +282,7 @@ class OllamaProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
 
@@ -304,8 +305,9 @@ class OllamaProvider:
         if "stream" in kwargs:
             chat_params["stream"] = kwargs["stream"]
 
-        if "format" in kwargs:
-            chat_params["format"] = kwargs["format"]
+        # Note: Ollama format parameter disabled for now - using traditional JSON parsing
+        # if "format" in kwargs:
+        #     chat_params["format"] = kwargs["format"]
 
         return self.client.chat(**chat_params)
 
@@ -314,20 +316,67 @@ class GeminiProvider:
     """Google Gemini API provider implementation."""
 
     def __init__(self, api_key: str):
-        import google.generativeai as genai
+        self.api_key = api_key
+        from google import genai
 
-        genai.configure(api_key=api_key)
-        self.client = genai
+        self.client = genai.Client(api_key=api_key)
 
     def chat(
         self,
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Google Gemini API."""
+        return self._chat_new_api(model, messages, options, **kwargs)
+
+    def _chat_new_api(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Use new Gemini API with structured output support."""
+        # Combine all messages into a single content string
+        combined_content = ""
+        for msg in messages:
+            if msg["role"] == "system":
+                combined_content += f"System: {msg['content']}\n\n"
+            elif msg["role"] == "user":
+                combined_content += f"User: {msg['content']}\n\n"
+
+        # Prepare config
+        config = {}
+
         # Map options to Gemini parameters
+        if options:
+            if "temperature" in options:
+                config["temperature"] = options["temperature"]
+            if "top_p" in options:
+                config["top_p"] = options["top_p"]
+
+        # Handle structured output for Gemini
+        if "format" in kwargs and kwargs["format"]:
+            config["response_mime_type"] = "application/json"
+            config["response_schema"] = kwargs["format"]
+
+        # Send the chat request using new Gemini API
+        response = self.client.models.generate_content(
+            model=model, contents=combined_content.strip(), config=config
+        )
+
+        return {"message": {"role": "assistant", "content": response.text}}
+
+    def _chat_old_api(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """(Deprecated) Send a chat request to Google Gemini API."""  # Map options to Gemini parameters
         generation_config = {}
         if options:
             if "temperature" in options:
