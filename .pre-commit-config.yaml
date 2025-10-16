@@ -1,0 +1,6 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 25.9.0  # check https://github.com/psf/black/tags for the latest version
+    hooks:
+      - id: black
+        language_version: python3
