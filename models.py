@@ -18,7 +18,7 @@ class LLMProvider(Protocol):
         self,
         model: str,
         messages: List[Dict[str, str]],
-        options: Dict[str, Any] = None,
+        options: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
