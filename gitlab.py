@@ -46,50 +46,6 @@ def _fetch_gitlab_api(api_url, params=None):
     response = requests.get(api_url, params=params, timeout=10, headers=headers)
     status_code = response.status_code
 
-    # Check GitLab rate limit headers
-    rate_limit_remaining = response.headers.get("RateLimit-Remaining")
-    rate_limit_limit = response.headers.get("RateLimit")
-    rate_limit_reset = response.headers.get("RateLimit-Reset")
-
-    if rate_limit_remaining is not None and rate_limit_limit is not None:
-        remaining = int(rate_limit_remaining)
-        limit = int(rate_limit_limit)
-
-        # Log rate limit information and handle proactively
-        if remaining < 10 and rate_limit_reset:
-            reset_timestamp = int(rate_limit_reset)
-            current_timestamp = int(time.time())
-            wait_seconds = (
-                max(0, reset_timestamp - current_timestamp) + 5
-            )  # Add 5 second buffer
-            reset_time = datetime.datetime.fromtimestamp(reset_timestamp)
-
-            # Cap maximum wait time at 1 hour
-            max_wait = 3600
-            if wait_seconds > max_wait:
-                print(
-                    f"⚠️  Rate limit reset time is too far in the future ({wait_seconds}s). Capping wait to {max_wait}s"
-                )
-                wait_seconds = max_wait
-
-            logger.error(
-                f"⚠️  GitLab API rate limit low: {remaining}/{limit} requests remaining. Resets at {reset_time}"
-            )
-            print(
-                "💡 Tip: Set GITLAB_TOKEN environment variable to increase rate limits"
-            )
-
-            if wait_seconds > 0:
-                logger.info(
-                    f"⏳ Proactively sleeping for {wait_seconds} seconds until rate limit resets..."
-                )
-                time.sleep(wait_seconds)
-                print("✅ Rate limit should be reset now. Continuing...")
-        elif remaining < 100:
-            logger.info(
-                f"ℹ️  GitLab API rate limit: {remaining}/{limit} requests remaining"
-            )
-
     data = response.json() if response.status_code == 200 else {}
 
     if DEVELOPMENT_MODE and status_code == 200:
