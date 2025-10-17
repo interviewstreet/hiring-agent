@@ -1,6 +1,13 @@
 from typing import Dict, List, Optional
 import pdb
+import json
+import logging
 from models import JSONResume
+from llm_utils import initialize_llm_provider, extract_json_from_response
+from prompt import DEFAULT_MODEL, MODEL_PARAMETERS
+from prompts.template_manager import TemplateManager
+
+logger = logging.getLogger(__name__)
 
 
 def transform_parsed_data(parsed_data: Dict) -> Dict:
@@ -642,8 +649,12 @@ def transform_evaluation_response(
         for skill_category in skills:
             if skill_category.keywords:
                 all_skills.extend(skill_category.keywords)
+        
+        # Get prioritized skills using LLM
+        prioritized_skills = get_prioritized_skills(resume_data, all_skills)
+        
         csv_row["total_skills"] = len(all_skills)
-        csv_row["skills_list"] = ", ".join(all_skills[:10])  # Top 10 skills
+        csv_row["skills_list"] = ", ".join(prioritized_skills)
     else:
         csv_row["total_skills"] = 0
         csv_row["skills_list"] = ""
@@ -919,6 +930,98 @@ def convert_github_data_to_text(github_data: dict) -> str:
             github_text += "\n"
 
     return github_text
+
+
+def get_prioritized_skills(resume_data: JSONResume, all_skills: List[str], max_skills: int = 10) -> List[str]:
+    """
+    Use LLM to prioritize skills based on their complexity, specialization, and relevance.
+    
+    Args:
+        resume_data: JSONResume object containing parsed resume data
+        all_skills: List of all skills extracted from the resume
+        max_skills: Maximum number of skills to return
+        
+    Returns:
+        List of prioritized skills (up to max_skills)
+    """
+    # If there are threshold or fewer skills, return them all
+    if len(all_skills) <= max_skills:
+        return all_skills
+        
+    try:
+        model_params = MODEL_PARAMETERS.get(DEFAULT_MODEL, {})
+        provider = initialize_llm_provider(DEFAULT_MODEL)
+        template_manager = TemplateManager()
+        
+        # Extract context from work experience
+        work_context = ""
+        if resume_data.work:
+            work_items = []
+            for work in resume_data.work:
+                work_desc = f"{work.position} at {work.name}: {work.summary}"
+                if work.highlights:
+                    work_desc += " " + " ".join(work.highlights)
+                work_items.append(work_desc)
+            work_context = "\n".join(work_items)
+            
+        # Extract context from projects
+        project_context = ""
+        if resume_data.projects:
+            project_items = []
+            for project in resume_data.projects:
+                proj_desc = f"{project.name}: {project.description}"
+                if project.highlights:
+                    proj_desc += " " + " ".join(project.highlights)
+                project_items.append(proj_desc)
+            project_context = "\n".join(project_items)
+            
+        # Extract context from education
+        education_context = ""
+        if resume_data.education:
+            edu_items = []
+            for edu in resume_data.education:
+                edu_desc = f"{edu.studyType} in {edu.area} at {edu.institution}"
+                edu_items.append(edu_desc)
+            education_context = "\n".join(edu_items)
+            
+        prompt = template_manager.render_template(
+            "prioritized_skills", 
+            all_skills=all_skills,
+            work_context=work_context or "No work experience provided",
+            project_context=project_context or "No projects provided", 
+            education_context=education_context or "No education details provided"
+        )
+        
+        # get response from LLM
+        chat_params = {
+            "model": DEFAULT_MODEL,
+            "messages": [{"role": "user", "content": prompt}],
+            "options": model_params
+        }
+        response = provider.chat(**chat_params)
+        json_response = extract_json_from_response(response.get("message", {}).get("content", ""))
+        
+        try:
+            result = json.loads(json_response)
+            prioritized_skills = result.get("prioritized_skills", [])
+            
+            # ensure we don't exceed max_skills
+            prioritized_skills = prioritized_skills[:max_skills]
+            
+            # if LLM didn't return any skills, fall back to the first max_skills
+            if not prioritized_skills:
+                logger.warning("LLM returned no prioritized skills. Falling back to first skills.")
+                return all_skills[:max_skills]
+                
+            return prioritized_skills
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse LLM response: {e}")
+            return all_skills[:max_skills]
+            
+    except Exception as e:
+        logger.error(f"Error in skill prioritization: {e}")
+        return all_skills[:max_skills]
 
 
 def convert_blog_data_to_text(blog_data: dict) -> str:
