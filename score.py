@@ -5,6 +5,7 @@ import logging
 import csv
 from pdf import PDFHandler
 from github import fetch_and_display_github_info
+from gitlab import fetch_and_display_gitlab_info
 from models import JSONResume, EvaluationData
 from typing import List, Optional, Dict
 from evaluator import ResumeEvaluator
@@ -14,6 +15,7 @@ from transform import (
     transform_evaluation_response,
     convert_json_resume_to_text,
     convert_github_data_to_text,
+    convert_gitlab_data_to_text,
     convert_blog_data_to_text,
 )
 from config import DEVELOPMENT_MODE
@@ -160,7 +162,10 @@ def print_evaluation_results(
 
 
 def _evaluate_resume(
-    resume_data: JSONResume, github_data: dict = None, blog_data: dict = None
+    resume_data: JSONResume,
+    github_data: dict = None,
+    gitlab_data: dict = None,
+    blog_data: dict = None,
 ) -> Optional[EvaluationData]:
     """Evaluate the resume using AI and display results."""
 
@@ -174,6 +179,11 @@ def _evaluate_resume(
     if github_data:
         github_text = convert_github_data_to_text(github_data)
         resume_text += github_text
+
+    # Add GitLab data if available
+    if gitlab_data:
+        gitlab_text = convert_gitlab_data_to_text(gitlab_data)
+        resume_text += gitlab_text
 
     # Add blog data if available
     if blog_data:
@@ -205,6 +215,9 @@ def main(pdf_path):
     github_cache_filename = (
         f"cache/githubcache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
     )
+    gitlab_cache_filename = (
+        f"cache/gitlabcache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
+    )
 
     # Check if cache exists and we're in development mode
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
@@ -226,7 +239,7 @@ def main(pdf_path):
             os.makedirs(os.path.dirname(cache_filename), exist_ok=True)
             Path(cache_filename).write_text(
                 json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False),
-                encoding='utf-8'
+                encoding="utf-8",
             )
 
     # Check if cache exists and we're in development mode
@@ -251,11 +264,35 @@ def main(pdf_path):
         if DEVELOPMENT_MODE:
             os.makedirs(os.path.dirname(github_cache_filename), exist_ok=True)
             Path(github_cache_filename).write_text(
-                json.dumps(github_data, indent=2, ensure_ascii=False),
-                encoding='utf-8'
+                json.dumps(github_data, indent=2, ensure_ascii=False), encoding="utf-8"
             )
 
-    score = _evaluate_resume(resume_data, github_data)
+    # Check if GitLab cache exists and we're in development mode
+    gitlab_data = {}
+    if DEVELOPMENT_MODE and os.path.exists(gitlab_cache_filename):
+        print(f"Loading cached GitLab data from {gitlab_cache_filename}")
+        gitlab_data = json.loads(Path(gitlab_cache_filename).read_text())
+    else:
+        print(
+            f"Fetching GitLab data"
+            + (" and caching to " + gitlab_cache_filename if DEVELOPMENT_MODE else "")
+        )
+
+        # Add validation to handle None values
+        profiles = []
+        if resume_data and hasattr(resume_data, "basics") and resume_data.basics:
+            profiles = resume_data.basics.profiles or []
+        gitlab_profile = find_profile(profiles, "Gitlab")
+
+        if gitlab_profile:
+            gitlab_data = fetch_and_display_gitlab_info(gitlab_profile.url)
+        if DEVELOPMENT_MODE:
+            os.makedirs(os.path.dirname(gitlab_cache_filename), exist_ok=True)
+            Path(gitlab_cache_filename).write_text(
+                json.dumps(gitlab_data, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
+
+    score = _evaluate_resume(resume_data, github_data, gitlab_data)
 
     # Get candidate name for display
     candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
@@ -276,6 +313,7 @@ def main(pdf_path):
             evaluation=score,
             resume_data=resume_data,
             github_data=github_data,
+            gitlab_data=gitlab_data,
         )
 
         # Write CSV row to file
