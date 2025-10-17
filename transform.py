@@ -495,14 +495,19 @@ def fetch_profile(profiles, network_names, prefix):
 
 
 def transform_evaluation_response(
-    file_name=None, resume_data=None, github_data=None, evaluation=None
+    file_name=None,
+    resume_data=None,
+    github_data=None,
+    gitlab_data=None,
+    evaluation=None,
 ):
     """
-    Transform the three inputs (resume_data, github_data, evaluation) into the most important columns as a CSV row.
+    Transform the inputs (resume_data, github_data, gitlab_data, evaluation) into the most important columns as a CSV row.
 
     Args:
         resume_data: JSONResume object containing parsed resume data
         github_data: dict containing GitHub profile data
+        gitlab_data: dict containing GitLab profile data
         evaluation: EvaluationData object containing evaluation results
 
     Returns:
@@ -547,6 +552,17 @@ def transform_evaluation_response(
             else:
                 csv_row["github_url"] = ""
                 csv_row["github_username"] = ""
+
+            # Add GitLab profile columns
+            gitlab_profile = fetch_profile(basics.profiles, ["gitlab"], "gitlab")
+            if gitlab_profile:
+                csv_row["gitlab_url"] = gitlab_profile.url
+                csv_row["gitlab_username"] = (
+                    gitlab_profile.username if gitlab_profile.username else ""
+                )
+            else:
+                csv_row["gitlab_url"] = ""
+                csv_row["gitlab_username"] = ""
 
             # Add LinkedIn profile columns
             if linkedin_profile:
@@ -668,6 +684,20 @@ def transform_evaluation_response(
         csv_row["github_following"] = 0
         csv_row["github_created_at"] = ""
         csv_row["github_bio"] = ""
+
+    # Extract GitLab data
+    if gitlab_data:
+        csv_row["gitlab_repos"] = gitlab_data.get("public_repos", 0)
+        csv_row["gitlab_followers"] = gitlab_data.get("followers", 0)
+        csv_row["gitlab_following"] = gitlab_data.get("following", 0)
+        csv_row["gitlab_created_at"] = gitlab_data.get("created_at", "")
+        csv_row["gitlab_bio"] = gitlab_data.get("bio", "")
+    else:
+        csv_row["gitlab_repos"] = 0
+        csv_row["gitlab_followers"] = 0
+        csv_row["gitlab_following"] = 0
+        csv_row["gitlab_created_at"] = ""
+        csv_row["gitlab_bio"] = ""
 
     # Extract evaluation scores
     if evaluation and hasattr(evaluation, "scores"):
@@ -919,6 +949,40 @@ def convert_github_data_to_text(github_data: dict) -> str:
             github_text += "\n"
 
     return github_text
+
+
+def convert_gitlab_data_to_text(gitlab_data: dict) -> str:
+    gitlab_text = "\n\n=== GITLAB DATA ===\n"
+
+    if "profile" in gitlab_data:
+        profile = gitlab_data["profile"]
+        gitlab_text += "GitLab Profile:\n"
+        gitlab_text += f"- Username: {profile.get('username', 'N/A')}\n"
+        gitlab_text += f"- Name: {profile.get('name', 'N/A')}\n"
+        gitlab_text += f"- Bio: {profile.get('bio', 'N/A')}\n"
+        gitlab_text += f"- Public Repositories: {profile.get('public_repos', 'N/A')}\n"
+        gitlab_text += f"- Followers: {profile.get('followers', 'N/A')}\n"
+        gitlab_text += f"- Following: {profile.get('following', 'N/A')}\n"
+        gitlab_text += f"- Account Created: {profile.get('created_at', 'N/A')}\n"
+        gitlab_text += f"- Last Sign In: {profile.get('last_sign_in_at', 'N/A')}\n"
+
+    if "projects" in gitlab_data:
+        projects = gitlab_data["projects"]
+        gitlab_text += f"\nGitLab Projects ({len(projects)} total):\n"
+
+        for i, project in enumerate(projects, 1):
+            gitlab_text += f"{i}. {project.get('name', 'N/A')}\n"
+            gitlab_text += f"   Description: {project.get('description', 'N/A')}\n"
+            gitlab_text += f"   URL: {project.get('gitlab_url', 'N/A')}\n"
+            if "gitlab_details" in project:
+                details = project["gitlab_details"]
+                gitlab_text += f"   Stars: {details.get('stars', 'N/A')}\n"
+                gitlab_text += f"   Forks: {details.get('forks', 'N/A')}\n"
+                gitlab_text += f"   Language: {details.get('language', 'N/A')}\n"
+                gitlab_text += f"   Visibility: {details.get('visibility', 'N/A')}\n"
+            gitlab_text += "\n"
+
+    return gitlab_text
 
 
 def convert_blog_data_to_text(blog_data: dict) -> str:
