@@ -50,7 +50,7 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
 
 1. `pymupdf_rag.py` converts PDF pages to Markdown-like text.
 2. `pdf.py` calls the LLM per section using Jinja templates under `prompts/templates`.
-3. `github.py` fetches profile and repos, classifies projects, and asks the LLM to select the top 7.
+3. `github.py` and `gitlab.py` fetch profile and repos, classify projects, and ask the LLM to select the top 7.
 4. `evaluator.py` runs a strict-scored evaluation with fairness constraints.
 5. `score.py` orchestrates everything end to end and writes CSV when development mode is on.
 
@@ -142,6 +142,7 @@ $ cp .env.example .env
 | `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
 | `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
+| `GITLAB_TOKEN`   | optional                                    | Improves GitLab API rate limits when provided.                       |
 
 Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
 
@@ -174,10 +175,11 @@ You can leave it on during iteration. See the next section for details.
 </details>
 
 <details>
-<summary><b>3) GitHub enrichment</b></summary>
+<summary><b>3) GitHub and GitLab enrichment</b></summary>
 
 - `github.py` extracts a username from the resume profiles, fetches profile and repos, and classifies each project.
-- It asks the LLM to select exactly 7 unique projects with a minimum author commit threshold, favoring meaningful contributions.
+- `gitlab.py` provides equivalent functionality for GitLab repositories, supporting both public and private projects.
+- Both modules ask the LLM to select exactly 7 unique projects with a minimum author commit threshold, favoring meaningful contributions.
 
 </details>
 
@@ -212,7 +214,7 @@ $ python score.py /path/to/resume.pdf
 What happens:
 
 1. If development mode is on, the PDF extraction result is cached to `cache/resumecache_<basename>.json`.
-2. If a GitHub profile is found in the resume, repositories are fetched and cached to `cache/githubcache_<basename>.json`.
+2. If GitHub or GitLab profiles are found in the resume, repositories are fetched and cached to `cache/githubcache_<basename>.json` or `cache/gl_gitlabcache_<basename>.json`.
 3. The evaluator prints a report and, in development mode, appends a CSV row to `resume_evaluations.csv`.
 
 ---
@@ -226,6 +228,7 @@ What happens:
 ├── config.py
 ├── evaluator.py
 ├── github.py
+├── gitlab.py
 ├── llm_utils.py
 ├── models.py
 ├── pdf.py
@@ -237,6 +240,7 @@ What happens:
 │       ├── basics.jinja
 │       ├── education.jinja
 │       ├── github_project_selection.jinja
+│       ├── gitlab_project_selection.jinja
 │       ├── projects.jinja
 │       ├── resume_evaluation_criteria.jinja
 │       ├── resume_evaluation_system_message.jinja
