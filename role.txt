@@ -1,0 +1,16 @@
+What You’ll Do:
+
+Ship production-level code weekly across Python- and Go-based services, as well as a React/Next.js frontend screening millions of candidates.
+Design and implement new microservices - including real-time ranking, interview analytics, and multi-million-dollar payout systems.
+Collaborate with senior engineers to profile, test, and harden LLM-powered agents for accuracy, speed, and reliability.
+Partner with end users to translate feedback into actionable technical specifications.
+Own features end-to-end - from architecture and design to deployment and monitoring.
+
+
+What We’re Looking For:
+
+Strong Computer Science fundamentals with hands-on experience in Python, Go, or React.
+Proven ability to iterate quickly — prototype, test, and ship production code in short cycles.
+Passion for system performance and product quality, not just functionality.
+Curiosity or familiarity with Large Language Models (LLMs), retrieval systems, or ranking algorithms.
+Portfolio, GitHub, or side projects that demonstrate real-world problem-solving.

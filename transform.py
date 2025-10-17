@@ -685,6 +685,14 @@ def transform_evaluation_response(
         csv_row["technical_skills_score"] = scores.technical_skills.score
         csv_row["technical_skills_max"] = scores.technical_skills.max
 
+        # Role fit
+        if hasattr(scores, "role_fit") and scores.role_fit:
+            csv_row["role_fit_score"] = scores.role_fit.score
+            csv_row["role_fit_max"] = scores.role_fit.max
+        else:
+            csv_row["role_fit_score"] = "N/A"
+            csv_row["role_fit_max"] = "N/A"
+
         total_score = (
             scores.open_source.score
             + scores.self_projects.score
@@ -709,6 +717,8 @@ def transform_evaluation_response(
         csv_row["production_max"] = "N/A"
         csv_row["technical_skills_score"] = "N/A"
         csv_row["technical_skills_max"] = "N/A"
+        csv_row["role_fit_score"] = "N/A"
+        csv_row["role_fit_max"] = "N/A"
         csv_row["total_score"] = "N/A"
         csv_row["total_max"] = "N/A"
 

@@ -1,0 +1,23 @@
+You are an assistant scoring a candidate's role fit.
+
+Context:
+{{ text_content }}
+
+Target Role Description:
+{{ role_description }}
+
+Task:
+Assess how well the candidate fits the target role based on skills, projects, and evidence from GitHub/blog/portfolio.
+Provide a JSON object with fields:
+{
+  "score": number,  # 0-20
+  "max": 20,
+  "evidence": string  # concise reasoning with cited evidence snippets
+}
+
+Scoring rubric (0-20):
+- 0-5: Weak alignment; core required skills missing or shallow evidence
+- 6-10: Partial alignment; some requirements met; limited production evidence
+- 11-15: Good alignment; strong skills; relevant projects; moderate production signals
+- 16-20: Excellent alignment; deep skills; multiple highly relevant projects; strong OSS/production evidence
+

@@ -43,10 +43,14 @@ def print_evaluation_results(
     max_score = 0
 
     if hasattr(evaluation, "scores") and evaluation.scores:
-        for category_name, category_data in evaluation.scores.model_dump().items():
-            category_score = min(category_data["score"], category_data["max"])
-            total_score += category_score
-            max_score += category_data["max"]
+        for category_name, category_data in evaluation.scores.model_dump(exclude_none=True).items():
+            # Guard against malformed entries
+            if not isinstance(category_data, dict):
+                continue
+            if "score" in category_data and "max" in category_data:
+                category_score = min(category_data["score"], category_data["max"])
+                total_score += category_score
+                max_score += category_data["max"]
 
             # Log warning if score was capped
             if category_score < category_data["score"]:
@@ -82,6 +86,7 @@ def print_evaluation_results(
             "self_projects": 30,
             "production": 25,
             "technical_skills": 10,
+            "role_fit": 20,
         }
 
         # Open Source
@@ -122,6 +127,14 @@ def print_evaluation_results(
             print(f"   Evidence: {tech_score.evidence}")
             print()
 
+        # Role Fit
+        if hasattr(evaluation.scores, "role_fit") and evaluation.scores.role_fit:
+            rf_score = evaluation.scores.role_fit
+            capped_score = min(rf_score.score, category_maxes["role_fit"])
+            print(f"🎯 Role Fit:             {capped_score}/{rf_score.max}")
+            print(f"   Evidence: {rf_score.evidence}")
+            print()
+
     # Bonus Points
     if hasattr(evaluation, "bonus_points") and evaluation.bonus_points:
         print(f"\n⭐ BONUS POINTS: {evaluation.bonus_points.total}")
@@ -160,12 +173,12 @@ def print_evaluation_results(
 
 
 def _evaluate_resume(
-    resume_data: JSONResume, github_data: dict = None, blog_data: dict = None
+    resume_data: JSONResume, github_data: dict = None, blog_data: dict = None, role_description: str = None
 ) -> Optional[EvaluationData]:
     """Evaluate the resume using AI and display results."""
 
     model_params = MODEL_PARAMETERS.get(DEFAULT_MODEL)
-    evaluator = ResumeEvaluator(model_name=DEFAULT_MODEL, model_params=model_params)
+    evaluator = ResumeEvaluator(model_name=DEFAULT_MODEL, model_params=model_params, role_description=role_description)
 
     # Convert JSON resume data to text
     resume_text = convert_json_resume_to_text(resume_data)
@@ -197,7 +210,7 @@ def find_profile(profiles, network):
     )
 
 
-def main(pdf_path):
+def main(pdf_path, role_description: str = None):
     # Create cache filename based on PDF path
     cache_filename = (
         f"cache/resumecache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
@@ -255,7 +268,7 @@ def main(pdf_path):
                 encoding='utf-8'
             )
 
-    score = _evaluate_resume(resume_data, github_data)
+    score = _evaluate_resume(resume_data, github_data, role_description=role_description)
 
     # Get candidate name for display
     candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
@@ -298,12 +311,20 @@ def main(pdf_path):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python score.py <pdf_path>")
+        print("Usage: python score.py <pdf_path> [role_description_file]")
         exit(1)
     pdf_path = sys.argv[1]
+    role_desc = None
+    if len(sys.argv) >= 3:
+        role_file = sys.argv[2]
+        if os.path.exists(role_file):
+            try:
+                role_desc = Path(role_file).read_text(encoding='utf-8')
+            except Exception:
+                role_desc = None
 
     if not os.path.exists(pdf_path):
         print(f"Error: File '{pdf_path}' does not exist.")
         exit(1)
 
-    main(pdf_path)
+    main(pdf_path, role_description=role_desc)
