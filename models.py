@@ -268,6 +268,26 @@ class GitHubProfile(BaseModel):
     hireable: Optional[bool] = None
 
 
+class GitLabProfile(BaseModel):
+    """Pydantic model for GitLab profile data."""
+
+    username: str
+    name: Optional[str] = None
+    bio: Optional[str] = None
+    location: Optional[str] = None
+    organization: Optional[str] = None
+    public_repos: Optional[int] = None
+    followers: Optional[int] = None
+    following: Optional[int] = None
+    created_at: Optional[str] = None
+    last_sign_in_at: Optional[str] = None
+    avatar_url: Optional[str] = None
+    web_url: Optional[str] = None
+    website_url: Optional[str] = None
+    linkedin: Optional[str] = None
+    twitter: Optional[str] = None
+
+
 class OllamaProvider:
     """Ollama LLM provider implementation."""
 
