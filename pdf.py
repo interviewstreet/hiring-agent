@@ -39,11 +39,11 @@ class PDFHandler:
 
     def __init__(self):
         self.template_manager = TemplateManager()
-        self._initialize_llm_provider()
+        self._initialize_llm_provider(use_litellm=True)
 
-    def _initialize_llm_provider(self):
+    def _initialize_llm_provider(self, use_litellm=False):
         """Initialize the appropriate LLM provider based on the model."""
-        self.provider = initialize_llm_provider(DEFAULT_MODEL)
+        self.provider = initialize_llm_provider(DEFAULT_MODEL, use_litellm)
 
     def extract_text_from_pdf(self, pdf_path: str) -> Optional[str]:
         try:

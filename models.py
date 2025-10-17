@@ -8,6 +8,9 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    DEEPSEEK = "deepseek"
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
 
 
 @runtime_checkable
@@ -351,3 +354,66 @@ class GeminiProvider:
 
         # Convert Gemini response to Ollama-like format for compatibility
         return {"message": {"role": "assistant", "content": response.text}}
+
+
+class LiteLLMProvider:
+    """LiteLLM provider implementation for unified LLM access."""
+
+    def __init__(self, api_base: Optional[str] = None):
+        from litellm import completion
+
+        self.completion = completion
+        self.api_base = api_base
+        self._original_model = None
+        self._prefixed_model = None
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Send a chat request using LiteLLM."""
+        # Use prefixed model if available, otherwise use the provided model
+        actual_model = self._prefixed_model if self._prefixed_model else model
+
+        # Build parameters for LiteLLM
+        litellm_params = {
+            "model": actual_model,
+            "messages": messages,
+        }
+
+        # Add options if provided
+        if options:
+            if "temperature" in options:
+                litellm_params["temperature"] = options["temperature"]
+            if "top_p" in options:
+                litellm_params["top_p"] = options["top_p"]
+
+        # Add api_base if specified
+        if self.api_base:
+            litellm_params["api_base"] = self.api_base
+
+        # Handle streaming
+        if "stream" in kwargs:
+            litellm_params["stream"] = kwargs["stream"]
+
+        # Handle response format
+        if "format" in kwargs:
+            if kwargs["format"] == "json":
+                litellm_params["response_format"] = {"type": "json_object"}
+
+        # Make the request
+        response = self.completion(**litellm_params)
+
+        # Convert LiteLLM response to Ollama-like format
+        if "stream" in kwargs and kwargs["stream"]:
+            return response
+        else:
+            return {
+                "message": {
+                    "role": "assistant",
+                    "content": response.choices[0].message.content,
+                }
+            }
