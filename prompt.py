@@ -39,6 +39,17 @@ MODEL_PARAMETERS = {
     "gemini-2.5-pro": {"temperature": 0.1, "top_p": 0.9},
     "gemini-2.5-flash": {"temperature": 0.1, "top_p": 0.9},
     "gemini-2.5-flash-lite": {"temperature": 0.1, "top_p": 0.9},
+    # DeepSeek models
+    "deepseek/deepseek-chat": {"temperature": 0.1, "top_p": 0.9},
+    "deepseek/deepseek-coder": {"temperature": 0.1, "top_p": 0.9},
+    # OpenAI models
+    "openai/gpt-4": {"temperature": 0.1, "top_p": 0.9},
+    "openai/gpt-4-turbo": {"temperature": 0.1, "top_p": 0.9},
+    "openai/gpt-3.5-turbo": {"temperature": 0.1, "top_p": 0.9},
+    # Anthropic models
+    "anthropic/claude-3-opus-20240229": {"temperature": 0.1, "top_p": 0.9},
+    "anthropic/claude-3-sonnet-20240229": {"temperature": 0.1, "top_p": 0.9},
+    "anthropic/claude-3-haiku-20240307": {"temperature": 0.1, "top_p": 0.9},
 }
 
 # Model provider mapping
@@ -57,7 +68,24 @@ MODEL_PROVIDER_MAPPING = {
     "gemini-2.5-flash": ModelProvider.GEMINI,
     "gemini-2.5-flash-lite": ModelProvider.GEMINI,
     "gemini-2.5-pro": ModelProvider.GEMINI,
+    # DeepSeek models
+    "deepseek/deepseek-chat": ModelProvider.DEEPSEEK,
+    "deepseek/deepseek-coder": ModelProvider.DEEPSEEK,
+    # OpenAI models
+    "openai/gpt-4": ModelProvider.OPENAI,
+    "openai/gpt-4-turbo": ModelProvider.OPENAI,
+    "openai/gpt-3.5-turbo": ModelProvider.OPENAI,
+    # Anthropic models
+    "anthropic/claude-3-opus-20240229": ModelProvider.ANTHROPIC,
+    "anthropic/claude-3-sonnet-20240229": ModelProvider.ANTHROPIC,
+    "anthropic/claude-3-haiku-20240307": ModelProvider.ANTHROPIC,
 }
 
 # Get API keys from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+
+# Ollama API base URL
+OLLAMA_API_BASE = os.getenv("OLLAMA_API_BASE", "http://localhost:11434")
