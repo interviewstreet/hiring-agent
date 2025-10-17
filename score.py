@@ -18,13 +18,48 @@ from transform import (
 )
 from config import DEVELOPMENT_MODE
 
+# Configure logging with a clean format
+def setup_logging():
+    # Remove all handlers associated with the root logger
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+
+    # Create a formatter with a cleaner format
+    formatter = logging.Formatter(
+        '%(asctime)s - %(levelname)-8s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+
+    # Create console handler with the new formatter
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+
+    # Set up the root logger
+    root_logger.setLevel(logging.INFO)
+    # Configure specific loggers
+    llm_logger = logging.getLogger('llm_utils')
+    llm_logger.setLevel(logging.INFO)
+    
+    # Configure a custom formatter for llm_utils to remove the timestamp and level
+    class LLMFormatter(logging.Formatter):
+        def format(self, record):
+            if record.levelno == logging.INFO and hasattr(record, 'is_llm') and record.is_llm:
+                return record.getMessage()
+            return super().format(record)
+            
+    llm_formatter = LLMFormatter()
+    for handler in llm_logger.handlers[:]:
+        handler.setFormatter(llm_formatter)
+    
+    # Disable propagation for specific noisy loggers
+    logging.getLogger('urllib3').propagate = False
+    logging.getLogger('google').propagate = False
+    logging.getLogger('grpc').propagate = False
+
+# Initialize logging
+setup_logging()
 logger = logging.getLogger(__name__)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)5s - %(lineno)5d - %(funcName)33s - %(levelname)5s - %(message)s",
-)
-
 
 def print_evaluation_results(
     evaluation: EvaluationData, candidate_name: str = "Candidate"
