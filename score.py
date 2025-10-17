@@ -188,6 +188,36 @@ def _evaluate_resume(
     return evaluation_result
 
 
+def is_valid_resume_cache(resume_data):
+    """Check if cached resume data contains meaningful information."""
+    if not resume_data:
+        return False
+
+    # Check if all main sections are null (corrupted cache)
+    main_sections = ["basics", "work", "education", "skills", "projects"]
+    valid_sections = 0
+
+    for section in main_sections:
+        section_data = getattr(resume_data, section, None)
+        if section_data is not None:
+            if isinstance(section_data, list) and len(section_data) > 0:
+                valid_sections += 1
+            elif hasattr(section_data, "name") and section_data.name:  # basics section
+                valid_sections += 1
+
+    # If no sections have valid data, cache is corrupted
+    return valid_sections > 0
+
+
+def is_valid_github_cache(github_data):
+    """Check if cached GitHub data contains meaningful information."""
+    if not github_data or not isinstance(github_data, dict):
+        return False
+
+    # Check for basic profile information or projects
+    return bool(github_data.get("profile") or github_data.get("projects"))
+
+
 def find_profile(profiles, network):
     if not profiles:
         return None
@@ -206,12 +236,28 @@ def main(pdf_path):
         f"cache/githubcache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
     )
 
-    # Check if cache exists and we're in development mode
+    # Load resume data with automatic corruption detection
+    resume_data = None
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
-        print(f"Loading cached data from {cache_filename}")
-        cached_data = json.loads(Path(cache_filename).read_text())
-        resume_data = JSONResume(**cached_data)
-    else:
+        try:
+            print(f"Loading cached data from {cache_filename}")
+            cached_data = json.loads(Path(cache_filename).read_text())
+            temp_resume_data = JSONResume(**cached_data)
+
+            # Validate cache data
+            if is_valid_resume_cache(temp_resume_data):
+                resume_data = temp_resume_data
+                print("✅ Valid cache data loaded")
+            else:
+                print("⚠️  Cache contains corrupted data, will refresh automatically")
+                os.remove(cache_filename)  # Remove corrupted cache
+        except Exception as e:
+            print(f"⚠️  Error loading cache: {e}, will refresh automatically")
+            if os.path.exists(cache_filename):
+                os.remove(cache_filename)
+
+    # If no valid cache, process PDF
+    if resume_data is None:
         logger.debug(
             f"Extracting data from PDF"
             + (" and caching to " + cache_filename if DEVELOPMENT_MODE else "")
@@ -229,12 +275,29 @@ def main(pdf_path):
                 encoding='utf-8'
             )
 
-    # Check if cache exists and we're in development mode
+    # Load GitHub data with automatic corruption detection
     github_data = {}
     if DEVELOPMENT_MODE and os.path.exists(github_cache_filename):
-        print(f"Loading cached data from {github_cache_filename}")
-        github_data = json.loads(Path(github_cache_filename).read_text())
-    else:
+        try:
+            print(f"Loading cached data from {github_cache_filename}")
+            temp_github_data = json.loads(Path(github_cache_filename).read_text())
+
+            # Validate cache data
+            if is_valid_github_cache(temp_github_data):
+                github_data = temp_github_data
+                print("✅ Valid GitHub cache data loaded")
+            else:
+                print(
+                    "⚠️  GitHub cache contains corrupted data, will refresh automatically"
+                )
+                os.remove(github_cache_filename)  # Remove corrupted cache
+        except Exception as e:
+            print(f"⚠️  Error loading GitHub cache: {e}, will refresh automatically")
+            if os.path.exists(github_cache_filename):
+                os.remove(github_cache_filename)
+
+    # If no valid cache, fetch GitHub data
+    if not github_data:
         print(
             f"Fetching GitHub data"
             + (" and caching to " + github_cache_filename if DEVELOPMENT_MODE else "")
