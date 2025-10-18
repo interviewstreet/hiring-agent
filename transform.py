@@ -122,6 +122,50 @@ def get_network_name(domain: str) -> str:
     return domain_mapping.get(domain, "")
 
 
+from typing import Any, Dict, Mapping, Optional
+
+def transform_basics(basics_data: Mapping[str, Any]) -> Dict[str, Any]:
+    if not isinstance(basics_data, Mapping):
+        return basics_data  # type: ignore[return-value]
+
+    profiles = basics_data.get("profiles")
+    if not isinstance(profiles, list):
+        return dict(basics_data)
+
+    def _safe_extract_network_and_username(url: str) -> tuple[Optional[str], Optional[str]]:
+        try:
+            domain = extract_domain_from_url(url)
+        except Exception:
+            return None, None
+        try:
+            network = get_network_name(domain)
+        except Exception:
+            network = None
+        try:
+            username = extract_username_from_url(url, domain) if domain else None
+        except Exception:
+            username = None
+        return network, username
+
+    def _transform_profile(p: Any) -> Dict[str, Any]:
+        if not isinstance(p, Mapping):
+            return p  # type: ignore[return-value]
+        out: Dict[str, Any] = dict(p)
+        url = (out.get("url") or "").strip()
+        network_missing = not bool(out.get("network"))
+        username_missing = not bool(out.get("username"))
+        if url and (network_missing or username_missing):
+            network, username = _safe_extract_network_and_username(url)
+            if network_missing and network:
+                out["network"] = network
+            if username_missing and username:
+                out["username"] = username
+        return out
+
+    transformed_profiles = [_transform_profile(p) for p in profiles]
+    result = dict(basics_data)
+    result["profiles"] = transformed_profiles
+    return result
 def transform_basics(basics_data: Dict) -> Dict:
     if not isinstance(basics_data, dict):
         return basics_data
@@ -935,4 +979,8 @@ def convert_blog_data_to_text(blog_data: dict) -> str:
             blog_text += f"   Details: {blog.get('details', 'N/A')}\n"
             blog_text += "\n"
 
+
+    return blog_text 
+
     return blog_text
+
