@@ -16,6 +16,13 @@ __pycache__/
 # C extensions
 *.so
 
+
+# MAC specific files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Directories
 # Distribution / packaging
 .Python
 build/
