@@ -37,17 +37,50 @@ class ResumeEvaluator:
         """Initialize the appropriate LLM provider based on the model."""
         self.provider = initialize_llm_provider(self.model_name)
 
-    def _load_evaluation_prompt(self, resume_text: str) -> str:
+    def _load_evaluation_prompt(self, resume_text: str, job_requirements: dict = None) -> str:
         criteria_template = self.template_manager.render_template(
-            "resume_evaluation_criteria", text_content=resume_text
+            "resume_evaluation_criteria",
+            text_content=resume_text,
+            job_requirements=job_requirements,
         )
         if criteria_template is None:
             raise ValueError("Failed to load resume evaluation criteria template")
         return criteria_template
 
-    def evaluate_resume(self, resume_text: str) -> EvaluationData:
+    def _analyze_job_description(self, job_description: str) -> dict:
+        """Analyze the job description to extract key requirements."""
+        try:
+            prompt = self.template_manager.render_template(
+                "job_description_analysis", text_content=job_description
+            )
+            if prompt is None:
+                raise ValueError("Failed to load job description analysis template")
+
+            response = self.provider.chat(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                options={
+                    "stream": False,
+                    "temperature": 0.2,
+                },
+            )
+            response_text = extract_json_from_response(response["message"]["content"])
+            return json.loads(response_text)
+        except Exception as e:
+            logger.error(f"Error analyzing job description: {str(e)}")
+            return {}
+
+    def evaluate_resume(
+        self, resume_text: str, job_description: str = None
+    ) -> EvaluationData:
         self._last_resume_text = resume_text
-        full_prompt = self._load_evaluation_prompt(resume_text)
+        job_requirements = None
+        if job_description:
+            job_requirements = self._analyze_job_description(job_description)
+
+        full_prompt = self._load_evaluation_prompt(
+            resume_text, job_requirements=job_requirements
+        )
         # logger.info(f"🔤 Evaluation prompt being sent: {full_prompt}")
         try:
             system_message = self.template_manager.render_template(

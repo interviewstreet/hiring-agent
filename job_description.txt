@@ -1,0 +1,13 @@
+**Software Engineer Intern**
+
+**Responsibilities:**
+- Develop and maintain web applications using Python and JavaScript.
+- Collaborate with the team to design and implement new features.
+- Write clean, efficient, and well-documented code.
+- Troubleshoot and debug issues.
+
+**Requirements:**
+- Experience with Python and Django.
+- Familiarity with JavaScript, HTML, and CSS.
+- Strong problem-solving skills.
+- Excellent communication and teamwork skills.

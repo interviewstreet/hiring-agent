@@ -1,0 +1,19 @@
+**John Doe**
+john.doe@email.com | (123) 456-7890 | linkedin.com/in/johndoe | github.com/johndoe
+
+**Summary**
+Aspiring Software Engineer with a passion for web development and a strong foundation in Python and JavaScript.
+
+**Experience**
+**Software Developer Intern**, ABC Corp - Anytown, USA (May 2023 - Aug 2023)
+- Developed and maintained a web application using Python, Django, and JavaScript.
+- Collaborated with the team to design and implement new features.
+
+**Education**
+**B.S. in Computer Science**, University of Example - Exampleton, USA (2020 - 2024)
+
+**Skills**
+- **Programming Languages:** Python, JavaScript, HTML, CSS
+- **Frameworks:** Django, React
+- **Databases:** PostgreSQL, MongoDB
+- **Tools:** Git, Docker
