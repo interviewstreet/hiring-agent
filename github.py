@@ -2,6 +2,8 @@ import os
 import re
 import json
 import requests
+import asyncio
+import httpx
 import datetime
 import time
 from pathlib import Path
@@ -26,7 +28,7 @@ def _create_cache_filename(api_url: str, params: dict = None) -> str:
     return filename
 
 
-def _fetch_github_api(api_url, params=None):
+async def _fetch_github_api(api_url, params=None):
     headers = {}
     github_token = os.environ.get("GITHUB_TOKEN")
     if github_token:
@@ -41,43 +43,44 @@ def _fetch_github_api(api_url, params=None):
         except Exception as e:
             print(f"Error reading cache file {cache_filename}: {e}")
 
-    response = requests.get(api_url, params, timeout=10, headers=headers)
-    status_code = response.status_code
-    
-    # Check GitHub rate limit headers
-    rate_limit_remaining = response.headers.get("X-RateLimit-Remaining")
-    rate_limit_limit = response.headers.get("X-RateLimit-Limit")
-    rate_limit_reset = response.headers.get("X-RateLimit-Reset")
-    logger.info(f"{rate_limit_remaining}/{rate_limit_limit}. Reset at {rate_limit_reset}")
-    
-    if rate_limit_remaining is not None and rate_limit_limit is not None:
-        remaining = int(rate_limit_remaining)
-        limit = int(rate_limit_limit)
+    async with httpx.AsyncClient() as client:
+        response = await client.get(api_url, params=params, timeout=10, headers=headers)
+        status_code = response.status_code
+
+        # Check GitHub rate limit headers
+        rate_limit_remaining = response.headers.get("X-RateLimit-Remaining")
+        rate_limit_limit = response.headers.get("X-RateLimit-Limit")
+        rate_limit_reset = response.headers.get("X-RateLimit-Reset")
+        logger.info(f"{rate_limit_remaining}/{rate_limit_limit}. Reset at {rate_limit_reset}")
         
-        # Log rate limit information and handle proactively
-        if remaining < 10 and rate_limit_reset:
-            reset_timestamp = int(rate_limit_reset)
-            current_timestamp = int(time.time())
-            wait_seconds = max(0, reset_timestamp - current_timestamp) + 5  # Add 5 second buffer
-            reset_time = datetime.datetime.fromtimestamp(reset_timestamp)
+        if rate_limit_remaining is not None and rate_limit_limit is not None:
+            remaining = int(rate_limit_remaining)
+            limit = int(rate_limit_limit)
             
-            # Cap maximum wait time at 1 hour
-            max_wait = 3600
-            if wait_seconds > max_wait:
-                print(f"⚠️  Rate limit reset time is too far in the future ({wait_seconds}s). Capping wait to {max_wait}s")
-                wait_seconds = max_wait
-            
-            logger.error(f"⚠️  GitHub API rate limit low: {remaining}/{limit} requests remaining. Resets at {reset_time}")
-            print(f"💡 Tip: Set GITHUB_TOKEN environment variable to increase rate limits (60/hour → 5000/hour)")
-            
-            if wait_seconds > 0:
-                logger.info(f"⏳ Proactively sleeping for {wait_seconds} seconds until rate limit resets...")
-                time.sleep(wait_seconds)
-                print(f"✅ Rate limit should be reset now. Continuing...")
-        elif remaining < 100:
-            logger.info(f"ℹ️  GitHub API rate limit: {remaining}/{limit} requests remaining")
-    
-    data = response.json() if response.status_code == 200 else {}
+            # Log rate limit information and handle proactively
+            if remaining < 10 and rate_limit_reset:
+                reset_timestamp = int(rate_limit_reset)
+                current_timestamp = int(time.time())
+                wait_seconds = max(0, reset_timestamp - current_timestamp) + 5  # Add 5 second buffer
+                reset_time = datetime.datetime.fromtimestamp(reset_timestamp)
+                
+                # Cap maximum wait time at 1 hour
+                max_wait = 3600
+                if wait_seconds > max_wait:
+                    print(f"⚠️  Rate limit reset time is too far in the future ({wait_seconds}s). Capping wait to {max_wait}s")
+                    wait_seconds = max_wait
+                
+                logger.error(f"⚠️  GitHub API rate limit low: {remaining}/{limit} requests remaining. Resets at {reset_time}")
+                print(f"💡 Tip: Set GITHUB_TOKEN environment variable to increase rate limits (60/hour → 5000/hour)")
+                
+                if wait_seconds > 0:
+                    logger.info(f"⏳ Proactively sleeping for {wait_seconds} seconds until rate limit resets...")
+                    await asyncio.sleep(wait_seconds) # <-- Key Change: Use asyncio.sleep
+                    print(f"✅ Rate limit should be reset now. Continuing...")
+            elif remaining < 100:
+                logger.info(f"ℹ️  GitHub API rate limit: {remaining}/{limit} requests remaining")
+        
+        data = response.json() if response.status_code == 200 else {}
 
     if DEVELOPMENT_MODE and status_code == 200:
         try:
@@ -127,7 +130,7 @@ def fetch_github_profile(github_url: str) -> Optional[GitHubProfile]:
 
         api_url = f"https://api.github.com/users/{username}"
 
-        status_code, data = _fetch_github_api(api_url)
+        status_code, data = asyncio.run(_fetch_github_api(api_url))
 
         if status_code == 200:
             profile = GitHubProfile(
@@ -178,11 +181,13 @@ def fetch_contributions_count(owner: str, contributors_data):
     return user_contributions, total_contributions
 
 
-def fetch_repo_contributors(owner: str, repo_name: str) -> list[dict]:
+async def fetch_repo_contributors(owner: str, repo_name: str) -> list[dict]:
     try:
         api_url = f"https://api.github.com/repos/{owner}/{repo_name}/contributors"
 
-        status_code, contributors_data = _fetch_github_api(api_url)
+        status_code, contributors_data = await _fetch_github_api(api_url)
+
+        # return contributors_data # <-- This line from HEAD was a bug
 
         if status_code == 200:
             return contributors_data
@@ -194,7 +199,7 @@ def fetch_repo_contributors(owner: str, repo_name: str) -> list[dict]:
         return []
 
 
-def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
+async def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
     try:
         username = extract_github_username(github_url)
         if not username:
@@ -205,18 +210,25 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
 
         params = {"sort": "updated", "per_page": min(max_repos, 100), "type": "all"}
 
-        status_code, repos_data = _fetch_github_api(api_url, params=params)
+        status_code, repos_data = await _fetch_github_api(api_url, params=params)
 
         if status_code == 200:
-            projects = []
+            valid_repos = []
             for repo in repos_data:
                 if repo.get("fork") and repo.get("forks_count", 0) < 5:
                     continue
+                valid_repos.append(repo)
 
-                repo_name = repo.get("name")
+            print(f"🔄 Fetching contributors for {len(valid_repos)} repositories...")
+            contributor_tasks = [
+                fetch_repo_contributors(username, repo.get("name"))
+                for repo in valid_repos
+            ]
+            all_contributors_data = await asyncio.gather(*contributor_tasks)
 
-                contributors_data = fetch_repo_contributors(username, repo_name)
-                contributor_count = len(contributors_data)
+            projects = []
+            for repo, contributors_data in zip(valid_repos, all_contributors_data):
+                contributor_count = len(contributors_data) if contributors_data else 0
 
                 user_contributions, total_contributions = fetch_contributions_count(
                     username, contributors_data
@@ -444,7 +456,7 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
         return {}
 
     print("🔍 Fetching all repository details...")
-    projects = fetch_all_github_repos(github_url)
+    projects = asyncio.run(fetch_all_github_repos(github_url))
 
     if not projects:
         print("\n❌ No repositories found or failed to fetch repository details.")
