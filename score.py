@@ -5,7 +5,7 @@ import logging
 import csv
 from pdf import PDFHandler
 from github import fetch_and_display_github_info
-from models import JSONResume, EvaluationData
+from models import JSONResume, EvaluationData, EvaluationDataWithJD
 from typing import List, Optional, Dict
 from evaluator import ResumeEvaluator
 from pathlib import Path
@@ -159,13 +159,129 @@ def print_evaluation_results(
     print("\n" + "=" * 80)
 
 
-def _evaluate_resume(
-    resume_data: JSONResume, github_data: dict = None, blog_data: dict = None
-) -> Optional[EvaluationData]:
-    """Evaluate the resume using AI and display results."""
+def print_evaluation_results_with_jd(
+    evaluation: EvaluationDataWithJD, candidate_name: str = "Candidate"
+):
+    """Print JD-specific evaluation results in a readable format."""
+    print("\n" + "=" * 80)
+    print(f"📊 JD ALIGNMENT REPORT FOR: {candidate_name}")
+    print("=" * 80)
 
-    model_params = MODEL_PARAMETERS.get(DEFAULT_MODEL)
-    evaluator = ResumeEvaluator(model_name=DEFAULT_MODEL, model_params=model_params)
+    if not evaluation:
+        print("❌ No evaluation data available")
+        return
+
+    # --- Calculate overall score ---
+    total_score = 0
+    max_score = 0
+
+    if hasattr(evaluation, "scores") and evaluation.scores:
+        for category_name, category_data in evaluation.scores.model_dump().items():
+            category_score = min(category_data["score"], category_data["max"])
+            total_score += category_score
+            max_score += category_data["max"]
+
+            # Log warning if score was capped
+            if category_score < category_data["score"]:
+                print(
+                    f"⚠️  Warning: {category_name} score capped from {category_data['score']} to {category_score} (max: {category_data['max']})"
+                )
+
+    # Add bonus points
+    if hasattr(evaluation, "bonus_points") and evaluation.bonus_points:
+        total_score += evaluation.bonus_points.total
+
+    # Subtract deductions
+    if hasattr(evaluation, "deductions") and evaluation.deductions:
+        total_score -= evaluation.deductions.total
+
+    # Ensure total score does not exceed maximum possible score
+    max_possible_score = max_score + 20
+    if total_score > max_possible_score:
+        print(
+            f"⚠️  Warning: Total score {total_score} capped at max possible {max_possible_score}"
+        )
+        total_score = max_possible_score
+
+    # Ensure score is not negative
+    total_score = max(0, total_score)
+
+    # --- Overall Score ---
+    print(f"\n🎯 OVERALL JD MATCH SCORE: {total_score:.1f}/{max_score}")
+    print(f"(Max possible score with bonus: {max_possible_score})")
+
+    # --- Detailed Scores ---
+    print("\n📈 DETAILED SCORES:")
+    print("-" * 60)
+
+    if hasattr(evaluation, "scores") and evaluation.scores:
+        if (
+            hasattr(evaluation.scores, "overall_jd_match")
+            and evaluation.scores.overall_jd_match
+        ):
+            score_data = evaluation.scores.overall_jd_match
+            print(
+                f"👔 Overall JD Match (Context/YOE): {score_data.score}/{score_data.max}"
+            )
+            print(f"   Evidence: {score_data.evidence}")
+            print()
+
+        if (
+            hasattr(evaluation.scores, "keyword_alignment")
+            and evaluation.scores.keyword_alignment
+        ):
+            score_data = evaluation.scores.keyword_alignment
+            print(
+                f"🔑 Keyword Alignment (Skills):     {score_data.score}/{score_data.max}"
+            )
+            print(f"   Evidence: {score_data.evidence}")
+            print()
+
+    # --- Bonus Points ---
+    if (
+        hasattr(evaluation, "bonus_points")
+        and evaluation.bonus_points
+        and evaluation.bonus_points.total > 0
+    ):
+        print(f"\n⭐ BONUS POINTS: +{evaluation.bonus_points.total}")
+        print("-" * 30)
+        print(f"   {evaluation.bonus_points.breakdown}")
+
+    # --- Deductions ---
+    if (
+        hasattr(evaluation, "deductions")
+        and evaluation.deductions
+        and evaluation.deductions.total > 0
+    ):
+        print(f"\n⚠️  DEDUCTIONS: -{evaluation.deductions.total}")
+        print("-" * 30)
+        if evaluation.deductions.reasons:
+            print(f"   {evaluation.deductions.reasons}")
+
+    # --- Key Strengths ---
+    if hasattr(evaluation, "key_strengths") and evaluation.key_strengths:
+        print(f"\n✅ KEY STRENGTHS (vs JD):")
+        print("-" * 30)
+        for i, strength in enumerate(evaluation.key_strengths, 1):
+            print(f"  {i}. {strength}")
+
+    # --- Areas for Improvement ---
+    if (
+        hasattr(evaluation, "areas_for_improvement")
+        and evaluation.areas_for_improvement
+    ):
+        print(f"\n🔧 AREAS FOR IMPROVEMENT (vs JD):")
+        print("-" * 30)
+        for i, area in enumerate(evaluation.areas_for_improvement, 1):
+            print(f"  {i}. {area}")
+
+    print("\n" + "=" * 80)
+
+
+def _candidate_context(
+    resume_data: JSONResume, github_data: dict = None, blog_data: dict = None
+) -> str:
+    """Fetch candidate's resume context."""
 
     # Convert JSON resume data to text
     resume_text = convert_json_resume_to_text(resume_data)
@@ -180,8 +296,50 @@ def _evaluate_resume(
         blog_text = convert_blog_data_to_text(blog_data)
         resume_text += blog_text
 
+    return resume_text
+
+
+def _jd_context(jd_path: str) -> str:
+    """Return JD pdf context as text"""
+    pdf_handler = PDFHandler()
+    return pdf_handler.extract_text_from_pdf(jd_path)
+
+
+def _evaluate_resume(
+    resume_data: JSONResume, github_data: dict = None, blog_data: dict = None
+) -> Optional[EvaluationData]:
+    """Evaluate the resume using AI and display results."""
+
+    model_params = MODEL_PARAMETERS.get(DEFAULT_MODEL)
+    evaluator = ResumeEvaluator(model_name=DEFAULT_MODEL, model_params=model_params)
+
+    # Get candidate resume context
+    resume_text = _candidate_context(resume_data, github_data, blog_data)
+
     # Evaluate the enhanced resume
     evaluation_result = evaluator.evaluate_resume(resume_text)
+
+    # print(evaluation_result)
+
+    return evaluation_result
+
+
+def _evaluate_resume_with_jd(
+    resume_data: JSONResume,
+    jd_data: str = None,
+    github_data: dict = None,
+    blog_data: dict = None,
+) -> Optional[EvaluationData]:
+    """Evaluate the resume using AI and display results."""
+
+    model_params = MODEL_PARAMETERS.get(DEFAULT_MODEL)
+    evaluator = ResumeEvaluator(model_name=DEFAULT_MODEL, model_params=model_params)
+
+    # Get candidate resume context
+    resume_text = _candidate_context(resume_data, github_data, blog_data)
+
+    # Evaluate the enhanced resume
+    evaluation_result = evaluator.evaluate_resume_with_jd(resume_text, jd_data)
 
     # print(evaluation_result)
 
@@ -197,7 +355,7 @@ def find_profile(profiles, network):
     )
 
 
-def main(pdf_path):
+def main(pdf_path, jd_path):
     # Create cache filename based on PDF path
     cache_filename = (
         f"cache/resumecache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
@@ -211,6 +369,9 @@ def main(pdf_path):
         print(f"Loading cached data from {cache_filename}")
         cached_data = json.loads(Path(cache_filename).read_text())
         resume_data = JSONResume(**cached_data)
+
+        if jd_path:
+            jd_data = _jd_context(jd_path)
     else:
         logger.debug(
             f"Extracting data from PDF"
@@ -222,11 +383,17 @@ def main(pdf_path):
         if resume_data == None:
             return None
 
+        if jd_path:
+            jd_data = _jd_context(jd_path)
+
+            if jd_data == None:
+                return None
+
         if DEVELOPMENT_MODE:
             os.makedirs(os.path.dirname(cache_filename), exist_ok=True)
             Path(cache_filename).write_text(
                 json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False),
-                encoding='utf-8'
+                encoding="utf-8",
             )
 
     # Check if cache exists and we're in development mode
@@ -251,11 +418,8 @@ def main(pdf_path):
         if DEVELOPMENT_MODE:
             os.makedirs(os.path.dirname(github_cache_filename), exist_ok=True)
             Path(github_cache_filename).write_text(
-                json.dumps(github_data, indent=2, ensure_ascii=False),
-                encoding='utf-8'
+                json.dumps(github_data, indent=2, ensure_ascii=False), encoding="utf-8"
             )
-
-    score = _evaluate_resume(resume_data, github_data)
 
     # Get candidate name for display
     candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
@@ -267,10 +431,14 @@ def main(pdf_path):
     ):
         candidate_name = resume_data.basics.name
 
-    # Print evaluation results in readable format
-    print_evaluation_results(score, candidate_name)
+    if pdf_path and not jd_path:
+        score = _evaluate_resume(resume_data, github_data)
+        print_evaluation_results(score, candidate_name)
+    elif pdf_path and jd_path:
+        score = _evaluate_resume_with_jd(resume_data, jd_data)
+        print_evaluation_results_with_jd(score, candidate_name)
 
-    if DEVELOPMENT_MODE:
+    if DEVELOPMENT_MODE and pdf_path and not jd_path:
         csv_row = transform_evaluation_response(
             file_name=os.path.basename(pdf_path),
             evaluation=score,
@@ -292,18 +460,40 @@ def main(pdf_path):
 
             # Write the row
             writer.writerow(csv_row)
+    elif DEVELOPMENT_MODE and pdf_path and jd_path:
+        # TODO: Implement transform_evaluation_response for with_jd runs
+        ...
 
     return score
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python score.py <pdf_path>")
-        exit(1)
-    pdf_path = sys.argv[1]
+    if len(sys.argv) == 2:
+        pdf_path = sys.argv[1]
 
-    if not os.path.exists(pdf_path):
-        print(f"Error: File '{pdf_path}' does not exist.")
-        exit(1)
+        if not os.path.exists(pdf_path):
+            print(f"Error: File '{pdf_path}' does not exist.")
+            exit(1)
 
-    main(pdf_path)
+        main(pdf_path, None)
+    elif len(sys.argv) == 3:
+        pdf_path = sys.argv[1]
+        jd_path = sys.argv[2]
+
+        if not os.path.exists(pdf_path):
+            print(f"Error: File '{pdf_path}' does not exist.")
+            exit(1)
+
+        if not os.path.exists(jd_path):
+            print(f"Error: File '{jd_path}' does not exist.")
+            exit(1)
+        elif os.path.exists(jd_path) and not _jd_context(jd_path):
+            print(f"Error: File '{jd_path}' exists but is empty.")
+            exit(1)
+
+        main(pdf_path, jd_path)
+    else:
+        print("Usage:")
+        print("  python score.py <pdf_path>")
+        print("  python score.py <pdf_path> <jd_path>")
+        exit(1)

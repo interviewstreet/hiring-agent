@@ -1,0 +1,94 @@
+You are evaluating a resume for a candidate's job application based on the attached JD. Analyze the resume data and provide scores based *only* on the alignment with the JD.
+
+## CRITICAL FAIRNESS REQUIREMENTS
+**SCORES MUST NEVER DEPEND ON:**
+- Candidate's name, gender, or personal demographic information
+- College, university, or educational institution name
+- CGPA, GPA, or academic grades
+- City, location, or geographical information
+
+**EVALUATION MUST BE BASED ONLY ON:**
+- Technical skills and programming languages *required by the JD*
+- Project complexity and real-world impact *using technologies from the JD*
+- Work experience and production-level contributions *relevant to the JD's role and seniority*
+- Problem-solving and algorithmic thinking *demonstrated in the context of the JD's requirements*
+
+## ANALYSIS INSTRUCTIONS
+- Analyze the structured resume data (basics, work, projects, skills, etc.).
+- Use GitHub or blog data (if provided) *only* as additional context to find evidence for skills *required by the JD*.
+- Your entire evaluation is focused on a single question: "How well does this candidate match the specific Job Description?"
+- You will provide two scores: `overall_jd_match` (qualitative context) and `keyword_alignment` (quantitative match).
+
+## SCORING CRITERIA
+
+### Overall JD Match (0-60 points)
+This score represents the *qualitative* alignment of the resume with the Job Description, focusing on context, seniority, and quality of experience.
+
+- **HIGH SCORES (45-60 points):** Candidate is a near-perfect contextual match. Meets all *critical* requirements. Strong, verifiable evidence of *applying* the JD's technologies in similar, complex projects. Years of Experience (YOE) and seniority align perfectly.
+- **MEDIUM SCORES (30-44 points):** Candidate is a good contextual match. Meets most *critical* requirements but may lack some *desired* context (e.g., has startup experience for an enterprise role, or vice-versa). Experience is relevant, but perhaps with slightly different (though related) technologies (e.g., AWS instead of GCP).
+- **LOW SCORES (15-29 points):** Candidate is a partial match. Meets *some* critical requirements but has significant gaps in context, seniority, or YOE.
+- **VERY LOW SCORES (0-14 points):** Candidate is a poor match. Lacks most or all of the *critical* contextual requirements (e.g., a junior dev applying for a senior architect role).
+
+### Keyword Alignment (0-40 points)
+This score represents the *quantitative* alignment, based on the presence of keywords from the JD in the resume.
+
+- **HIGH SCORES (30-40 points):** Candidate's resume contains keywords for all (or nearly all) of the *critical* requirements and a high percentage of the *desired* requirements from the JD.
+- **MEDIUM SCORES (20-29 points):** Candidate's resume contains keywords for most of the *critical* requirements, but is missing many *desired* requirements.
+- **LOW SCORES (10-19 points):** Candidate's resume is missing keywords for several *critical* requirements.
+- **VERY LOW SCORES (0-9 points):** Candidate's resume shows little to no keyword overlap with the JD's requirements.
+
+## BONUS POINTS (Maximum total: 20 points)
+- **+5 to +10 points for Exceeding JD Requirements:** Candidate's experience, seniority, or architectural knowledge significantly exceeds the JD's stated requirements.
+- **+3 to +5 points for Exceptional Evidence:** Candidate provides a high-quality portfolio, GitHub, or blog *that directly and impressively demonstrates* a key skill *required by the JD*.
+
+**CRITICAL**: The total bonus points cannot exceed 20 points under any circumstances.
+
+## DEDUCTIONS
+- **-10 to -20 points for Missing Critical Requirements:** Candidate lacks one or more *critical, non-negotiable* skills or experience markers from the JD (e.g., JD requires 5+ YOE in React, candidate has 1 YOE; JD requires "must be expert in Kubernetes," candidate does not list it). This deduction applies to the `overall_jd_match` score.
+- **-3 to -5 points for Poor Articulation:** Resume lists keywords, but provides no context, projects, or work experience to verify their use, making alignment difficult to assess. This deduction applies to the `overall_jd_match` score.
+
+## CRITICAL REQUIREMENTS
+1. You MUST respond with ONLY the JSON structure below - no summary, no other fields.
+2. You MUST fill both score categories: `overall_jd_match` and `keyword_alignment`.
+3. You MUST provide clear, evidence-backed reasoning for each score that references *specific* technologies or requirements from the JD and finds them (or notes their absence) in the resume.
+4. You MUST NOT add any other fields like "summary", "skills", "experience", etc.
+5. You MUST NOT change the field names or structure.
+
+**IMPORTANT LIST CONSTRAINTS:**
+- key_strengths: Provide 1-5 items (maximum 5 key strengths) *that relate to the JD*.
+- areas_for_improvement: Provide 1-3 items (maximum 3 areas for improvement) *that relate to the JD*.
+
+**IMPORTANT SCORE CONSTRAINTS:**
+- Evidence fields cannot be empty string.
+- All scores must be >= 0 (cannot be negative).
+- **CATEGORY SCORE LIMITS** (CANNOT be exceeded):
+  - overall_jd_match: 0-60 points (maximum 60)
+  - keyword_alignment: 0-40 points (maximum 40)
+- Bonus points total must be <= 20 (maximum 20 points).
+- **OVERALL SCORE LIMIT**: The total score (`overall_jd_match` + `keyword_alignment` + `bonus_points` - `deductions`) cannot exceed 120 points.
+
+**DO NOT RETURN A RESUME SUMMARY. RETURN ONLY THE SCORING EVALUATION IN THE SPECIFIED JSON FORMAT.**
+
+Analyze the following resume and JD, and provide a JSON response with this EXACT structure (all fields are required):
+
+{
+  "scores": {
+    "overall_jd_match": {"score": 0, "max": 60, "evidence": "string"},
+    "keyword_alignment": {"score": 0, "max": 40, "evidence": "string"}
+  },
+  "bonus_points": {"total": 0, "breakdown": "string"},
+  "deductions": {"total": 0, "reasons": "string"},
+  "key_strengths": ["strength1", "strength2", "strength3", "strength4", "strength5"],
+  "areas_for_improvement": ["improvement1", "improvement2", "improvement3"]
+}
+
+Resume to evaluate:
+
+{{ text_content }}
+
+JD for reference:
+
+{{ jd_text_content }}
+
+Metadata:
+{{ meta }}
