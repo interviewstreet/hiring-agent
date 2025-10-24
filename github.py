@@ -283,11 +283,6 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
             print(
                 f"📊 Project classification: {open_source_count} open source, {self_project_count} self projects"
             )
-            
-            print("Open Source Repos => ")
-            for project in projects:
-                if(project["project_type"] == "open_source"):
-                    print(project["name"] + "\n")
 
             return projects
 
