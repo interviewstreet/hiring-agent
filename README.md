@@ -215,6 +215,12 @@ $ python score.py /path/to/resume.pdf
 $ python score.py /path/to/resume.pdf /path/to/jd.pdf
 ```
 
+3. Multi-Candidate JD Augmented Usage - Provide paths to a directory containing resume PDFs, the JD, and an integer-based cutoff score (max 120).
+
+```bash
+$ python score.py /path/to/resume_directory /path/to/jd.pdf cutoff
+```
+
 What happens:
 
 1. If development mode is on, the PDF extraction result is cached to `cache/resumecache_<basename>.json`.
