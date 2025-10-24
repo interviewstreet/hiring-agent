@@ -310,6 +310,50 @@ class OllamaProvider:
         return self.client.chat(**chat_params)
 
 
+class ScoresWithJD(BaseModel):
+    """Scores for JD-specific evaluation."""
+
+    overall_jd_match: CategoryScore = Field(
+        ...,
+        description="Qualitative score for overall JD match (context, seniority, YOE)",
+    )
+    keyword_alignment: CategoryScore = Field(
+        ..., description="Quantitative score for keyword/tech stack match"
+    )
+
+    @field_validator("overall_jd_match")
+    def check_overall_max(cls, v):
+        """Validate that the max score for overall_jd_match is 60."""
+        if v.max != 60:
+            raise ValueError("max score for overall_jd_match must be 60")
+        return v
+
+    @field_validator("keyword_alignment")
+    def check_keyword_max(cls, v):
+        """Validate that the max score for keyword_alignment is 40."""
+        if v.max != 40:
+            raise ValueError("max score for keyword_alignment must be 40")
+        return v
+
+
+class EvaluationDataWithJD(BaseModel):
+    """Evaluation data model for JD-specific resume scoring."""
+
+    scores: ScoresWithJD
+    bonus_points: BonusPoints
+    deductions: Deductions
+    key_strengths: List[str] = Field(
+        min_length=1,
+        max_length=5,
+        description="Key strengths relevant to the JD",
+    )
+    areas_for_improvement: List[str] = Field(
+        min_length=1,
+        max_length=3,
+        description="Areas for improvement relevant to the JD",
+    )
+
+
 class GeminiProvider:
     """Google Gemini API provider implementation."""
 

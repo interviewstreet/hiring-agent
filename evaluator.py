@@ -1,7 +1,8 @@
 from typing import Dict, List, Optional, Tuple, Any
 from pydantic import BaseModel, Field, field_validator
-from models import JSONResume, EvaluationData
+from models import JSONResume, EvaluationData, EvaluationDataWithJD
 from llm_utils import initialize_llm_provider, extract_json_from_response
+from datetime import datetime
 import logging
 import json
 import re
@@ -37,55 +38,84 @@ class ResumeEvaluator:
         """Initialize the appropriate LLM provider based on the model."""
         self.provider = initialize_llm_provider(self.model_name)
 
-    def _load_evaluation_prompt(self, resume_text: str) -> str:
+    def _render_evaluation_template(self, template_name: str, **kwargs) -> str:
+        """Helper function to render and evaluation template."""
         criteria_template = self.template_manager.render_template(
-            "resume_evaluation_criteria", text_content=resume_text
+            template_name, **kwargs
         )
         if criteria_template is None:
-            raise ValueError("Failed to load resume evaluation criteria template")
+            raise ValueError(f"Failed to load template: {template_name}")
         return criteria_template
 
+    def _load_evaluation_prompt(self, resume_text: str) -> str:
+        """Helper function to load base evaluation prompt (for SDE Intern)."""
+        return self._render_evaluation_template(
+            "resume_evaluation_criteria", text_content=resume_text
+        )
+
+    def _load_evaluation_prompt_with_jd(self, resume_text: str, jd_text: str) -> str:
+        """Helper function to load JD-augmented evaluation prompt."""
+        metadata = f"Current Date: {datetime.now().isoformat()}"
+        return self._render_evaluation_template(
+            "jd_evaluation_criteria",
+            text_content=resume_text,
+            jd_text_content=jd_text,
+            meta=metadata,
+        )
+
+    def _evaluate_prompt(
+        self, system_template: str, prompt_template: str, **template_vars
+    ) -> dict:
+        """Assembles the evaluation prompt."""
+        system_message = self.template_manager.render_template(system_template)
+        if system_message is None:
+            raise ValueError(f"Failed to load system template: {system_template}")
+
+        full_prompt = self.template_manager.render_template(
+            prompt_template, **template_vars
+        )
+        if full_prompt is None:
+            raise ValueError(f"Failed to load prompt template: {prompt_template}")
+
+        chat_params = {
+            "model": self.model_name,
+            "messages": [
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": full_prompt},
+            ],
+            "options": {
+                "stream": False,
+                "temperature": self.model_params.get("temperature", 0.5),
+                "top_p": self.model_params.get("top_p", 0.9),
+            },
+        }
+
+        kwargs = {"format": EvaluationData.model_json_schema()}
+        response = self.provider.chat(**chat_params, **kwargs)
+
+        response_text = extract_json_from_response(response["message"]["content"])
+        logger.debug(f"LLM raw response: {response_text}")
+        return json.loads(response_text)
+
     def evaluate_resume(self, resume_text: str) -> EvaluationData:
-        self._last_resume_text = resume_text
-        full_prompt = self._load_evaluation_prompt(resume_text)
-        # logger.info(f"🔤 Evaluation prompt being sent: {full_prompt}")
-        try:
-            system_message = self.template_manager.render_template(
-                "resume_evaluation_system_message"
-            )
-            if system_message is None:
-                raise ValueError(
-                    "Failed to load resume evaluation system message template"
-                )
+        """Default resume evaluation."""
+        data = self._evaluate_prompt(
+            system_template="resume_evaluation_system_message",
+            prompt_template="resume_evaluation_criteria",
+            text_content=resume_text,
+        )
+        return EvaluationData(**data)
 
-            # Prepare chat parameters
-            chat_params = {
-                "model": self.model_name,
-                "messages": [
-                    {"role": "system", "content": system_message},
-                    {"role": "user", "content": full_prompt},
-                ],
-                "options": {
-                    "stream": False,
-                    "temperature": self.model_params.get("temperature", 0.5),
-                    "top_p": self.model_params.get("top_p", 0.9),
-                },
-            }
-
-            # Add format parameter for structured output
-            kwargs = {"format": EvaluationData.model_json_schema()}
-            # Use the appropriate provider to make the API call
-            response = self.provider.chat(**chat_params, **kwargs)
-
-            response_text = response["message"]["content"]
-            response_text = extract_json_from_response(response_text)
-            logger.error(f"🔤 Prompt response: {response_text}")
-
-            evaluation_dict = json.loads(response_text)
-            evaluation_data = EvaluationData(**evaluation_dict)
-
-            return evaluation_data
-
-        except Exception as e:
-            logger.error(f"Error evaluating resume: {str(e)}")
-            raise
+    def evaluate_resume_with_jd(
+        self, resume_text: str, jd_text: str
+    ) -> EvaluationDataWithJD:
+        """Evaluation with JD."""
+        metadata = f"Current Date: {datetime.now().isoformat()}"
+        data = self._evaluate_prompt(
+            system_template="jd_system_message",
+            prompt_template="jd_evaluation_criteria",
+            text_content=resume_text,
+            jd_text_content=jd_text,
+            meta=metadata,
+        )
+        return EvaluationDataWithJD(**data)
