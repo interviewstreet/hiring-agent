@@ -227,3 +227,5 @@ __marimo__/
 
 # Miscellaneous
 *.pdf
+*.csv
+resumes/

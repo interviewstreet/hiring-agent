@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import logging
+import pandas
 import csv
 from pdf import PDFHandler
 from github import fetch_and_display_github_info
@@ -12,6 +13,7 @@ from pathlib import Path
 from prompt import DEFAULT_MODEL, MODEL_PARAMETERS
 from transform import (
     transform_evaluation_response,
+    transform_evaluation_response_with_jd,
     convert_json_resume_to_text,
     convert_github_data_to_text,
     convert_blog_data_to_text,
@@ -355,7 +357,7 @@ def find_profile(profiles, network):
     )
 
 
-def main(pdf_path, jd_path):
+def main(pdf_path, jd_path, verbose=True):
     # Create cache filename based on PDF path
     cache_filename = (
         f"cache/resumecache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
@@ -433,57 +435,126 @@ def main(pdf_path, jd_path):
 
     if pdf_path and not jd_path:
         score = _evaluate_resume(resume_data, github_data)
-        print_evaluation_results(score, candidate_name)
+        if verbose:
+            print_evaluation_results(score, candidate_name)
     elif pdf_path and jd_path:
         score = _evaluate_resume_with_jd(resume_data, jd_data)
-        print_evaluation_results_with_jd(score, candidate_name)
+        if verbose:
+            print_evaluation_results_with_jd(score, candidate_name)
 
-    if DEVELOPMENT_MODE and pdf_path and not jd_path:
-        csv_row = transform_evaluation_response(
-            file_name=os.path.basename(pdf_path),
-            evaluation=score,
-            resume_data=resume_data,
-            github_data=github_data,
-        )
+    if DEVELOPMENT_MODE:
+        if pdf_path and not jd_path:
+            csv_row = transform_evaluation_response(
+                file_name=os.path.basename(pdf_path),
+                evaluation=score,
+                resume_data=resume_data,
+                github_data=github_data,
+            )
 
-        # Write CSV row to file
-        csv_path = "resume_evaluations.csv"
-        file_exists = os.path.exists(csv_path)
+            # Write CSV row to file
+            csv_path = "resume_evaluations.csv"
+            file_exists = os.path.exists(csv_path)
 
-        with open(csv_path, "a", newline="", encoding="utf-8") as csvfile:
-            fieldnames = list(csv_row.keys())
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            with open(csv_path, "a", newline="", encoding="utf-8") as csvfile:
+                fieldnames = list(csv_row.keys())
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
-            # Write headers if file doesn't exist
-            if not file_exists:
-                writer.writeheader()
+                # Write headers if file doesn't exist
+                if not file_exists:
+                    writer.writeheader()
 
-            # Write the row
-            writer.writerow(csv_row)
-    elif DEVELOPMENT_MODE and pdf_path and jd_path:
-        # TODO: Implement transform_evaluation_response for with_jd runs
-        ...
+                # Write the row
+                writer.writerow(csv_row)
+        elif pdf_path and jd_path:
+            csv_row = transform_evaluation_response_with_jd(
+                file_name=os.path.basename(pdf_path),
+                evaluation=score,
+                resume_data=resume_data,
+                github_data=github_data,
+            )
+
+            # Write CSV row to file
+            csv_path = "jd_resume_evaluations.csv"
+            file_exists = os.path.exists(csv_path)
+
+            with open(csv_path, "a", newline="", encoding="utf-8") as csvfile:
+                fieldnames = list(csv_row.keys())
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+                # Write headers if file doesn't exist
+                if not file_exists:
+                    writer.writeheader()
+
+                # Write the row
+                writer.writerow(csv_row)
 
     return score
+
+
+def dir_main(dir_path, jd_path, cutoff):
+    """Main execution for a directory of resumes"""
+    # Extract all files in our directory
+    file_list = os.listdir(dir_path)
+
+    # Enumerate files in the list
+    print(
+        f"Starting evaluation of {len(file_list)} candidates in '{dir_path}' for JD '{jd_path}' (cutoff: {cutoff})"
+    )
+    for i, filename in enumerate(file_list):
+        if filename.endswith(".pdf"):
+            filepath = os.path.join(dir_path, filename)
+            print(f"#{i+1}, Evaluating '{filepath}'...")
+            main(filepath, jd_path, verbose=False)
+    print(f"Finished evaluating {len(file_list)} candidates.")
+
+    # Return candidates above the cutoff
+    df = pandas.read_csv("jd_resume_evaluations.csv")
+    print(f"\nCandidates above the cutoff score (>= {cutoff}):")
+    shortlist = df[df["total_score"] >= cutoff]
+    if not shortlist.empty:
+        print(shortlist[["name", "email", "total_score"]])
+    else:
+        print("** NO CANDIDATES WERE SHORTLISTED **")
 
 
 if __name__ == "__main__":
     if len(sys.argv) == 2:
         pdf_path = sys.argv[1]
 
-        if not os.path.exists(pdf_path):
-            print(f"Error: File '{pdf_path}' does not exist.")
-            exit(1)
+        if os.path.isfile(pdf_path):
+            if not os.path.exists(pdf_path):
+                print(f"Error: File '{pdf_path}' does not exist.")
+                exit(1)
 
-        main(pdf_path, None)
+            main(pdf_path, None)
     elif len(sys.argv) == 3:
         pdf_path = sys.argv[1]
         jd_path = sys.argv[2]
 
-        if not os.path.exists(pdf_path):
-            print(f"Error: File '{pdf_path}' does not exist.")
-            exit(1)
+        if os.path.isfile(pdf_path):
+            if not os.path.exists(pdf_path):
+                print(f"Error: File '{pdf_path}' does not exist.")
+                exit(1)
 
+            if not os.path.exists(jd_path):
+                print(f"Error: File '{jd_path}' does not exist.")
+                exit(1)
+            elif os.path.exists(jd_path) and not _jd_context(jd_path):
+                print(f"Error: File '{jd_path}' exists but is empty.")
+                exit(1)
+
+            main(pdf_path, jd_path)
+    elif len(sys.argv) == 4:
+        dir_path = sys.argv[1]
+        jd_path = sys.argv[2]
+        cutoff = int(sys.argv[3])
+
+        # Score for JD evaluation can never be > 120
+        if cutoff > 120 or cutoff < 0:
+            print(f"Error: Cutoff score must be in range [0,120].")
+            exit(1)
+        
+        # Sanity check JD
         if not os.path.exists(jd_path):
             print(f"Error: File '{jd_path}' does not exist.")
             exit(1)
@@ -491,9 +562,20 @@ if __name__ == "__main__":
             print(f"Error: File '{jd_path}' exists but is empty.")
             exit(1)
 
-        main(pdf_path, jd_path)
+        # Sanity check resume directory
+        if os.path.isdir(dir_path):
+            if not os.listdir(dir_path):
+                print(f"Error: Directory at '{dir_path}' cannot be empty.")
+                exit(1)
+
+            dir_main(dir_path, jd_path, cutoff)
+        else:
+            print(f"Error: Path '{dir_path}' must be a valid directory.")
+            exit(1)
+
     else:
         print("Usage:")
         print("  python score.py <pdf_path>")
         print("  python score.py <pdf_path> <jd_path>")
+        print("  python score.py <dir_path> <jd_path> <cutoff>")
         exit(1)

@@ -494,22 +494,9 @@ def fetch_profile(profiles, network_names, prefix):
             return profile
 
 
-def transform_evaluation_response(
-    file_name=None, resume_data=None, github_data=None, evaluation=None
-):
-    """
-    Transform the three inputs (resume_data, github_data, evaluation) into the most important columns as a CSV row.
-
-    Args:
-        resume_data: JSONResume object containing parsed resume data
-        github_data: dict containing GitHub profile data
-        evaluation: EvaluationData object containing evaluation results
-
-    Returns:
-        dict: Dictionary with the most important columns for CSV output
-    """
+def transform_candidate_context(file_name=None, resume_data=None, github_data=None):
+    """Collect candidate context based on the resume and github data found."""
     csv_row = {}
-
     csv_row["file_name"] = file_name
 
     # Extract basic information from resume_data
@@ -669,6 +656,26 @@ def transform_evaluation_response(
         csv_row["github_created_at"] = ""
         csv_row["github_bio"] = ""
 
+    return csv_row
+
+
+def transform_evaluation_response(
+    file_name=None, resume_data=None, github_data=None, evaluation=None
+):
+    """
+    Transform the three inputs (resume_data, github_data, evaluation) into the most important columns as a CSV row.
+
+    Args:
+        resume_data: JSONResume object containing parsed resume data
+        github_data: dict containing GitHub profile data
+        evaluation: EvaluationData object containing evaluation results
+
+    Returns:
+        dict: Dictionary with the most important columns for CSV output
+    """
+
+    csv_row = transform_candidate_context(file_name, resume_data, github_data)
+
     # Extract evaluation scores
     if evaluation and hasattr(evaluation, "scores"):
         scores = evaluation.scores
@@ -711,6 +718,73 @@ def transform_evaluation_response(
         csv_row["technical_skills_max"] = "N/A"
         csv_row["total_score"] = "N/A"
         csv_row["total_max"] = "N/A"
+
+    # Extract bonus points and deductions
+    if evaluation and hasattr(evaluation, "bonus_points"):
+        csv_row["bonus_points"] = evaluation.bonus_points.total
+        csv_row["bonus_breakdown"] = evaluation.bonus_points.breakdown
+    else:
+        csv_row["bonus_points"] = 0
+        csv_row["bonus_breakdown"] = ""
+
+    if evaluation and hasattr(evaluation, "deductions"):
+        csv_row["deductions"] = evaluation.deductions.total
+        csv_row["deduction_reasons"] = evaluation.deductions.reasons
+    else:
+        csv_row["deductions"] = 0
+        csv_row["deduction_reasons"] = ""
+
+    # Extract key strengths and areas for improvement
+    if evaluation and hasattr(evaluation, "key_strengths"):
+        csv_row["key_strengths"] = "; ".join(evaluation.key_strengths)
+    else:
+        csv_row["key_strengths"] = ""
+
+    if evaluation and hasattr(evaluation, "areas_for_improvement"):
+        csv_row["areas_for_improvement"] = "; ".join(evaluation.areas_for_improvement)
+    else:
+        csv_row["areas_for_improvement"] = ""
+
+    return csv_row
+
+
+def transform_evaluation_response_with_jd(
+    file_name=None, resume_data=None, github_data=None, evaluation=None
+):
+    """
+    Transform the three inputs (resume_data, github_data, evaluation) into the most important columns as a CSV row for JD-augmented evaluations.
+
+    Args:
+        resume_data: JSONResume object containing parsed resume data
+        github_data: dict containing GitHub profile data
+        evaluation: EvaluationData object containing evaluation results
+
+    Returns:
+        dict: Dictionary with the most important columns for CSV output
+    """
+
+    csv_row = transform_candidate_context(file_name, resume_data, github_data)
+
+    # Extract evaluation scores
+    if evaluation and hasattr(evaluation, "scores"):
+        scores = evaluation.scores
+
+        csv_row["overall_jd_match_score"] = scores.overall_jd_match.score
+        csv_row["overall_jd_match_max"] = scores.overall_jd_match.max
+
+        csv_row["keyword_alignment_score"] = scores.keyword_alignment.score
+        csv_row["keyword_alignment_max"] = scores.keyword_alignment.max
+
+        total_score = scores.overall_jd_match.score + scores.keyword_alignment.score
+        total_max = scores.overall_jd_match.max + scores.keyword_alignment.max
+
+        csv_row["total_score"] = total_score
+        csv_row["total_max"] = total_max
+    else:
+        csv_row["overall_jd_match_score"] = "N/A"
+        csv_row["overall_jd_match_max"] = "N/A"
+        csv_row["keyword_alignment_score"] = "N/A"
+        csv_row["keyword_alignment_max"] = "N/A"
 
     # Extract bonus points and deductions
     if evaluation and hasattr(evaluation, "bonus_points"):
