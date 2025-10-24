@@ -203,10 +203,16 @@ You can leave it on during iteration. See the next section for details.
 
 ### End to end scoring
 
-Provide a path to a resume PDF.
+1. Default Usage - Provide a path to a resume PDF.
 
 ```bash
 $ python score.py /path/to/resume.pdf
+```
+
+2. JD-Augmented Usage - Provide paths to resume and JD PDFs.
+
+```bash
+$ python score.py /path/to/resume.pdf /path/to/jd.pdf
 ```
 
 What happens:
