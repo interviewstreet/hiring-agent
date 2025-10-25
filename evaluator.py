@@ -6,6 +6,7 @@ import logging
 import json
 import re
 
+# Constants
 MAX_BONUS_POINTS = 20
 MIN_FINAL_SCORE = -20
 MAX_FINAL_SCORE = 120
@@ -22,6 +23,8 @@ logger = logging.getLogger(__name__)
 
 
 class ResumeEvaluator:
+    """Class to evaluate resumes using an LLM provider and structured JSON schema."""
+
     def __init__(self, model_name: str = DEFAULT_MODEL, model_params: dict = None):
         if not model_name:
             raise ValueError("Model name cannot be empty")
@@ -36,8 +39,11 @@ class ResumeEvaluator:
     def _initialize_llm_provider(self):
         """Initialize the appropriate LLM provider based on the model."""
         self.provider = initialize_llm_provider(self.model_name)
+        if not self.provider:
+            raise ValueError(f"Failed to initialize LLM provider for model: {self.model_name}")
 
     def _load_evaluation_prompt(self, resume_text: str) -> str:
+        """Load the evaluation prompt template and insert resume content."""
         criteria_template = self.template_manager.render_template(
             "resume_evaluation_criteria", text_content=resume_text
         )
@@ -46,17 +52,17 @@ class ResumeEvaluator:
         return criteria_template
 
     def evaluate_resume(self, resume_text: str) -> EvaluationData:
+        """Evaluate a resume and return structured EvaluationData."""
         self._last_resume_text = resume_text
         full_prompt = self._load_evaluation_prompt(resume_text)
-        # logger.info(f"🔤 Evaluation prompt being sent: {full_prompt}")
+
         try:
+            # Load system message
             system_message = self.template_manager.render_template(
                 "resume_evaluation_system_message"
             )
             if system_message is None:
-                raise ValueError(
-                    "Failed to load resume evaluation system message template"
-                )
+                raise ValueError("Failed to load resume evaluation system message template")
 
             # Prepare chat parameters
             chat_params = {
@@ -72,20 +78,25 @@ class ResumeEvaluator:
                 },
             }
 
-            # Add format parameter for structured output
-            kwargs = {"format": EvaluationData.model_json_schema()}
-            # Use the appropriate provider to make the API call
-            response = self.provider.chat(**chat_params, **kwargs)
+            # NOTE: Removed unsupported `format` kwarg for compatibility
+            response = self.provider.chat(**chat_params)
 
-            response_text = response["message"]["content"]
+            # Extract and parse the LLM response
+            response_text = response.get("message", {}).get("content", "")
             response_text = extract_json_from_response(response_text)
-            logger.error(f"🔤 Prompt response: {response_text}")
 
-            evaluation_dict = json.loads(response_text)
+            logger.debug(f"🔤 Raw LLM response: {response_text}")
+
+            try:
+                evaluation_dict = json.loads(response_text)
+            except json.JSONDecodeError as json_err:
+                logger.error(f"❌ Failed to parse LLM JSON response: {response_text[:200]}...")
+                raise ValueError("Invalid JSON format in LLM response") from json_err
+
             evaluation_data = EvaluationData(**evaluation_dict)
-
             return evaluation_data
 
         except Exception as e:
-            logger.error(f"Error evaluating resume: {str(e)}")
+            logger.exception("Error evaluating resume")
             raise
+
