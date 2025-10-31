@@ -3,6 +3,7 @@ import sys
 import json
 import time
 import logging
+import asyncio
 import pymupdf
 
 from models import (
@@ -64,7 +65,7 @@ class PDFHandler:
             logger.error(f"An error occurred while reading the PDF: {e}")
             return None
 
-    def _call_llm_for_section(
+    async def _call_llm_for_section(
         self, section_name: str, text_content: str, prompt: str, return_model=None
     ) -> Optional[Dict]:
         try:
@@ -103,9 +104,7 @@ class PDFHandler:
             if return_model:
                 kwargs["format"] = return_model.model_json_schema()
 
-            # Use the appropriate provider to make the API call
-            response = self.provider.chat(**chat_params, **kwargs)
-
+            response = await self.provider.chat(**chat_params, **kwargs)
             response_text = response["message"]["content"]
 
             try:
@@ -134,70 +133,70 @@ class PDFHandler:
             logger.error(f"❌ Error calling LLM for {section_name} section: {e}")
             return None
 
-    def extract_basics_section(self, resume_text: str) -> Optional[Dict]:
+    async def extract_basics_section(self, resume_text: str) -> Optional[Dict]:
         prompt = self.template_manager.render_template(
             "basics", text_content=resume_text
         )
         if not prompt:
             logger.error("❌ Failed to render basics template")
             return None
-        return self._call_llm_for_section("basics", resume_text, prompt, BasicsSection)
+        return await self._call_llm_for_section("basics", resume_text, prompt, BasicsSection)
 
-    def extract_work_section(self, resume_text: str) -> Optional[Dict]:
+    async def extract_work_section(self, resume_text: str) -> Optional[Dict]:
         prompt = self.template_manager.render_template("work", text_content=resume_text)
         if not prompt:
             logger.error("❌ Failed to render work template")
             return None
-        return self._call_llm_for_section("work", resume_text, prompt, WorkSection)
+        return await self._call_llm_for_section("work", resume_text, prompt, WorkSection)
 
-    def extract_education_section(self, resume_text: str) -> Optional[Dict]:
+    async def extract_education_section(self, resume_text: str) -> Optional[Dict]:
         prompt = self.template_manager.render_template(
             "education", text_content=resume_text
         )
         if not prompt:
             logger.error("❌ Failed to render education template")
             return None
-        return self._call_llm_for_section(
+        return await self._call_llm_for_section(
             "education", resume_text, prompt, EducationSection
         )
 
-    def extract_skills_section(self, resume_text: str) -> Optional[Dict]:
+    async def extract_skills_section(self, resume_text: str) -> Optional[Dict]:
         prompt = self.template_manager.render_template(
             "skills", text_content=resume_text
         )
         if not prompt:
             logger.error("❌ Failed to render skills template")
             return None
-        return self._call_llm_for_section("skills", resume_text, prompt, SkillsSection)
+        return await self._call_llm_for_section("skills", resume_text, prompt, SkillsSection)
 
-    def extract_projects_section(self, resume_text: str) -> Optional[Dict]:
+    async def extract_projects_section(self, resume_text: str) -> Optional[Dict]:
         prompt = self.template_manager.render_template(
             "projects", text_content=resume_text
         )
         if not prompt:
             logger.error("❌ Failed to render projects template")
             return None
-        return self._call_llm_for_section(
+        return await self._call_llm_for_section(
             "projects", resume_text, prompt, ProjectsSection
         )
 
-    def extract_awards_section(self, resume_text: str) -> Optional[Dict]:
+    async def extract_awards_section(self, resume_text: str) -> Optional[Dict]:
         prompt = self.template_manager.render_template(
             "awards", text_content=resume_text
         )
         if not prompt:
             logger.error("❌ Failed to render awards template")
             return None
-        return self._call_llm_for_section("awards", resume_text, prompt, AwardsSection)
+        return await self._call_llm_for_section("awards", resume_text, prompt, AwardsSection)
 
-    def extract_json_from_text(self, resume_text: str) -> Optional[JSONResume]:
+    async def extract_json_from_text(self, resume_text: str) -> Optional[JSONResume]:
         try:
-            return self._extract_all_sections_separately(resume_text)
+            return await self._extract_all_sections_separately(resume_text)
         except Exception as e:
-            logger.error(f"Error calling Ollama: {e}")
+            logger.error(f"Error calling LLM: {e}")
             return None
 
-    def extract_json_from_pdf(self, pdf_path: str) -> Optional[JSONResume]:
+    async def extract_json_from_pdf(self, pdf_path: str) -> Optional[JSONResume]:
         try:
             logger.debug(f"📄 Extracting text from PDF: {pdf_path}")
             text_content = self.extract_text_from_pdf(pdf_path)
@@ -211,13 +210,13 @@ class PDFHandler:
             )
 
             logger.debug("🔄 Extracting all sections separately...")
-            return self._extract_all_sections_separately(text_content)
+            return await self._extract_all_sections_separately(text_content)
 
         except Exception as e:
             logger.error(f"❌ Error during PDF to JSON extraction: {e}")
             return None
 
-    def _extract_section_data(
+    async def _extract_section_data(
         self, text_content: str, section_name: str, return_model=None
     ) -> Optional[Dict]:
         section_extractors = {
@@ -234,12 +233,12 @@ class PDFHandler:
             logger.error(f"Valid sections: {list(section_extractors.keys())}")
             return None
 
-        return section_extractors[section_name](text_content)
+        return await section_extractors[section_name](text_content)
 
-    def _extract_single_section(
+    async def _extract_single_section(
         self, text_content: str, section_name: str, return_model=None
     ) -> Optional[Dict]:
-        section_data = self._extract_section_data(
+        section_data = await self._extract_section_data(
             text_content, section_name, return_model
         )
         if section_data:
@@ -264,7 +263,7 @@ class PDFHandler:
 
         return None
 
-    def _extract_all_sections_separately(
+    async def _extract_all_sections_separately(
         self, text_content: str
     ) -> Optional[JSONResume]:
         start_time = time.time()
@@ -288,7 +287,7 @@ class PDFHandler:
         }
 
         for section_name in sections:
-            section_data = self._extract_section_data(text_content, section_name)
+            section_data = await self._extract_section_data(text_content, section_name)
 
             if section_data:
                 complete_resume.update(section_data)
