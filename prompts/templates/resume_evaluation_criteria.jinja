@@ -1,6 +1,7 @@
 You are evaluating a resume for a Software Intern position at HackerRank. Analyze the resume data and provide scores based on these criteria:
 
 **MANDATORY: You MUST always fill ALL FOUR categories: open_source, self_projects, production, technical_skills.**
+Additionally, include a fifth category, problem_solving (0–15 points), **ONLY IF** LeetCode data is provided.
 
 ## CRITICAL FAIRNESS REQUIREMENTS
 **SCORES MUST NEVER DEPEND ON:**
@@ -28,6 +29,7 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 - Analyze the structured resume data (basics, work, volunteer, projects, skills, etc.)
 - Use GitHub data (if provided in === GITHUB DATA === section) as additional context
 - Use blog data (if provided in === BLOG DATA === section) for technical communication assessment
+- Use LeetCode data (if provided in === LEETCODE DATA === section) to evaluate problem_solving ability.
 
 ## SCORING CRITERIA
 
@@ -88,6 +90,15 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 
 ### Technical Skills (0-10 points)
 - Analyze the 'skills', 'languages', and evidence of technical breadth or problem-solving in projects, work, or competitions
+
+### Problem Solving (0-15 points)
+  - When LeetCode data is present (look for the '=== LEETCODE DATA ===' section in the resume text), you MUST score this category based on the candidate's algorithmic/problem-solving ability using the LeetCode data. Consider:
+  - Total problems solved and distribution by difficulty (Easy/Medium/Hard)
+  - Contest rating, global ranking, top percentage
+  - Active Days (consistency)
+  - Best contest performance
+  - Assign a score out of **15**. Provide clear evidence (not empty) explaining the reasoning (e.g., "Solved 761 problems incl. 95 hard; contest rating 1488; 312 active days").
+  - **MANDATORY**: Include `problem_solving` in the JSON `scores` field if LeetCode data is present. This score is for display only and **MUST NOT** be added to the 100-point total.
 
 ## PROJECT COMPLEXITY ASSESSMENT
 
@@ -160,6 +171,7 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
   - self_projects: 0-30 points (maximum 30)
   - production: 0-25 points (maximum 25)
   - technical_skills: 0-10 points (maximum 10)
+  - problem_solving: 0-15 points ( maximum 15)
 - Bonus points total must be <= 20 (maximum 20 points)
 - **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed 120 points
 
@@ -172,7 +184,8 @@ Analyze the following resume and provide a JSON response with this EXACT structu
         "open_source": {"score": 0, "max": 35, "evidence": "string"},
         "self_projects": {"score": 0, "max": 30, "evidence": "string"},
         "production": {"score": 0, "max": 25, "evidence": "string"},
-        "technical_skills": {"score": 0, "max": 10, "evidence": "string"}
+        "technical_skills": {"score": 0, "max": 10, "evidence": "string"},
+        "problem_solving": {"score": 0, "max": 15, "evidence":"string"}
     },
     "bonus_points": {"total": 0, "breakdown": "string"},
     "deductions": {"total": 0, "reasons": "string"},

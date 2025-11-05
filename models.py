@@ -226,6 +226,7 @@ class Scores(BaseModel):
     self_projects: CategoryScore
     production: CategoryScore
     technical_skills: CategoryScore
+    problem_solving: Optional[CategoryScore] = None
 
 
 class BonusPoints(BaseModel):
@@ -267,6 +268,19 @@ class GitHubProfile(BaseModel):
     twitter_username: Optional[str] = None
     hireable: Optional[bool] = None
 
+class LeetCodeProfile(BaseModel):
+    """Pydantic model for LeetCode profile data."""
+
+    username: Optional[str] = None
+    name: Optional[str] = None
+    about: Optional[str] = None
+    solved_by_difficulty: Optional[List[Dict[str, Any]]] = None
+    contest_rating: Optional[float] = None
+    global_rank: Optional[int] = None
+    top_percentage: Optional[float] = None
+    contests_attended: Optional[int] = None
+    best_contest: Optional[Dict[str, Any]] = None
+    active_days: Optional[int] = None
 
 class OllamaProvider:
     """Ollama LLM provider implementation."""
