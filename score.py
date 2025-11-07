@@ -284,7 +284,7 @@ def main(pdf_path):
 
         with open(csv_path, "a", newline="", encoding="utf-8") as csvfile:
             fieldnames = list(csv_row.keys())
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames, quoting=csv.QUOTE_ALL)
 
             # Write headers if file doesn't exist
             if not file_exists:
