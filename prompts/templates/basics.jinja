@@ -6,7 +6,7 @@ Extract ONLY the basic information (name, email, phone, location, profiles) from
 
 --- The input resume markdown ends here ---
 
-Return ONLY a JSON object with this structure:
+Return ONLY a JSON object with this structure (fill fields ONLY if present in the resume; otherwise use null):
 {
   "basics": {
     "name": "Full name",
@@ -15,8 +15,11 @@ Return ONLY a JSON object with this structure:
     "url": null,
     "summary": null,
     "location": {
+      "address": null,
+      "postalCode": null,
       "city": "City",
-      "countryCode": "Country code"
+      "countryCode": "Country code",
+      "region": null
     },
     "profiles": [
       {

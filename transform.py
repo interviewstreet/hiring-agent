@@ -330,6 +330,8 @@ def transform_projects(projects_list: List) -> List[Dict]:
             if not skills and technologies:
                 skills = technologies
 
+            repo_url = item.get("repo_url") or item.get("url")
+            live_url = item.get("live_url")
             transformed.append(
                 {
                     "name": item.get("name", ""),
@@ -337,7 +339,9 @@ def transform_projects(projects_list: List) -> List[Dict]:
                     "endDate": None,
                     "description": item.get("description", ""),
                     "highlights": [item.get("type", "")] if item.get("type") else [],
-                    "url": item.get("url", None),
+                    "url": repo_url or live_url,
+                    "repo_url": repo_url,
+                    "live_url": live_url,
                     "technologies": technologies,
                     "skills": skills,
                 }
@@ -393,6 +397,8 @@ def transform_projects_comprehensive(parsed_data: Dict) -> List[Dict]:
                         skills = [skill.strip() for skill in skills_part.split(",")]
                         item["name"] = name_parts[0].strip()
 
+                repo_url = item.get("repo_url") or item.get("url")
+                live_url = item.get("live_url")
                 projects.append(
                     {
                         "name": item.get("name", ""),
@@ -400,7 +406,9 @@ def transform_projects_comprehensive(parsed_data: Dict) -> List[Dict]:
                         "endDate": None,
                         "description": item.get("summary", ""),
                         "highlights": [],
-                        "url": item.get("url", None),
+                        "url": repo_url or live_url,
+                        "repo_url": repo_url,
+                        "live_url": live_url,
                         "technologies": item.get("technologies", []),
                         "skills": skills,
                     }
@@ -823,8 +831,17 @@ def convert_json_resume_to_text(resume_data: JSONResume) -> str:
                 text_parts.append(f"   Period: {project.startDate} - {project.endDate}")
             if project.description:
                 text_parts.append(f"   Description: {project.description}")
-            if project.url:
-                text_parts.append(f"   URL: {project.url}")
+            # Prefer separating Repo vs Live Demo for clarity in evaluation
+            repo_url = getattr(project, "repo_url", None) or (
+                project.url if (project.url and "github.com" in project.url) else None
+            )
+            live_url = getattr(project, "live_url", None)
+            if not live_url and project.url and not ("github.com" in project.url):
+                live_url = project.url
+            if repo_url:
+                text_parts.append(f"   Repo URL: {repo_url}")
+            if live_url:
+                text_parts.append(f"   Live Demo: {live_url}")
             if project.highlights:
                 text_parts.append("   Highlights:")
                 for highlight in project.highlights:
@@ -910,7 +927,11 @@ def convert_github_data_to_text(github_data: dict) -> str:
         for i, project in enumerate(projects[:10], 1):
             github_text += f"{i}. {project.get('name', 'N/A')}\n"
             github_text += f"   Description: {project.get('description', 'N/A')}\n"
-            github_text += f"   URL: {project.get('github_url', 'N/A')}\n"
+            github_url = project.get('github_url') or 'N/A'
+            github_text += f"   Repo URL: {github_url}\n"
+            live_url = project.get('live_url')
+            if live_url:
+                github_text += f"   Live Demo: {live_url}\n"
             if "github_details" in project:
                 details = project["github_details"]
                 github_text += f"   Stars: {details.get('stars', 'N/A')}\n"

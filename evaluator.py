@@ -1,7 +1,12 @@
 from typing import Dict, List, Optional, Tuple, Any
+import hashlib
 from pydantic import BaseModel, Field, field_validator
 from models import JSONResume, EvaluationData
-from llm_utils import initialize_llm_provider, extract_json_from_response
+from llm_utils import (
+    initialize_llm_provider,
+    extract_json_from_response,
+    ensure_valid_json,
+)
 import logging
 import json
 import re
@@ -78,11 +83,38 @@ class ResumeEvaluator:
             response = self.provider.chat(**chat_params, **kwargs)
 
             response_text = response["message"]["content"]
-            response_text = extract_json_from_response(response_text)
-            logger.error(f"🔤 Prompt response: {response_text}")
+            cleaned_text = extract_json_from_response(response_text)
+            repaired_json_str = ensure_valid_json(
+                cleaned_text,
+                provider=self.provider,
+                model=self.model_name,
+                original_prompt=full_prompt,
+            )
+            logger.error(f"🔤 Prompt response: {repaired_json_str}")
 
-            evaluation_dict = json.loads(response_text)
+            try:
+                evaluation_dict = json.loads(repaired_json_str)
+            except Exception as e:
+                logger.error(f"Failed to parse evaluation JSON after repair attempts: {e}")
+                raise
+
             evaluation_data = EvaluationData(**evaluation_dict)
+
+            # Attach prompt/version metadata
+            template_sources = self.template_manager.get_all_template_sources()
+            template_hashes = {
+                name: hashlib.sha256(src.encode("utf-8")).hexdigest()
+                for name, src in template_sources.items()
+            }
+            evaluation_data.meta = {
+                "model": self.model_name,
+                "provider": MODEL_PROVIDER_MAPPING.get(self.model_name, None).value
+                if MODEL_PROVIDER_MAPPING.get(self.model_name, None)
+                else None,
+                "template_hashes": template_hashes,
+                "temperature": self.model_params.get("temperature"),
+                "top_p": self.model_params.get("top_p"),
+            }
 
             return evaluation_data
 

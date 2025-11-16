@@ -3,6 +3,7 @@ import sys
 import json
 import logging
 import csv
+import argparse
 from pdf import PDFHandler
 from github import fetch_and_display_github_info
 from models import JSONResume, EvaluationData
@@ -17,6 +18,8 @@ from transform import (
     convert_blog_data_to_text,
 )
 from config import DEVELOPMENT_MODE
+from prompts.template_manager import TemplateManager
+import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +200,38 @@ def find_profile(profiles, network):
     )
 
 
-def main(pdf_path):
+def _is_empty_resume(resume_data: JSONResume) -> bool:
+    if not resume_data:
+        return True
+    key_sections = [
+        "basics",
+        "work",
+        "education",
+        "skills",
+        "projects",
+        "awards",
+    ]
+    for sec in key_sections:
+        val = getattr(resume_data, sec, None)
+        if val:
+            # If any section has content (dict/list/object), treat as non-empty
+            try:
+                if isinstance(val, (list, dict)) and len(val) > 0:
+                    return False
+                # Basics is a pydantic model. If it has at least one non-null attribute -> non-empty
+                fields = getattr(val.__class__, "model_fields", None)
+                if fields:
+                    for field_name in fields.keys():
+                        if getattr(val, field_name, None):
+                            return False
+            except Exception:
+                pass
+            # Non-container truthy object
+            return False
+    return True
+
+
+def main(pdf_path, force: bool = False, no_github: bool = False, max_workers: int = 3):
     # Create cache filename based on PDF path
     cache_filename = (
         f"cache/resumecache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
@@ -207,16 +241,40 @@ def main(pdf_path):
     )
 
     # Check if cache exists and we're in development mode
-    if DEVELOPMENT_MODE and os.path.exists(cache_filename):
+    if not force and DEVELOPMENT_MODE and os.path.exists(cache_filename):
         print(f"Loading cached data from {cache_filename}")
-        cached_data = json.loads(Path(cache_filename).read_text())
-        resume_data = JSONResume(**cached_data)
+        cached_raw = json.loads(Path(cache_filename).read_text())
+
+        # Validate cache metadata if present
+        use_cache = True
+        cache_meta = cached_raw.get("_cache_meta")
+        if cache_meta:
+            # Verify file hash
+            try:
+                with open(pdf_path, "rb") as f:
+                    data = f.read()
+                file_hash = hashlib.md5(data).hexdigest()
+                if cache_meta.get("file_hash") != file_hash:
+                    print("⚠️ Resume file changed since cache was written. Ignoring cached resume.")
+                    use_cache = False
+                # Verify model/template
+                if cache_meta.get("model") != DEFAULT_MODEL:
+                    print("⚠️ Model changed since cache was written. Ignoring cached resume.")
+                    use_cache = False
+            except Exception:
+                use_cache = False
+
+        if use_cache:
+            cached_data = cached_raw.get("data", cached_raw)
+            resume_data = JSONResume(**cached_data)
+        else:
+            resume_data = None
     else:
         logger.debug(
             f"Extracting data from PDF"
             + (" and caching to " + cache_filename if DEVELOPMENT_MODE else "")
         )
-        pdf_handler = PDFHandler()
+        pdf_handler = PDFHandler(max_workers=max_workers)
         resume_data = pdf_handler.extract_json_from_pdf(pdf_path)
 
         if resume_data == None:
@@ -224,17 +282,55 @@ def main(pdf_path):
 
         if DEVELOPMENT_MODE:
             os.makedirs(os.path.dirname(cache_filename), exist_ok=True)
-            Path(cache_filename).write_text(
-                json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False),
-                encoding='utf-8'
-            )
+            # Write cache with metadata to allow validation later
+            tm = TemplateManager()
+            template_sources = tm.get_all_template_sources()
+            template_hashes = {name: hashlib.sha256(src.encode("utf-8")).hexdigest() for name, src in template_sources.items()}
+            with open(cache_filename, "w", encoding="utf-8") as fh:
+                wrapper = {
+                    "_cache_meta": {
+                        "file_hash": hashlib.md5(open(pdf_path, "rb").read()).hexdigest(),
+                        "model": DEFAULT_MODEL,
+                        "template_hashes": template_hashes,
+                    },
+                    "data": resume_data.model_dump(),
+                }
+                fh.write(json.dumps(wrapper, indent=2, ensure_ascii=False))
 
     # Check if cache exists and we're in development mode
     github_data = {}
-    if DEVELOPMENT_MODE and os.path.exists(github_cache_filename):
+    gh_cache_exists = os.path.exists(github_cache_filename)
+    use_gh_cache = (not force) and DEVELOPMENT_MODE and gh_cache_exists
+    if no_github:
+        print("Skipping GitHub fetch due to --no-github flag")
+        github_data = {}
+    elif use_gh_cache:
         print(f"Loading cached data from {github_cache_filename}")
-        github_data = json.loads(Path(github_cache_filename).read_text())
-    else:
+        try:
+            cached_raw = json.loads(Path(github_cache_filename).read_text())
+        except Exception as e:
+            print(f"⚠️ Failed to read GitHub cache: {e}. Will refetch.")
+            cached_raw = None
+
+        cache_valid = False
+        if cached_raw:
+            cache_meta = cached_raw.get("_cache_meta")
+            if cache_meta and cache_meta.get("model") != DEFAULT_MODEL:
+                print("⚠️ GitHub cache model mismatch. Ignoring cached GitHub data.")
+            else:
+                candidate = cached_raw.get("data", cached_raw)
+                # Consider cache invalid if empty or missing profile/projects
+                if candidate and isinstance(candidate, dict):
+                    total_projects = candidate.get("total_projects")
+                    profile = candidate.get("profile")
+                    has_username = bool(profile and profile.get("username"))
+                    has_projects = isinstance(candidate.get("projects"), list) and len(candidate.get("projects")) > 0
+                    if has_username and (has_projects or (isinstance(total_projects, int) and total_projects > 0)):
+                        github_data = candidate
+                        cache_valid = True
+        if not cache_valid:
+            print("⚠️ GitHub cache is empty or invalid. Fetching fresh data...")
+    if (not no_github) and (not use_gh_cache or (use_gh_cache and not cache_valid)):
         print(
             f"Fetching GitHub data"
             + (" and caching to " + github_cache_filename if DEVELOPMENT_MODE else "")
@@ -250,10 +346,43 @@ def main(pdf_path):
             github_data = fetch_and_display_github_info(github_profile.url)
         if DEVELOPMENT_MODE:
             os.makedirs(os.path.dirname(github_cache_filename), exist_ok=True)
-            Path(github_cache_filename).write_text(
-                json.dumps(github_data, indent=2, ensure_ascii=False),
-                encoding='utf-8'
-            )
+            with open(github_cache_filename, "w", encoding="utf-8") as fh:
+                wrapper = {
+                    "_cache_meta": {
+                        "model": DEFAULT_MODEL,
+                    },
+                    "data": github_data,
+                }
+                fh.write(json.dumps(wrapper, indent=2, ensure_ascii=False))
+
+    # If cached resume is empty, attempt a fresh extraction
+    if (force or _is_empty_resume(resume_data)):
+        if _is_empty_resume(resume_data):
+            print("⚠️ Cached resume appears empty. Attempting re-extraction...")
+        pdf_handler = PDFHandler(max_workers=max_workers)
+        fresh_resume = pdf_handler.extract_json_from_pdf(pdf_path)
+        if fresh_resume and not _is_empty_resume(fresh_resume):
+            resume_data = fresh_resume
+            if DEVELOPMENT_MODE:
+                try:
+                    tm = TemplateManager()
+                    template_sources = tm.get_all_template_sources()
+                    template_hashes = {name: hashlib.sha256(src.encode("utf-8")).hexdigest() for name, src in template_sources.items()}
+                    with open(cache_filename, "w", encoding="utf-8") as fh:
+                        wrapper = {
+                            "_cache_meta": {
+                                "file_hash": hashlib.md5(open(pdf_path, "rb").read()).hexdigest(),
+                                "model": DEFAULT_MODEL,
+                                "template_hashes": template_hashes,
+                            },
+                            "data": resume_data.model_dump(),
+                        }
+                        fh.write(json.dumps(wrapper, indent=2, ensure_ascii=False))
+                    print("✅ Re-extracted resume and updated cache.")
+                except Exception as e:
+                    print(f"⚠️ Failed to update cache after re-extraction: {e}")
+        else:
+            print("❌ Re-extraction failed or still empty; proceeding with existing data.")
 
     score = _evaluate_resume(resume_data, github_data)
 
@@ -297,13 +426,15 @@ def main(pdf_path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python score.py <pdf_path>")
-        exit(1)
-    pdf_path = sys.argv[1]
+    parser = argparse.ArgumentParser(description="Evaluate a resume PDF and output scores.")
+    parser.add_argument("pdf_path", help="Path to the resume PDF file")
+    parser.add_argument("--force", action="store_true", help="Bypass caches and re-extract")
+    parser.add_argument("--no-github", action="store_true", help="Skip GitHub fetch and enrichment")
+    parser.add_argument("--max-workers", type=int, default=3, help="Max parallel section extractions (default: 3)")
+    args = parser.parse_args()
 
-    if not os.path.exists(pdf_path):
-        print(f"Error: File '{pdf_path}' does not exist.")
+    if not os.path.exists(args.pdf_path):
+        print(f"Error: File '{args.pdf_path}' does not exist.")
         exit(1)
 
-    main(pdf_path)
+    main(args.pdf_path, force=args.force, no_github=args.no_github, max_workers=args.max_workers)

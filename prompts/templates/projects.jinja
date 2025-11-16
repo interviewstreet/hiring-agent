@@ -11,11 +11,16 @@ Return ONLY a JSON object with this structure:
   "projects": [
     {
       "name": "Project name",
-      "description": "Project description",
-      "url": "Project URL",
+      "description": "Short description in one sentence",
+      "repo_url": "GitHub/GitLab repository URL if present, else null",
+      "live_url": "Public live demo/hosted URL if present, else null",
       "technologies": ["Tech 1", "Tech 2"]
     }
   ]
 }
+
+Guidelines:
+- Prefer putting source code link in "repo_url" and hosted demo link (e.g. vercel.app, netlify.app, render.com, fly.dev, onrender.com, herokuapp.com) in "live_url".
+- If both links exist, fill both; if only one exists, set the other to null.
 
 **IMPORTANT**: Return ONLY valid JSON. Do not include any explanatory text. 

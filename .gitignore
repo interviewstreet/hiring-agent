@@ -7,6 +7,9 @@ test_*.py
 cache/
 resume_evaluations.csv
 greenhouse_resumes/*
+*.pdf
+.venv_win/
+python-*.exe
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
