@@ -5,5 +5,6 @@ requests==2.32.4
 pymupdf4llm==0.0.27
 Jinja2==3.1.6
 google-generativeai==0.4.0
+google-genai>=0.3.0
 python-dotenv==1.0.1
 black==25.9.0
