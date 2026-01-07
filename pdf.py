@@ -50,16 +50,16 @@ class PDFHandler:
             if not os.path.exists(pdf_path):
                 raise FileNotFoundError(f"PDF file not found: {pdf_path}")
 
-            doc = pymupdf.open(pdf_path)
-            pages = range(doc.page_count)
-            resume_text = to_markdown(
-                doc,
-                pages=pages,
-            )
-            logger.debug(
-                f"Extracted text from PDF: {len(resume_text) if resume_text else 0} characters"
-            )
-            return resume_text
+            with pymupdf.open(pdf_path) as doc:
+                pages = range(doc.page_count)
+                resume_text = to_markdown(
+                    doc,
+                    pages=pages,
+                )
+                logger.debug(
+                    f"Extracted text from PDF: {len(resume_text) if resume_text else 0} characters"
+                )
+                return resume_text
         except Exception as e:
             logger.error(f"An error occurred while reading the PDF: {e}")
             return None
