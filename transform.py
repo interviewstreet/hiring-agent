@@ -936,3 +936,36 @@ def convert_blog_data_to_text(blog_data: dict) -> str:
             blog_text += "\n"
 
     return blog_text
+
+def convert_leetcode_data_to_text(leetcode_data: dict) -> str:
+    """Convert LeetCode profile data to readable text for LLM input."""
+    if not leetcode_data:
+        return ""
+
+    leetcode_text = "\n\n=== LEETCODE DATA ===\n"
+
+    leetcode_text += "LeetCode Profile:\n"
+    leetcode_text += f"- Username: {leetcode_data.get('username', 'N/A')}\n"
+    leetcode_text += f"- Name: {leetcode_data.get('name', 'N/A')}\n"
+    leetcode_text += f"- About: {leetcode_data.get('about', 'N/A')}\n"
+    leetcode_text += f"- Contests Attended: {leetcode_data.get('contests_attended', 'N/A')}\n"
+    leetcode_text += f"- Contest Rating: {leetcode_data.get('contest_rating', 'N/A')}\n"
+    leetcode_text += f"- Global Rank: {leetcode_data.get('global_rank', 'N/A')}\n"
+    leetcode_text += f"- Top Percentage: {leetcode_data.get('top_percentage', 'N/A')}\n"
+    leetcode_text += f"- Active Days: {leetcode_data.get('active_days', 'N/A')}\n"
+
+    # Problems solved by difficulty
+    if "solved_by_difficulty" in leetcode_data:
+        leetcode_text += "\nProblems Solved:\n"
+        for diff in leetcode_data["solved_by_difficulty"]:
+            leetcode_text += f"- {diff.get('difficulty')}: {diff.get('count')}\n"
+
+    # Best contest info
+    best_contest = leetcode_data.get("best_contest")
+    if best_contest:
+        leetcode_text += (
+            f"\nBest Contest: {best_contest.get('title')} "
+            f"(Rating: {best_contest.get('rating')}, Rank: {best_contest.get('ranking')})\n"
+        )
+
+    return leetcode_text

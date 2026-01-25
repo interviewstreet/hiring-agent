@@ -5,6 +5,7 @@ import logging
 import csv
 from pdf import PDFHandler
 from github import fetch_and_display_github_info
+from leetcode import fetch_and_display_leetcode_info
 from models import JSONResume, EvaluationData
 from typing import List, Optional, Dict
 from evaluator import ResumeEvaluator
@@ -15,6 +16,7 @@ from transform import (
     convert_json_resume_to_text,
     convert_github_data_to_text,
     convert_blog_data_to_text,
+    convert_leetcode_data_to_text,
 )
 from config import DEVELOPMENT_MODE
 
@@ -44,6 +46,8 @@ def print_evaluation_results(
 
     if hasattr(evaluation, "scores") and evaluation.scores:
         for category_name, category_data in evaluation.scores.model_dump().items():
+            # if category_name == "problem_solving":
+            #     continue
             category_score = min(category_data["score"], category_data["max"])
             total_score += category_score
             max_score += category_data["max"]
@@ -121,7 +125,12 @@ def print_evaluation_results(
             print(f"💻 Technical Skills:     {capped_score}/{tech_score.max}")
             print(f"   Evidence: {tech_score.evidence}")
             print()
-
+        # Problem Solving (LeetCode)
+        if hasattr(evaluation.scores, "problem_solving") and evaluation.scores.problem_solving:
+            ps = evaluation.scores.problem_solving
+            print(f"🧠 Problem Solving (LeetCode): {ps.score}/{ps.max}")
+            print(f"   Evidence: {ps.evidence}")
+            print()
     # Bonus Points
     if hasattr(evaluation, "bonus_points") and evaluation.bonus_points:
         print(f"\n⭐ BONUS POINTS: {evaluation.bonus_points.total}")
@@ -160,7 +169,7 @@ def print_evaluation_results(
 
 
 def _evaluate_resume(
-    resume_data: JSONResume, github_data: dict = None, blog_data: dict = None
+    resume_data: JSONResume, github_data: dict = None, blog_data: dict = None, leetcode_data: dict = None
 ) -> Optional[EvaluationData]:
     """Evaluate the resume using AI and display results."""
 
@@ -179,6 +188,10 @@ def _evaluate_resume(
     if blog_data:
         blog_text = convert_blog_data_to_text(blog_data)
         resume_text += blog_text
+    # Add LeetCode data if available
+    if leetcode_data:
+        leetcode_text = convert_leetcode_data_to_text(leetcode_data)
+        resume_text += leetcode_text
 
     # Evaluate the enhanced resume
     evaluation_result = evaluator.evaluate_resume(resume_text)
@@ -195,7 +208,13 @@ def find_profile(profiles, network):
         (p for p in profiles if p.network and p.network.lower() == network.lower()),
         None,
     )
-
+def find_leetcode_profile(profiles, network):
+    if not profiles:
+        return None
+    for p in profiles:
+        if p.network and p.network.lower() == network.lower():
+            return p.url or p.username
+    return None
 
 def main(pdf_path):
     # Create cache filename based on PDF path
@@ -209,7 +228,7 @@ def main(pdf_path):
     # Check if cache exists and we're in development mode
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
         print(f"Loading cached data from {cache_filename}")
-        cached_data = json.loads(Path(cache_filename).read_text())
+        cached_data = json.loads(Path(cache_filename).read_text(encoding="utf-8"))
         resume_data = JSONResume(**cached_data)
     else:
         logger.debug(
@@ -233,7 +252,7 @@ def main(pdf_path):
     github_data = {}
     if DEVELOPMENT_MODE and os.path.exists(github_cache_filename):
         print(f"Loading cached data from {github_cache_filename}")
-        github_data = json.loads(Path(github_cache_filename).read_text())
+        github_data = json.loads(Path(github_cache_filename).read_text(encoding="utf-8"))
     else:
         print(
             f"Fetching GitHub data"
@@ -255,8 +274,36 @@ def main(pdf_path):
                 encoding='utf-8'
             )
 
-    score = _evaluate_resume(resume_data, github_data)
+    # score = _evaluate_resume(resume_data, github_data)
+    # Check if cache exists for leetcode and we're in development mode
+    leetcode_data = {}
+    profiles = []
 
+    # Extract LeetCode profile URL from resume
+    if resume_data and hasattr(resume_data, "basics") and resume_data.basics:
+        profiles = resume_data.basics.profiles or []
+
+    leetcode_profile = find_leetcode_profile(profiles, "Leetcode")
+
+    if leetcode_profile:
+        print(f"🔎 Found LeetCode profile: {leetcode_profile}")
+        try:
+            # Fetch and display LeetCode info
+            leetcode_data = fetch_and_display_leetcode_info(leetcode_profile)
+
+            # Handle invalid or incomplete data gracefully
+            if not leetcode_data or "contest_rating" not in leetcode_data:
+                print("❌ No valid LeetCode data found or failed to parse profile.")
+                leetcode_data = None
+
+        except Exception as e:
+            print(f"⚠️ Failed to fetch LeetCode data: {e}")
+            leetcode_data = None
+    else:
+        print("ℹ️ No LeetCode profile found in resume.")
+        leetcode_data = {"score": 0.0}
+
+    score = _evaluate_resume(resume_data, github_data, None, leetcode_data)
     # Get candidate name for display
     candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
     if (
