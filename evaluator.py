@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional, Tuple, Any
 from pydantic import BaseModel, Field, field_validator
+from langfuse import observe
 from models import JSONResume, EvaluationData
 from llm_utils import initialize_llm_provider, extract_json_from_response
 import logging
@@ -15,6 +16,9 @@ from prompt import (
     MODEL_PARAMETERS,
     MODEL_PROVIDER_MAPPING,
     GEMINI_API_KEY,
+    LANGFUSE_PUBLIC_KEY,
+    LANGFUSE_SECRET_KEY,
+    LANGFUSE_HOST,
 )
 from prompts.template_manager import TemplateManager
 
@@ -45,6 +49,9 @@ class ResumeEvaluator:
             raise ValueError("Failed to load resume evaluation criteria template")
         return criteria_template
 
+
+
+    @observe()
     def evaluate_resume(self, resume_text: str) -> EvaluationData:
         self._last_resume_text = resume_text
         full_prompt = self._load_evaluation_prompt(resume_text)

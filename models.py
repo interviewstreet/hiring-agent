@@ -284,6 +284,8 @@ class LeetCodeProfile(BaseModel):
     best_contest: Optional[Dict[str, Any]] = None
     active_days: Optional[int] = None
 
+from langfuse import observe
+
 class OllamaProvider:
     """Ollama LLM provider implementation."""
 
@@ -292,6 +294,7 @@ class OllamaProvider:
 
         self.client = ollama
 
+    @observe()
     def chat(
         self,
         model: str,
@@ -324,8 +327,6 @@ class OllamaProvider:
             chat_params["format"] = kwargs["format"]
 
         return self.client.chat(**chat_params)
-
-from langfuse import observe
 
 
 class GeminiProvider:
