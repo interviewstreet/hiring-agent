@@ -86,6 +86,7 @@ def print_evaluation_results(
             "self_projects": 30,
             "production": 25,
             "technical_skills": 10,
+            "problem_solving": 15,
         }
 
         # Open Source
@@ -128,7 +129,8 @@ def print_evaluation_results(
         # Problem Solving (LeetCode)
         if hasattr(evaluation.scores, "problem_solving") and evaluation.scores.problem_solving:
             ps = evaluation.scores.problem_solving
-            print(f"🧠 Problem Solving (LeetCode): {ps.score}/{ps.max}")
+            capped_score = min(ps.score, category_maxes["problem_solving"])
+            print(f"🧠 Problem Solving (LeetCode): {capped_score}/{ps.max}")
             print(f"   Evidence: {ps.evidence}")
             print()
     # Bonus Points

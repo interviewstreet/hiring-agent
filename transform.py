@@ -529,6 +529,7 @@ def transform_evaluation_response(
         if basics.profiles:
             # Extract profiles for each platform
             github_profile = fetch_profile(basics.profiles, ["github"], "github")
+            leetcode_profile = fetch_profile(basics.profiles, ["leetcode"], "leetcode")
             linkedin_profile = fetch_profile(basics.profiles, ["linkedin"], "linkedin")
             twitter_profile = fetch_profile(
                 basics.profiles, ["twitter", "x"], "twitter"
@@ -587,9 +588,19 @@ def transform_evaluation_response(
             else:
                 csv_row["behance_url"] = ""
                 csv_row["behance_username"] = ""
+
+            # Add LeetCode profile columns
+            if leetcode_profile:
+                csv_row["leetcode_url"] = leetcode_profile.url
+                csv_row["leetcode_username"] = (
+                    leetcode_profile.username if leetcode_profile.username else ""
+                )
+            else:
+                csv_row["leetcode_url"] = ""
+                csv_row["leetcode_username"] = ""
         else:
             # Initialize empty profile columns
-            for prefix in ["github", "linkedin", "twitter", "dev", "behance"]:
+            for prefix in ["github", "linkedin", "twitter", "dev", "behance", "leetcode"]:
                 csv_row[f"{prefix}_url"] = ""
                 csv_row[f"{prefix}_username"] = ""
 
@@ -685,17 +696,22 @@ def transform_evaluation_response(
         csv_row["technical_skills_score"] = scores.technical_skills.score
         csv_row["technical_skills_max"] = scores.technical_skills.max
 
+        csv_row["problem_solving_score"] = scores.problem_solving.score
+        csv_row["problem_solving_max"] = scores.problem_solving.max
+
         total_score = (
             scores.open_source.score
             + scores.self_projects.score
             + scores.production.score
             + scores.technical_skills.score
+            + scores.problem_solving.score
         )
         total_max = (
             scores.open_source.max
             + scores.self_projects.max
             + scores.production.max
             + scores.technical_skills.max
+            + scores.problem_solving.max
         )
 
         csv_row["total_score"] = total_score
@@ -709,6 +725,8 @@ def transform_evaluation_response(
         csv_row["production_max"] = "N/A"
         csv_row["technical_skills_score"] = "N/A"
         csv_row["technical_skills_max"] = "N/A"
+        csv_row["problem_solving_score"] = "N/A"
+        csv_row["problem_solving_max"] = "N/A"
         csv_row["total_score"] = "N/A"
         csv_row["total_max"] = "N/A"
 
