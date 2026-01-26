@@ -325,16 +325,18 @@ class OllamaProvider:
 
         return self.client.chat(**chat_params)
 
+from langfuse import observe
+
 
 class GeminiProvider:
     """Google Gemini API provider implementation."""
 
     def __init__(self, api_key: str):
-        import google.generativeai as genai
+        from google import genai
 
-        genai.configure(api_key=api_key)
-        self.client = genai
+        self.client = genai.Client(api_key=api_key)
 
+    @observe()
     def chat(
         self,
         model: str,
@@ -344,27 +346,45 @@ class GeminiProvider:
     ) -> Dict[str, Any]:
         """Send a chat request to Google Gemini API."""
         # Map options to Gemini parameters
-        generation_config = {}
+        config = {}
         if options:
             if "temperature" in options:
-                generation_config["temperature"] = options["temperature"]
+                config["temperature"] = options["temperature"]
             if "top_p" in options:
-                generation_config["top_p"] = options["top_p"]
-
-        # Create a Gemini model
-        gemini_model = self.client.GenerativeModel(
-            model_name=model, generation_config=generation_config
-        )
+                config["top_p"] = options["top_p"]
+            if "max_output_tokens" in options:
+                config["max_output_tokens"] = options["max_output_tokens"]
 
         # Convert messages to Gemini format
-        gemini_messages = []
+        # The new SDK expects 'contents' which can be a list of strings or Content objects
+        # For simple chat, we can just pass the history if we were maintaining it, 
+        # but here it seems we are doing stateless calls with a list of messages.
+        
+        # The new SDK `models.generate_content` takes `contents`
+        # contents: | list[str] | list[Part] | list[Content] ...
+        
+        # We need to construct the prompt from the messages.
+        # If it's a chat, we should probably concatenate or use the chat structure if supported by the model directly in one go.
+        # However, the `generate_content` is the main entry point.
+        # Let's format it as a list of Content objects if we want to preserve roles,
+        # or simplified if it's just a prompt. 
+        
+        # Looking at models.py, it seems to handle a list of messages with roles.
+        
+        gemini_contents = []
         for msg in messages:
             role = "user" if msg["role"] == "user" else "model"
-            gemini_messages.append({"role": role, "parts": [msg["content"]]})
+            gemini_contents.append({"role": role, "parts": [{"text": msg["content"]}]})
 
         # Send the chat request
         time.sleep(4)
-        response = gemini_model.generate_content(gemini_messages)
+        
+        # The new SDK call
+        response = self.client.models.generate_content(
+            model=model,
+            contents=gemini_contents,
+            config=config
+        )
 
         # Convert Gemini response to Ollama-like format for compatibility
         return {"message": {"role": "assistant", "content": response.text}}
