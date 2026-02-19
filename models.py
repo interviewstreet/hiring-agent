@@ -284,6 +284,20 @@ class LeetCodeProfile(BaseModel):
     best_contest: Optional[Dict[str, Any]] = None
     active_days: Optional[int] = None
 
+
+class CodeForcesProfile(BaseModel):
+    """Pydantic model for CodeForces profile data."""
+
+    username: str
+    rank: Optional[str] = None
+    current_rating: Optional[int] = None
+    max_rating: Optional[int] = None
+    last_online_time_seconds: Optional[int] = None
+    friend_of_count: Optional[int] = None
+    title_photo: Optional[str] = None
+    max_rank: Optional[str] = None
+
+
 from langfuse import observe
 
 class OllamaProvider:

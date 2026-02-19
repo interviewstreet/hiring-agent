@@ -6,6 +6,7 @@ import csv
 from pdf import PDFHandler
 from github import fetch_and_display_github_info
 from leetcode import fetch_and_display_leetcode_info
+from codeforces import fetch_and_display_codeforces_info
 from models import JSONResume, EvaluationData
 from typing import List, Optional, Dict
 from evaluator import ResumeEvaluator
@@ -17,6 +18,7 @@ from transform import (
     convert_github_data_to_text,
     convert_blog_data_to_text,
     convert_leetcode_data_to_text,
+    convert_codeforces_data_to_text,
 )
 from config import DEVELOPMENT_MODE
 
@@ -171,7 +173,11 @@ def print_evaluation_results(
 
 
 def _evaluate_resume(
-    resume_data: JSONResume, github_data: dict = None, blog_data: dict = None, leetcode_data: dict = None
+    resume_data: JSONResume,
+    github_data: dict = None,
+    blog_data: dict = None,
+    leetcode_data: dict = None,
+    codeforces_data: dict = None,
 ) -> Optional[EvaluationData]:
     """Evaluate the resume using AI and display results."""
 
@@ -190,10 +196,16 @@ def _evaluate_resume(
     if blog_data:
         blog_text = convert_blog_data_to_text(blog_data)
         resume_text += blog_text
+
     # Add LeetCode data if available
     if leetcode_data:
         leetcode_text = convert_leetcode_data_to_text(leetcode_data)
         resume_text += leetcode_text
+
+    # Add Codeforces data if available
+    if codeforces_data:
+        codeforces_text = convert_codeforces_data_to_text(codeforces_data)
+        resume_text += codeforces_text
 
     # Evaluate the enhanced resume
     evaluation_result = evaluator.evaluate_resume(resume_text)
@@ -305,7 +317,22 @@ def main(pdf_path):
         print("ℹ️ No LeetCode profile found in resume.")
         leetcode_data = {"score": 0.0}
 
-    score = _evaluate_resume(resume_data, github_data, None, leetcode_data)
+    # Fetch Codeforces data
+    codeforces_data = {}
+    codeforces_profile = find_profile(profiles, "Codeforces")
+    if codeforces_profile:
+        print(f"🔎 Found Codeforces profile: {codeforces_profile.url}")
+        try:
+            codeforces_data = fetch_and_display_codeforces_info(codeforces_profile.url)
+        except Exception as e:
+            print(f"⚠️ Failed to fetch Codeforces data: {e}")
+            codeforces_data = None
+    else:
+        print("ℹ️ No Codeforces profile found in resume.")
+
+
+    score = _evaluate_resume(resume_data, github_data, None, leetcode_data, codeforces_data)
+
     # Get candidate name for display
     candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
     if (
@@ -325,6 +352,7 @@ def main(pdf_path):
             evaluation=score,
             resume_data=resume_data,
             github_data=github_data,
+            codeforces_data=codeforces_data,
         )
 
         # Write CSV row to file

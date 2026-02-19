@@ -495,7 +495,7 @@ def fetch_profile(profiles, network_names, prefix):
 
 
 def transform_evaluation_response(
-    file_name=None, resume_data=None, github_data=None, evaluation=None
+    file_name=None, resume_data=None, github_data=None, evaluation=None, codeforces_data=None
 ):
     """
     Transform the three inputs (resume_data, github_data, evaluation) into the most important columns as a CSV row.
@@ -530,6 +530,7 @@ def transform_evaluation_response(
             # Extract profiles for each platform
             github_profile = fetch_profile(basics.profiles, ["github"], "github")
             leetcode_profile = fetch_profile(basics.profiles, ["leetcode"], "leetcode")
+            codeforces_profile = fetch_profile(basics.profiles, ["codeforces"], "codeforces")
             linkedin_profile = fetch_profile(basics.profiles, ["linkedin"], "linkedin")
             twitter_profile = fetch_profile(
                 basics.profiles, ["twitter", "x"], "twitter"
@@ -598,9 +599,19 @@ def transform_evaluation_response(
             else:
                 csv_row["leetcode_url"] = ""
                 csv_row["leetcode_username"] = ""
+
+            # Add Codeforces profile columns
+            if codeforces_profile:
+                csv_row["codeforces_url"] = codeforces_profile.url
+                csv_row["codeforces_username"] = (
+                    codeforces_profile.username if codeforces_profile.username else ""
+                )
+            else:
+                csv_row["codeforces_url"] = ""
+                csv_row["codeforces_username"] = ""
         else:
             # Initialize empty profile columns
-            for prefix in ["github", "linkedin", "twitter", "dev", "behance", "leetcode"]:
+            for prefix in ["github", "linkedin", "twitter", "dev", "behance", "leetcode", "codeforces"]:
                 csv_row[f"{prefix}_url"] = ""
                 csv_row[f"{prefix}_username"] = ""
 
@@ -679,6 +690,18 @@ def transform_evaluation_response(
         csv_row["github_following"] = 0
         csv_row["github_created_at"] = ""
         csv_row["github_bio"] = ""
+
+    # Extract Codeforces data
+    if codeforces_data:
+        csv_row["codeforces_rating"] = codeforces_data.get("current_rating", 0)
+        csv_row["codeforces_rank"] = codeforces_data.get("rank", "")
+        csv_row["codeforces_max_rating"] = codeforces_data.get("max_rating", 0)
+        csv_row["codeforces_max_rank"] = codeforces_data.get("max_rank", "")
+    else:
+        csv_row["codeforces_rating"] = 0
+        csv_row["codeforces_rank"] = ""
+        csv_row["codeforces_max_rating"] = 0
+        csv_row["codeforces_max_rank"] = ""
 
     # Extract evaluation scores
     if evaluation and hasattr(evaluation, "scores"):
@@ -987,3 +1010,33 @@ def convert_leetcode_data_to_text(leetcode_data: dict) -> str:
         )
 
     return leetcode_text
+
+
+def convert_codeforces_data_to_text(codeforces_data: dict) -> str:
+    """Convert Codeforces profile data to readable text for LLM input."""
+    if not codeforces_data:
+        return ""
+
+    cf_text = "\n\n=== CODEFORCES DATA ===\n"
+    cf_text += f"Handle: {codeforces_data.get('username', 'N/A')}\n"
+    cf_text += f"Rank: {codeforces_data.get('rank', 'N/A')} (Max: {codeforces_data.get('max_rank', 'N/A')})\n"
+    cf_text += f"Rating: {codeforces_data.get('current_rating', 'N/A')} (Max: {codeforces_data.get('max_rating', 'N/A')})\n"
+    cf_text += f"Friend of: {codeforces_data.get('friend_of_count', 'N/A')} users\n"
+    
+    # Add interpretation hint for the LLM
+    rating = codeforces_data.get('max_rating')
+    if isinstance(rating, int):
+        if rating >= 2400:
+            cf_text += "Tier: Grandmaster+ (Elite)\n"
+        elif rating >= 2100:
+            cf_text += "Tier: Master (High Expert)\n"
+        elif rating >= 1900:
+            cf_text += "Tier: Candidate Master (Expert)\n"
+        elif rating >= 1600:
+            cf_text += "Tier: Expert (Advanced)\n"
+        elif rating >= 1400:
+            cf_text += "Tier: Specialist (Intermediate)\n"
+        else:
+            cf_text += "Tier: Pupil/Newbie\n"
+
+    return cf_text
