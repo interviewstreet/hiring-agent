@@ -105,6 +105,6 @@ def fetch_and_display_codeforces_info(url: str) -> Dict[str, Any]:
 
 if __name__ == "__main__":
     # Test with a known user, e.g., 'tourist'
-    test_user = "tourist"
+    test_user = "dXqwq"
     fetch_and_display_codeforces_info(test_user)
 

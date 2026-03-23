@@ -8,3 +8,6 @@ google-genai==0.3.0
 python-dotenv==1.0.1
 black==25.9.0
 langfuse==2.59.1
+fastapi==0.115.12
+uvicorn==0.34.3
+python-multipart==0.0.20

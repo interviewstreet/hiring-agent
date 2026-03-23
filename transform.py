@@ -1,3 +1,4 @@
+import uuid
 from typing import Dict, List, Optional
 import pdb
 from models import JSONResume
@@ -510,6 +511,7 @@ def transform_evaluation_response(
     """
     csv_row = {}
 
+    csv_row["id"] = str(uuid.uuid4())
     csv_row["file_name"] = file_name
 
     # Extract basic information from resume_data
