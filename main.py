@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = FastAPI(
-    title="Hiring Agent API",
-    description="API for uploading and evaluating resumes using AI",
+    title="Resume Agent API",
+    description="file upload endpoint for resume evaluation",
     version="1.0.0",
 )
 
@@ -27,7 +27,7 @@ app.include_router(resume_router)
 
 @app.get("/")
 async def root():
-    return {"message": "Hiring Agent API is running", "docs": "/docs"}
+    return {"message": "Resume Agent API is running", "docs": "/docs"}
 
 
 if __name__ == "__main__":

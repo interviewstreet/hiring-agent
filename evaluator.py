@@ -89,6 +89,15 @@ class ResumeEvaluator:
             logger.error(f"🔤 Prompt response: {response_text}")
 
             evaluation_dict = json.loads(response_text)
+            
+            prompt_tokens = response.get("prompt_eval_count", 0)
+            completion_tokens = response.get("eval_count", 0)
+            evaluation_dict["token_usage"] = {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": prompt_tokens + completion_tokens
+            }
+
             evaluation_data = EvaluationData(**evaluation_dict)
 
             return evaluation_data

@@ -781,6 +781,24 @@ def transform_evaluation_response(
     else:
         csv_row["areas_for_improvement"] = ""
 
+    if evaluation and hasattr(evaluation, "token_usage") and evaluation.token_usage:
+        eval_prompt = evaluation.token_usage.prompt_tokens
+        eval_comp = evaluation.token_usage.completion_tokens
+    else:
+        eval_prompt = 0
+        eval_comp = 0
+
+    if resume_data and hasattr(resume_data, "token_usage") and resume_data.token_usage:
+        resume_prompt = resume_data.token_usage.prompt_tokens
+        resume_comp = resume_data.token_usage.completion_tokens
+    else:
+        resume_prompt = 0
+        resume_comp = 0
+
+    csv_row["total_prompt_tokens"] = eval_prompt + resume_prompt
+    csv_row["total_completion_tokens"] = eval_comp + resume_comp
+    csv_row["total_tokens"] = csv_row["total_prompt_tokens"] + csv_row["total_completion_tokens"]
+
     return csv_row
 
 

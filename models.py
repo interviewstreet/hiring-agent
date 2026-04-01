@@ -4,6 +4,11 @@ from enum import Enum
 
 import time
 
+class TokenUsage(BaseModel):
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+
 
 class ModelProvider(Enum):
     """Enum for supported model providers."""
@@ -215,6 +220,7 @@ class JSONResume(BaseModel):
     interests: Optional[List[Interest]] = None
     references: Optional[List[Reference]] = None
     projects: Optional[List[Project]] = None
+    token_usage: Optional[TokenUsage] = None
 
 
 class CategoryScore(BaseModel):
@@ -250,6 +256,7 @@ class EvaluationData(BaseModel):
     deductions: Deductions
     key_strengths: List[str] = Field(min_items=1, max_items=5)
     areas_for_improvement: List[str] = Field(min_items=1, max_items=5)
+    token_usage: Optional[TokenUsage] = None
 
 
 class GitHubProfile(BaseModel):
@@ -401,5 +408,12 @@ class GeminiProvider:
             config=config
         )
 
+        prompt_tokens = response.usage_metadata.prompt_token_count if hasattr(response, "usage_metadata") and hasattr(response.usage_metadata, "prompt_token_count") else 0
+        completion_tokens = response.usage_metadata.candidates_token_count if hasattr(response, "usage_metadata") and hasattr(response.usage_metadata, "candidates_token_count") else 0
+
         # Convert Gemini response to Ollama-like format for compatibility
-        return {"message": {"role": "assistant", "content": response.text}}
+        return {
+            "message": {"role": "assistant", "content": response.text},
+            "prompt_eval_count": prompt_tokens,
+            "eval_count": completion_tokens
+        }

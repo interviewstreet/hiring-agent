@@ -175,11 +175,33 @@ async def evaluate_resume_endpoint(
 
         analysis_text = "\n".join(analysis_lines)
 
+        # Calculate token usage
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+        
+        if resume_data and hasattr(resume_data, "token_usage") and resume_data.token_usage:
+            total_prompt_tokens += resume_data.token_usage.prompt_tokens
+            total_completion_tokens += resume_data.token_usage.completion_tokens
+            
+        if evaluation and hasattr(evaluation, "token_usage") and evaluation.token_usage:
+            total_prompt_tokens += evaluation.token_usage.prompt_tokens
+            total_completion_tokens += evaluation.token_usage.completion_tokens
+            
+        total_tokens = total_prompt_tokens + total_completion_tokens
+        token_usage_dict = {
+            "prompt_tokens": total_prompt_tokens,
+            "completion_tokens": total_completion_tokens,
+            "total_tokens": total_tokens
+        }
+        
+        logger.info(f"Token Usage - Prompt: {total_prompt_tokens}, Completion: {total_completion_tokens}, Total: {total_tokens}")
+
         # 9. Return response
         return {
             "id": csv_row.get("id"),
             "analysis": analysis_text,
             "csv_data": csv_row,
+            "token_usage": token_usage_dict,
         }
 
     except HTTPException:
