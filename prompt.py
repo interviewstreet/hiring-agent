@@ -38,7 +38,9 @@ MODEL_PARAMETERS = {
     "gemini-2.0-flash-lite": {"temperature": 0.1, "top_p": 0.9},
     "gemini-2.5-pro": {"temperature": 0.1, "top_p": 0.9},
     "gemini-2.5-flash": {"temperature": 0.1, "top_p": 0.9},
-    "gemini-2.5-flash-lite": {"temperature": 0.1, "top_p": 0.9},
+    "gemini-3-flash": {"temperature": 0.1, "top_p": 0.9},
+    "gemma-3-12b": {"temperature": 0.1, "top_p": 0.9},
+    "gemini-3.1-flash-lite": {"temperature": 0.1, "top_p": 0.9},
 }
 
 # Model provider mapping
@@ -55,9 +57,18 @@ MODEL_PROVIDER_MAPPING = {
     "gemini-2.0-flash": ModelProvider.GEMINI,
     "gemini-2.0-flash-lite": ModelProvider.GEMINI,
     "gemini-2.5-flash": ModelProvider.GEMINI,
+    "gemini-3-flash": ModelProvider.GEMINI,
+    "gemini-3.1-flash-lite": ModelProvider.GEMINI,
+    "gemma-3-12b": ModelProvider.GEMINI,
     "gemini-2.5-flash-lite": ModelProvider.GEMINI,
     "gemini-2.5-pro": ModelProvider.GEMINI,
 }
 
 # Get API keys from environment
+# Get API keys from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+# Langfuse configuration
+LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY", "")
+LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY", "")
+LANGFUSE_HOST = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")

@@ -1,3 +1,4 @@
+import uuid
 from typing import Dict, List, Optional
 import pdb
 from models import JSONResume
@@ -495,7 +496,7 @@ def fetch_profile(profiles, network_names, prefix):
 
 
 def transform_evaluation_response(
-    file_name=None, resume_data=None, github_data=None, evaluation=None
+    file_name=None, resume_data=None, github_data=None, evaluation=None, codeforces_data=None
 ):
     """
     Transform the three inputs (resume_data, github_data, evaluation) into the most important columns as a CSV row.
@@ -510,6 +511,7 @@ def transform_evaluation_response(
     """
     csv_row = {}
 
+    csv_row["id"] = str(uuid.uuid4())
     csv_row["file_name"] = file_name
 
     # Extract basic information from resume_data
@@ -529,6 +531,8 @@ def transform_evaluation_response(
         if basics.profiles:
             # Extract profiles for each platform
             github_profile = fetch_profile(basics.profiles, ["github"], "github")
+            leetcode_profile = fetch_profile(basics.profiles, ["leetcode"], "leetcode")
+            codeforces_profile = fetch_profile(basics.profiles, ["codeforces"], "codeforces")
             linkedin_profile = fetch_profile(basics.profiles, ["linkedin"], "linkedin")
             twitter_profile = fetch_profile(
                 basics.profiles, ["twitter", "x"], "twitter"
@@ -587,9 +591,29 @@ def transform_evaluation_response(
             else:
                 csv_row["behance_url"] = ""
                 csv_row["behance_username"] = ""
+
+            # Add LeetCode profile columns
+            if leetcode_profile:
+                csv_row["leetcode_url"] = leetcode_profile.url
+                csv_row["leetcode_username"] = (
+                    leetcode_profile.username if leetcode_profile.username else ""
+                )
+            else:
+                csv_row["leetcode_url"] = ""
+                csv_row["leetcode_username"] = ""
+
+            # Add Codeforces profile columns
+            if codeforces_profile:
+                csv_row["codeforces_url"] = codeforces_profile.url
+                csv_row["codeforces_username"] = (
+                    codeforces_profile.username if codeforces_profile.username else ""
+                )
+            else:
+                csv_row["codeforces_url"] = ""
+                csv_row["codeforces_username"] = ""
         else:
             # Initialize empty profile columns
-            for prefix in ["github", "linkedin", "twitter", "dev", "behance"]:
+            for prefix in ["github", "linkedin", "twitter", "dev", "behance", "leetcode", "codeforces"]:
                 csv_row[f"{prefix}_url"] = ""
                 csv_row[f"{prefix}_username"] = ""
 
@@ -669,6 +693,18 @@ def transform_evaluation_response(
         csv_row["github_created_at"] = ""
         csv_row["github_bio"] = ""
 
+    # Extract Codeforces data
+    if codeforces_data:
+        csv_row["codeforces_rating"] = codeforces_data.get("current_rating", 0)
+        csv_row["codeforces_rank"] = codeforces_data.get("rank", "")
+        csv_row["codeforces_max_rating"] = codeforces_data.get("max_rating", 0)
+        csv_row["codeforces_max_rank"] = codeforces_data.get("max_rank", "")
+    else:
+        csv_row["codeforces_rating"] = 0
+        csv_row["codeforces_rank"] = ""
+        csv_row["codeforces_max_rating"] = 0
+        csv_row["codeforces_max_rank"] = ""
+
     # Extract evaluation scores
     if evaluation and hasattr(evaluation, "scores"):
         scores = evaluation.scores
@@ -685,17 +721,22 @@ def transform_evaluation_response(
         csv_row["technical_skills_score"] = scores.technical_skills.score
         csv_row["technical_skills_max"] = scores.technical_skills.max
 
+        csv_row["problem_solving_score"] = scores.problem_solving.score
+        csv_row["problem_solving_max"] = scores.problem_solving.max
+
         total_score = (
             scores.open_source.score
             + scores.self_projects.score
             + scores.production.score
             + scores.technical_skills.score
+            + scores.problem_solving.score
         )
         total_max = (
             scores.open_source.max
             + scores.self_projects.max
             + scores.production.max
             + scores.technical_skills.max
+            + scores.problem_solving.max
         )
 
         csv_row["total_score"] = total_score
@@ -709,6 +750,8 @@ def transform_evaluation_response(
         csv_row["production_max"] = "N/A"
         csv_row["technical_skills_score"] = "N/A"
         csv_row["technical_skills_max"] = "N/A"
+        csv_row["problem_solving_score"] = "N/A"
+        csv_row["problem_solving_max"] = "N/A"
         csv_row["total_score"] = "N/A"
         csv_row["total_max"] = "N/A"
 
@@ -737,6 +780,24 @@ def transform_evaluation_response(
         csv_row["areas_for_improvement"] = "; ".join(evaluation.areas_for_improvement)
     else:
         csv_row["areas_for_improvement"] = ""
+
+    if evaluation and hasattr(evaluation, "token_usage") and evaluation.token_usage:
+        eval_prompt = evaluation.token_usage.prompt_tokens
+        eval_comp = evaluation.token_usage.completion_tokens
+    else:
+        eval_prompt = 0
+        eval_comp = 0
+
+    if resume_data and hasattr(resume_data, "token_usage") and resume_data.token_usage:
+        resume_prompt = resume_data.token_usage.prompt_tokens
+        resume_comp = resume_data.token_usage.completion_tokens
+    else:
+        resume_prompt = 0
+        resume_comp = 0
+
+    csv_row["total_prompt_tokens"] = eval_prompt + resume_prompt
+    csv_row["total_completion_tokens"] = eval_comp + resume_comp
+    csv_row["total_tokens"] = csv_row["total_prompt_tokens"] + csv_row["total_completion_tokens"]
 
     return csv_row
 
@@ -936,3 +997,66 @@ def convert_blog_data_to_text(blog_data: dict) -> str:
             blog_text += "\n"
 
     return blog_text
+
+def convert_leetcode_data_to_text(leetcode_data: dict) -> str:
+    """Convert LeetCode profile data to readable text for LLM input."""
+    if not leetcode_data:
+        return ""
+
+    leetcode_text = "\n\n=== LEETCODE DATA ===\n"
+
+    leetcode_text += "LeetCode Profile:\n"
+    leetcode_text += f"- Username: {leetcode_data.get('username', 'N/A')}\n"
+    leetcode_text += f"- Name: {leetcode_data.get('name', 'N/A')}\n"
+    leetcode_text += f"- About: {leetcode_data.get('about', 'N/A')}\n"
+    leetcode_text += f"- Contests Attended: {leetcode_data.get('contests_attended', 'N/A')}\n"
+    leetcode_text += f"- Contest Rating: {leetcode_data.get('contest_rating', 'N/A')}\n"
+    leetcode_text += f"- Global Rank: {leetcode_data.get('global_rank', 'N/A')}\n"
+    leetcode_text += f"- Top Percentage: {leetcode_data.get('top_percentage', 'N/A')}\n"
+    leetcode_text += f"- Active Days: {leetcode_data.get('active_days', 'N/A')}\n"
+
+    # Problems solved by difficulty
+    if "solved_by_difficulty" in leetcode_data:
+        leetcode_text += "\nProblems Solved:\n"
+        for diff in leetcode_data["solved_by_difficulty"]:
+            leetcode_text += f"- {diff.get('difficulty')}: {diff.get('count')}\n"
+
+    # Best contest info
+    best_contest = leetcode_data.get("best_contest")
+    if best_contest:
+        leetcode_text += (
+            f"\nBest Contest: {best_contest.get('title')} "
+            f"(Rating: {best_contest.get('rating')}, Rank: {best_contest.get('ranking')})\n"
+        )
+
+    return leetcode_text
+
+
+def convert_codeforces_data_to_text(codeforces_data: dict) -> str:
+    """Convert Codeforces profile data to readable text for LLM input."""
+    if not codeforces_data:
+        return ""
+
+    cf_text = "\n\n=== CODEFORCES DATA ===\n"
+    cf_text += f"Handle: {codeforces_data.get('username', 'N/A')}\n"
+    cf_text += f"Rank: {codeforces_data.get('rank', 'N/A')} (Max: {codeforces_data.get('max_rank', 'N/A')})\n"
+    cf_text += f"Rating: {codeforces_data.get('current_rating', 'N/A')} (Max: {codeforces_data.get('max_rating', 'N/A')})\n"
+    cf_text += f"Friend of: {codeforces_data.get('friend_of_count', 'N/A')} users\n"
+    
+    # Add interpretation hint for the LLM
+    rating = codeforces_data.get('max_rating')
+    if isinstance(rating, int):
+        if rating >= 2400:
+            cf_text += "Tier: Grandmaster+ (Elite)\n"
+        elif rating >= 2100:
+            cf_text += "Tier: Master (High Expert)\n"
+        elif rating >= 1900:
+            cf_text += "Tier: Candidate Master (Expert)\n"
+        elif rating >= 1600:
+            cf_text += "Tier: Expert (Advanced)\n"
+        elif rating >= 1400:
+            cf_text += "Tier: Specialist (Intermediate)\n"
+        else:
+            cf_text += "Tier: Pupil/Newbie\n"
+
+    return cf_text

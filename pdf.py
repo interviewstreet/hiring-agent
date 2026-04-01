@@ -39,6 +39,8 @@ class PDFHandler:
 
     def __init__(self):
         self.template_manager = TemplateManager()
+        self.total_prompt_tokens = 0
+        self.total_completion_tokens = 0
         self._initialize_llm_provider()
 
     def _initialize_llm_provider(self):
@@ -105,6 +107,9 @@ class PDFHandler:
 
             # Use the appropriate provider to make the API call
             response = self.provider.chat(**chat_params, **kwargs)
+
+            self.total_prompt_tokens += response.get("prompt_eval_count", 0)
+            self.total_completion_tokens += response.get("eval_count", 0)
 
             response_text = response["message"]["content"]
 
@@ -285,6 +290,7 @@ class PDFHandler:
             "references": None,
             "projects": None,
             "meta": None,
+            "token_usage": None,
         }
 
         for section_name in sections:
@@ -305,6 +311,13 @@ class PDFHandler:
                 except Exception as e:
                     logger.error(f"❌ Error creating Basics object: {e}")
                     complete_resume["basics"] = None
+
+            from models import TokenUsage
+            complete_resume["token_usage"] = TokenUsage(
+                prompt_tokens=self.total_prompt_tokens,
+                completion_tokens=self.total_completion_tokens,
+                total_tokens=self.total_prompt_tokens + self.total_completion_tokens
+            )
 
             json_resume = JSONResume(**complete_resume)
 
