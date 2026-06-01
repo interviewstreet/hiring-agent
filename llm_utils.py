@@ -5,7 +5,13 @@ Utility functions for LLM providers.
 import logging
 from typing import Any, Dict, Optional
 from models import ModelProvider, OllamaProvider, GeminiProvider
-from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY
+from prompt import (
+    MODEL_PROVIDER_MAPPING,
+    GEMINI_API_KEY,
+    OLLAMA_HOST,
+    OLLAMA_API_KEY,
+    is_ollama_cloud_model,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,15 +54,24 @@ def initialize_llm_provider(model_name: str) -> Any:
         An initialized LLM provider (either OllamaProvider or GeminiProvider)
     """
     # Default to Ollama provider
-    provider = OllamaProvider()
-    # If using Gemini and API key is available, use Gemini provider
     model_provider = MODEL_PROVIDER_MAPPING.get(model_name, ModelProvider.OLLAMA)
     if model_provider == ModelProvider.GEMINI:
         if not GEMINI_API_KEY:
             logger.warning("⚠️ Gemini API key not found. Falling back to Ollama.")
+            provider = OllamaProvider(host=OLLAMA_HOST, api_key=OLLAMA_API_KEY)
         else:
             logger.info(f"🔄 Using Google Gemini API provider with model {model_name}")
             provider = GeminiProvider(api_key=GEMINI_API_KEY)
     else:
-        logger.info(f"🔄 Using Ollama provider with model {model_name}")
+        if is_ollama_cloud_model(model_name) and "ollama.com" in OLLAMA_HOST:
+            if not OLLAMA_API_KEY:
+                logger.warning(
+                    "⚠️ Ollama cloud model requested but OLLAMA_API_KEY is not set."
+                )
+            logger.info(
+                f"🔄 Using Ollama cloud API at {OLLAMA_HOST} with model {model_name}"
+            )
+        else:
+            logger.info(f"🔄 Using Ollama provider with model {model_name}")
+        provider = OllamaProvider(host=OLLAMA_HOST, api_key=OLLAMA_API_KEY)
     return provider

@@ -271,10 +271,15 @@ class GitHubProfile(BaseModel):
 class OllamaProvider:
     """Ollama LLM provider implementation."""
 
-    def __init__(self):
-        import ollama
+    def __init__(self, host: str = "http://localhost:11434", api_key: str = ""):
+        from ollama import Client
 
-        self.client = ollama
+        headers = {}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        self.host = host
+        self.client = Client(host=host, headers=headers or None)
 
     def chat(
         self,
@@ -284,6 +289,7 @@ class OllamaProvider:
         **kwargs
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
+        from prompt import resolve_ollama_model_name
 
         ollama_options = options.copy() if options else {}
 
@@ -295,7 +301,7 @@ class OllamaProvider:
 
         # convert to chat params
         chat_params = {
-            "model": model,
+            "model": resolve_ollama_model_name(model, self.host),
             "messages": messages,
             "options": ollama_options,
         }
