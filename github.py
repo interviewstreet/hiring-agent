@@ -436,12 +436,12 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
         return projects_data
 
 
-def fetch_and_display_github_info(github_url: str) -> Dict:
+def fetch_and_display_github_info(github_url: str) -> Optional[Dict]:
     logger.info(f"{github_url}")
     github_profile = fetch_github_profile(github_url)
     if not github_profile:
         print("\n❌ Failed to fetch GitHub profile details.")
-        return {}
+        return None
 
     print("🔍 Fetching all repository details...")
     projects = fetch_all_github_repos(github_url)

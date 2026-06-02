@@ -207,11 +207,20 @@ def main(pdf_path):
     )
 
     # Check if cache exists and we're in development mode
+    resume_data = None
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
         print(f"Loading cached data from {cache_filename}")
-        cached_data = json.loads(Path(cache_filename).read_text())
-        resume_data = JSONResume(**cached_data)
-    else:
+        try:
+            cached_data = json.loads(Path(cache_filename).read_text())
+            # Check if cached data is valid and not "empty"
+            if cached_data and cached_data.get("basics") and cached_data["basics"].get("name"):
+                resume_data = JSONResume(**cached_data)
+            else:
+                print(f"⚠️ Cached data in {cache_filename} appears incomplete or empty. Re-extracting...")
+        except Exception as e:
+            print(f"Error reading cache file {cache_filename}: {e}")
+
+    if not resume_data:
         logger.debug(
             f"Extracting data from PDF"
             + (" and caching to " + cache_filename if DEVELOPMENT_MODE else "")
@@ -231,10 +240,16 @@ def main(pdf_path):
 
     # Check if cache exists and we're in development mode
     github_data = {}
+    github_data_loaded = False
     if DEVELOPMENT_MODE and os.path.exists(github_cache_filename):
         print(f"Loading cached data from {github_cache_filename}")
-        github_data = json.loads(Path(github_cache_filename).read_text())
-    else:
+        try:
+            github_data = json.loads(Path(github_cache_filename).read_text())
+            github_data_loaded = True
+        except Exception as e:
+            print(f"Error reading cache file {github_cache_filename}: {e}")
+
+    if not github_data_loaded:
         print(
             f"Fetching GitHub data"
             + (" and caching to " + github_cache_filename if DEVELOPMENT_MODE else "")
@@ -248,6 +263,10 @@ def main(pdf_path):
 
         if github_profile:
             github_data = fetch_and_display_github_info(github_profile.url)
+            if github_data is None:
+                logger.error("❌ Failed to fetch GitHub data. Aborting.")
+                return None
+
         if DEVELOPMENT_MODE:
             os.makedirs(os.path.dirname(github_cache_filename), exist_ok=True)
             Path(github_cache_filename).write_text(
