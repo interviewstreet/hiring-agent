@@ -1,5 +1,13 @@
 import os
 import sys
+
+# Reconfigure stdout and stderr to support unicode characters (emojis) on Windows
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+except AttributeError:
+    pass
+
 import json
 import logging
 import csv
