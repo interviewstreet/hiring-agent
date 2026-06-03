@@ -243,6 +243,7 @@ class Deductions(BaseModel):
 
 class EvaluationData(BaseModel):
     scores: Scores
+    job_match_score: Optional[CategoryScore] = None
     bonus_points: BonusPoints
     deductions: Deductions
     key_strengths: List[str] = Field(min_items=1, max_items=5)

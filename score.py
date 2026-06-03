@@ -3,6 +3,7 @@ import sys
 import json
 import logging
 import csv
+import argparse
 from pdf import PDFHandler
 from github import fetch_and_display_github_info
 from models import JSONResume, EvaluationData
@@ -70,6 +71,15 @@ def print_evaluation_results(
 
     # Overall Score
     print(f"\n🎯 OVERALL SCORE: {total_score:.1f}/{max_score}")
+
+    # Job Match Score
+    if hasattr(evaluation, "job_match_score") and evaluation.job_match_score:
+        print("\n" + "-" * 80)
+        print("🤝 JOB DESCRIPTION ALIGNMENT:")
+        js_score = evaluation.job_match_score
+        print(f"   Match Score: {js_score.score}/{js_score.max}")
+        print(f"   Evidence: {js_score.evidence}")
+        print("-" * 80)
 
     # Detailed Scores
     print("\n📈 DETAILED SCORES:")
@@ -160,7 +170,10 @@ def print_evaluation_results(
 
 
 def _evaluate_resume(
-    resume_data: JSONResume, github_data: dict = None, blog_data: dict = None
+    resume_data: JSONResume,
+    github_data: dict = None,
+    blog_data: dict = None,
+    job_description: str = None,
 ) -> Optional[EvaluationData]:
     """Evaluate the resume using AI and display results."""
 
@@ -181,7 +194,9 @@ def _evaluate_resume(
         resume_text += blog_text
 
     # Evaluate the enhanced resume
-    evaluation_result = evaluator.evaluate_resume(resume_text)
+    evaluation_result = evaluator.evaluate_resume(
+        resume_text, job_description=job_description
+    )
 
     # print(evaluation_result)
 
@@ -197,7 +212,7 @@ def find_profile(profiles, network):
     )
 
 
-def main(pdf_path):
+def main(pdf_path, job_description_path=None):
     # Create cache filename based on PDF path
     cache_filename = (
         f"cache/resumecache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
@@ -205,6 +220,13 @@ def main(pdf_path):
     github_cache_filename = (
         f"cache/githubcache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
     )
+
+    job_description = None
+    if job_description_path:
+        if os.path.exists(job_description_path):
+            job_description = Path(job_description_path).read_text()
+        else:
+            print(f"Warning: Job description file not found at '{job_description_path}'")
 
     # Check if cache exists and we're in development mode
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
@@ -226,7 +248,7 @@ def main(pdf_path):
             os.makedirs(os.path.dirname(cache_filename), exist_ok=True)
             Path(cache_filename).write_text(
                 json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False),
-                encoding='utf-8'
+                encoding="utf-8",
             )
 
     # Check if cache exists and we're in development mode
@@ -252,10 +274,10 @@ def main(pdf_path):
             os.makedirs(os.path.dirname(github_cache_filename), exist_ok=True)
             Path(github_cache_filename).write_text(
                 json.dumps(github_data, indent=2, ensure_ascii=False),
-                encoding='utf-8'
+                encoding="utf-8",
             )
 
-    score = _evaluate_resume(resume_data, github_data)
+    score = _evaluate_resume(resume_data, github_data, job_description=job_description)
 
     # Get candidate name for display
     candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
@@ -297,13 +319,21 @@ def main(pdf_path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python score.py <pdf_path>")
-        exit(1)
-    pdf_path = sys.argv[1]
+    parser = argparse.ArgumentParser(
+        description="Evaluate a resume PDF and optionally compare it against a job description."
+    )
+    parser.add_argument("pdf_path", help="Path to the resume PDF file.")
+    parser.add_argument(
+        "-j",
+        "--job-description",
+        dest="job_description_path",
+        help="Path to a text file containing the job description.",
+        required=False,
+    )
+    args = parser.parse_args()
 
-    if not os.path.exists(pdf_path):
-        print(f"Error: File '{pdf_path}' does not exist.")
+    if not os.path.exists(args.pdf_path):
+        print(f"Error: File '{args.pdf_path}' does not exist.")
         exit(1)
 
-    main(pdf_path)
+    main(args.pdf_path, args.job_description_path)

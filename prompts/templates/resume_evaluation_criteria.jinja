@@ -29,6 +29,18 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 - Use GitHub data (if provided in === GITHUB DATA === section) as additional context
 - Use blog data (if provided in === BLOG DATA === section) for technical communication assessment
 
+{% if job_requirements %}
+## JOB DESCRIPTION ALIGNMENT
+- You will be provided with a set of key skills and required experience from a job description.
+- Compare the candidate's resume against these requirements to assess their suitability for the role.
+- Provide a `job_match_score` from 0 to 100, where 100 is a perfect match.
+- The `job_match_score` should be included in the final JSON output.
+
+**Job Requirements:**
+- Key Skills: {{ job_requirements.key_skills | join(', ') }}
+- Required Experience: {{ job_requirements.required_experience | join(', ') }}
+{% endif %}
+
 ## SCORING CRITERIA
 
 ### Open Source (0-35 points)
@@ -174,6 +186,7 @@ Analyze the following resume and provide a JSON response with this EXACT structu
         "production": {"score": 0, "max": 25, "evidence": "string"},
         "technical_skills": {"score": 0, "max": 10, "evidence": "string"}
     },
+    "job_match_score": {"score": 0, "max": 100, "evidence": "string"},
     "bonus_points": {"total": 0, "breakdown": "string"},
     "deductions": {"total": 0, "reasons": "string"},
     "key_strengths": ["strength1", "strength2", "strength3", "strength4", "strength5"],
