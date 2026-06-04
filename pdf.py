@@ -287,6 +287,7 @@ class PDFHandler:
             "meta": None,
         }
 
+        any_section_failed = False
         for section_name in sections:
             section_data = self._extract_section_data(text_content, section_name)
 
@@ -295,6 +296,13 @@ class PDFHandler:
                 logger.debug(f"✅ Successfully extracted {section_name} section")
             else:
                 logger.error(f"⚠️ Failed to extract {section_name} section")
+                any_section_failed = True
+
+        if any_section_failed:
+            logger.error(
+                "❌ One or more sections failed to extract. Aborting extraction to avoid incomplete data."
+            )
+            return None
 
         try:
             if complete_resume.get("basics") and isinstance(
@@ -304,7 +312,7 @@ class PDFHandler:
                     complete_resume["basics"] = Basics(**complete_resume["basics"])
                 except Exception as e:
                     logger.error(f"❌ Error creating Basics object: {e}")
-                    complete_resume["basics"] = None
+                    return None
 
             json_resume = JSONResume(**complete_resume)
 
