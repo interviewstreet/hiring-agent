@@ -178,6 +178,62 @@ def fetch_contributions_count(owner: str, contributors_data):
     return user_contributions, total_contributions
 
 
+def fetch_repo_details(owner: str, repo_name: str) -> Dict:
+    try:
+        api_url = f"https://api.github.com/repos/{owner}/{repo_name}"
+
+        status_code, repo_data = _fetch_github_api(api_url)
+
+        if status_code == 200 and isinstance(repo_data, dict):
+            return repo_data
+        return {}
+
+    except Exception as e:
+        logger.error(f"Error fetching repo details for {owner}/{repo_name}: {e}")
+        return {}
+
+
+def get_fork_source_repo(username: str, repo_name: str) -> Optional[Dict]:
+    repo_data = fetch_repo_details(username, repo_name)
+    if not repo_data or not repo_data.get("fork"):
+        return None
+
+    source_repo = repo_data.get("source") or repo_data.get("parent")
+    if not isinstance(source_repo, dict):
+        return None
+
+    owner_data = source_repo.get("owner") or {}
+    return {
+        "full_name": source_repo.get("full_name"),
+        "owner": owner_data.get("login"),
+        "name": source_repo.get("name"),
+        "html_url": source_repo.get("html_url"),
+        "stars": source_repo.get("stargazers_count", 0),
+        "forks": source_repo.get("forks_count", 0),
+        "language": source_repo.get("language"),
+        "description": source_repo.get("description"),
+    }
+
+
+def fetch_merged_pr_count(username: str, repo_full_name: str) -> int:
+    try:
+        api_url = "https://api.github.com/search/issues"
+        params = {
+            "q": f"is:pr is:merged author:{username} repo:{repo_full_name}"
+        }
+
+        status_code, data = _fetch_github_api(api_url, params=params)
+        if status_code == 200 and isinstance(data, dict):
+            return data.get("total_count", 0)
+        return 0
+
+    except Exception as e:
+        logger.error(
+            f"Error fetching merged PR count for {username} in {repo_full_name}: {e}"
+        )
+        return 0
+
+
 def fetch_repo_contributors(owner: str, repo_name: str) -> list[dict]:
     try:
         api_url = f"https://api.github.com/repos/{owner}/{repo_name}/contributors"
@@ -210,21 +266,50 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
         if status_code == 200:
             projects = []
             for repo in repos_data:
-                if repo.get("fork") and repo.get("forks_count", 0) < 5:
+                repo_name = repo.get("name")
+                if not repo_name:
                     continue
 
-                repo_name = repo.get("name")
+                is_fork = repo.get("fork", False)
+                source_repo = None
+                merged_pr_count = 0
+                contributors_owner = username
+                contributors_repo_name = repo_name
 
-                contributors_data = fetch_repo_contributors(username, repo_name)
+                if is_fork:
+                    source_repo = get_fork_source_repo(username, repo_name)
+                    if not source_repo:
+                        continue
+
+                    source_owner = source_repo.get("owner")
+                    source_repo_name = source_repo.get("name")
+                    source_full_name = source_repo.get("full_name")
+                    if not source_owner or not source_repo_name or not source_full_name:
+                        continue
+
+                    merged_pr_count = fetch_merged_pr_count(
+                        username, source_full_name
+                    )
+                    contributors_owner = source_owner
+                    contributors_repo_name = source_repo_name
+
+                contributors_data = fetch_repo_contributors(
+                    contributors_owner, contributors_repo_name
+                )
                 contributor_count = len(contributors_data)
 
                 user_contributions, total_contributions = fetch_contributions_count(
                     username, contributors_data
                 )
 
-                project_type = (
-                    "open_source" if contributor_count > 1 else "self_project"
-                )
+                if is_fork:
+                    if merged_pr_count == 0 and user_contributions == 0:
+                        continue
+                    project_type = "open_source"
+                else:
+                    project_type = (
+                        "open_source" if contributor_count > 1 else "self_project"
+                    )
 
                 project = {
                     "name": repo.get("name"),
@@ -252,6 +337,18 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                         "archived": repo.get("archived", False),
                         "default_branch": repo.get("default_branch"),
                         "contributors": contributor_count,
+                        "source_repo": (
+                            source_repo.get("full_name") if source_repo else None
+                        ),
+                        "source_repo_url": (
+                            source_repo.get("html_url") if source_repo else None
+                        ),
+                        "merged_pr_count": merged_pr_count,
+                        "detection_method": (
+                            "merged_pr_search"
+                            if is_fork and merged_pr_count > 0
+                            else "contributors_api"
+                        ),
                     },
                 }
                 projects.append(project)
@@ -317,8 +414,10 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
     try:
         projects_data = []
         for project in projects:
+            github_details = project.get("github_details", {})
+            merged_pr_count = github_details.get("merged_pr_count", 0)
 
-            if project.get("author_commit_count") == 0:
+            if project.get("author_commit_count") == 0 and merged_pr_count == 0:
                 continue
 
             project_data = {
