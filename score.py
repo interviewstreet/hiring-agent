@@ -209,8 +209,20 @@ def main(pdf_path):
     # Check if cache exists and we're in development mode
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
         print(f"Loading cached data from {cache_filename}")
-        cached_data = json.loads(Path(cache_filename).read_text())
-        resume_data = JSONResume(**cached_data)
+        cache_text = Path(cache_filename).read_text(encoding='utf-8')
+        if cache_text.strip():
+            cached_data = json.loads(cache_text)
+            resume_data = JSONResume(**cached_data)
+        else:
+            print(f"Warning: Cache file {cache_filename} is empty. Re-extracting data.")
+            pdf_handler = PDFHandler()
+            resume_data = pdf_handler.extract_json_from_pdf(pdf_path)
+            if DEVELOPMENT_MODE:
+                os.makedirs(os.path.dirname(cache_filename), exist_ok=True)
+                Path(cache_filename).write_text(
+                    json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False),
+                    encoding='utf-8'
+                )
     else:
         logger.debug(
             f"Extracting data from PDF"
@@ -233,7 +245,12 @@ def main(pdf_path):
     github_data = {}
     if DEVELOPMENT_MODE and os.path.exists(github_cache_filename):
         print(f"Loading cached data from {github_cache_filename}")
-        github_data = json.loads(Path(github_cache_filename).read_text())
+        github_cache_text = Path(github_cache_filename).read_text(encoding='utf-8')
+        if github_cache_text.strip():
+            github_data = json.loads(github_cache_text)
+        else:
+            print(f"Warning: Cache file {github_cache_filename} is empty. Refetching GitHub data.")
+            github_data = {}
     else:
         print(
             f"Fetching GitHub data"
