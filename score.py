@@ -5,6 +5,7 @@ import logging
 import csv
 from pdf import PDFHandler
 from github import fetch_and_display_github_info
+from blog import fetch_and_analyze_blog_data
 from models import JSONResume, EvaluationData
 from typing import List, Optional, Dict
 from evaluator import ResumeEvaluator
@@ -209,7 +210,7 @@ def main(pdf_path):
     # Check if cache exists and we're in development mode
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
         print(f"Loading cached data from {cache_filename}")
-        cached_data = json.loads(Path(cache_filename).read_text())
+        cached_data = json.loads(Path(cache_filename).read_text(encoding='utf-8'))
         resume_data = JSONResume(**cached_data)
     else:
         logger.debug(
@@ -233,7 +234,7 @@ def main(pdf_path):
     github_data = {}
     if DEVELOPMENT_MODE and os.path.exists(github_cache_filename):
         print(f"Loading cached data from {github_cache_filename}")
-        github_data = json.loads(Path(github_cache_filename).read_text())
+        github_data = json.loads(Path(github_cache_filename).read_text(encoding='utf-8'))
     else:
         print(
             f"Fetching GitHub data"
@@ -255,7 +256,38 @@ def main(pdf_path):
                 encoding='utf-8'
             )
 
-    score = _evaluate_resume(resume_data, github_data)
+    # Fetch blog data
+    blog_cache_filename = (
+        f"cache/blogcache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
+    )
+    blog_data = {}
+    if DEVELOPMENT_MODE and os.path.exists(blog_cache_filename):
+        print(f"Loading cached blog data from {blog_cache_filename}")
+        blog_data = json.loads(Path(blog_cache_filename).read_text(encoding='utf-8'))
+    else:
+        print(
+            f"Fetching blog data"
+            + (" and caching to " + blog_cache_filename if DEVELOPMENT_MODE else "")
+        )
+
+        # Get profiles for blog fetching
+        profiles = []
+        if resume_data and hasattr(resume_data, "basics") and resume_data.basics:
+            profiles = resume_data.basics.profiles or []
+        
+        if profiles:
+            blog_data = fetch_and_analyze_blog_data(profiles)
+            if not blog_data:
+                blog_data = {}
+        
+        if DEVELOPMENT_MODE:
+            os.makedirs(os.path.dirname(blog_cache_filename), exist_ok=True)
+            Path(blog_cache_filename).write_text(
+                json.dumps(blog_data, indent=2, ensure_ascii=False),
+                encoding='utf-8'
+            )
+
+    score = _evaluate_resume(resume_data, github_data, blog_data)
 
     # Get candidate name for display
     candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
