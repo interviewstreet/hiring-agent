@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    OPENAI = "openai"
 
 
 @runtime_checkable
@@ -351,3 +352,49 @@ class GeminiProvider:
 
         # Convert Gemini response to Ollama-like format for compatibility
         return {"message": {"role": "assistant", "content": response.text}}
+
+
+class OpenAICompatibleProvider:
+    """Provider for any OpenAI-compatible API endpoint.
+
+    Works with LM Studio, vLLM, llama.cpp server, LocalAI, and any other
+    service that exposes an OpenAI-compatible chat completions endpoint.
+    """
+
+    def __init__(self, base_url: str = "http://localhost:1234/v1"):
+        from openai import OpenAI
+
+        self.client = OpenAI(base_url=base_url, api_key="not-needed")
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Send a chat request to an OpenAI-compatible endpoint."""
+        params: Dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+        }
+
+        if options:
+            if "temperature" in options:
+                params["temperature"] = options["temperature"]
+            if "top_p" in options:
+                params["top_p"] = options["top_p"]
+
+        # Map format="json" to OpenAI-style response_format
+        if kwargs.get("format") == "json":
+            params["response_format"] = {"type": "json_object"}
+
+        response = self.client.chat.completions.create(**params)
+
+        # Return in the same shape as OllamaProvider and GeminiProvider
+        return {
+            "message": {
+                "role": "assistant",
+                "content": response.choices[0].message.content,
+            }
+        }
