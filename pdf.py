@@ -99,12 +99,15 @@ class PDFHandler:
                 },
             }
 
-            kwargs = {}
-            if return_model:
-                kwargs["format"] = return_model.model_json_schema()
-
+            # NOTE: We intentionally do NOT pass the Pydantic JSON schema as a
+            # grammar `format` constraint. Small Ollama models (e.g. gemma3:4b)
+            # satisfy the constraint by returning an empty `{}`, silently dropping
+            # whole sections (work/skills/awards). The prompts already require
+            # valid JSON, and extract_json_from_response() handles markdown fences,
+            # so prompt-only extraction is far more reliable. (Gemini ignores
+            # `format` anyway.) `return_model` is kept for documentation/validation.
             # Use the appropriate provider to make the API call
-            response = self.provider.chat(**chat_params, **kwargs)
+            response = self.provider.chat(**chat_params)
 
             response_text = response["message"]["content"]
 
