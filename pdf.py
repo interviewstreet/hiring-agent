@@ -13,12 +13,14 @@ from models import (
     Skill,
     Project,
     Award,
+    Scholarship,
     BasicsSection,
     WorkSection,
     EducationSection,
     SkillsSection,
     ProjectsSection,
     AwardsSection,
+    ScholarshipsSection,
 )
 from llm_utils import initialize_llm_provider, extract_json_from_response
 from pymupdf_rag import to_markdown
@@ -189,6 +191,18 @@ class PDFHandler:
             logger.error("❌ Failed to render awards template")
             return None
         return self._call_llm_for_section("awards", resume_text, prompt, AwardsSection)
+    
+    def extract_scholarships_section(self, resume_text: str) -> Optional[Dict]:
+        """Extracts the scholarships section from the resume text."""
+        prompt = self.template_manager.render_template(
+            "scholarships", text_content=resume_text
+        )
+        if not prompt:
+            logger.error("❌ Failed to render scholarships template")
+            return None
+        return self._call_llm_for_section(
+            "scholarships", resume_text, prompt, ScholarshipsSection
+        )
 
     def extract_json_from_text(self, resume_text: str) -> Optional[JSONResume]:
         try:
@@ -227,6 +241,7 @@ class PDFHandler:
             "skills": self.extract_skills_section,
             "projects": self.extract_projects_section,
             "awards": self.extract_awards_section,
+            "scholarships": self.extract_scholarships_section,
         }
 
         if section_name not in section_extractors:
@@ -269,7 +284,7 @@ class PDFHandler:
     ) -> Optional[JSONResume]:
         start_time = time.time()
 
-        sections = ["basics", "work", "education", "skills", "projects", "awards"]
+        sections = ["basics", "work", "education", "skills", "projects", "awards", "scholarships"]
 
         complete_resume = {
             "basics": None,
@@ -277,6 +292,7 @@ class PDFHandler:
             "volunteer": None,
             "education": None,
             "awards": None,
+            "scholarships": None,
             "certificates": None,
             "publications": None,
             "skills": None,
