@@ -270,6 +270,11 @@ class PDFHandler:
         start_time = time.time()
 
         sections = ["basics", "work", "education", "skills", "projects", "awards"]
+        total_sections = len(sections)
+        logger.info(
+            f"📄 Extracting {total_sections} resume sections with model "
+            f"'{DEFAULT_MODEL}': {', '.join(sections)}"
+        )
 
         complete_resume = {
             "basics": None,
@@ -287,14 +292,24 @@ class PDFHandler:
             "meta": None,
         }
 
-        for section_name in sections:
+        for index, section_name in enumerate(sections, 1):
+            logger.info(
+                f"[{index}/{total_sections}] 🔄 Extracting '{section_name}' section..."
+            )
+            section_start = time.time()
             section_data = self._extract_section_data(text_content, section_name)
+            section_elapsed = time.time() - section_start
 
             if section_data:
                 complete_resume.update(section_data)
-                logger.debug(f"✅ Successfully extracted {section_name} section")
+                logger.info(
+                    f"[{index}/{total_sections}] ✅ Extracted '{section_name}' in {section_elapsed:.1f}s"
+                )
             else:
-                logger.error(f"⚠️ Failed to extract {section_name} section")
+                logger.error(
+                    f"[{index}/{total_sections}] ⚠️ Failed to extract '{section_name}' "
+                    f"section after {section_elapsed:.1f}s"
+                )
 
         try:
             if complete_resume.get("basics") and isinstance(

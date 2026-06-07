@@ -36,7 +36,7 @@
 
 ## Overview
 
-Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama or use Google Gemini.
+Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama, use the Google Gemini or Anthropic Claude APIs, or drive the models through the **Claude Code** and **Gemini** command-line tools (no API key needed; your existing CLI login is reused).
 
 ---
 
@@ -85,11 +85,14 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
 
   The repository pins `.python-version` to 3.11.13.
 
-- **One LLM backend** (either of them)
+- **One LLM backend** (any of them)
 
   - **Ollama** for local models
     Install from the [official site](https://ollama.com/), then run `ollama serve`.
-  - **Google Gemini** if you have an API key, get it from [here](https://aistudio.google.com/api-keys).
+  - **Google Gemini API** if you have an API key, get it from [here](https://aistudio.google.com/api-keys).
+  - **Anthropic Claude API** if you have an API key, get it from the [Anthropic Console](https://console.anthropic.com/).
+  - **Claude Code CLI**: install with `npm install -g @anthropic-ai/claude-code`, then run `claude` once to log in. Uses your existing subscription, so no API key is required.
+  - **Gemini CLI**: install with `npm install -g @google/gemini-cli`, then run `gemini` once to log in. Uses your Google login, so no API key is required.
 
 ### Quick setup with pip
 
@@ -136,12 +139,18 @@ $ cp .env.example .env
 
 **Environment variables**
 
-| Variable         | Values                                      | Description                                                            |
-| ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `LLM_PROVIDER`   | `ollama` or `gemini`                        | Chooses provider. Defaults to Ollama.                                  |
-| `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
-| `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
-| `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
+| Variable             | Values                                                          | Description                                                                                                          |
+| -------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `LLM_PROVIDER`       | `ollama`, `gemini`, `claude`, `claude_cli`, `gemini_cli`        | Chooses the backend. Authoritative when set; otherwise the provider is inferred from the model name. Defaults to Ollama. |
+| `DEFAULT_MODEL`      | for example `gemma3:4b`, `gemini-2.5-pro`, or `claude-sonnet-4-6` | Model name passed to the provider. Must match the chosen provider.                                                 |
+| `GEMINI_API_KEY`     | string                                                          | Required when `LLM_PROVIDER=gemini`.                                                                               |
+| `ANTHROPIC_API_KEY`  | string                                                          | Required when `LLM_PROVIDER=claude`.                                                                               |
+| `CLAUDE_CLI_COMMAND` | optional, default `claude`                                      | Command/path for the Claude Code CLI (used by `claude_cli`).                                                        |
+| `GEMINI_CLI_COMMAND` | optional, default `gemini`                                      | Command/path for the Gemini CLI (used by `gemini_cli`).                                                             |
+| `LLM_CLI_TIMEOUT`    | optional, default `300`                                         | Per-call timeout in seconds for the CLI providers.                                                                 |
+| `GITHUB_TOKEN`       | optional                                                        | Inherits from your shell environment, improves GitHub API rate limits.                                             |
+
+> If a selected provider's prerequisite is missing (an unset API key or a CLI that is not installed/logged in), the agent logs a warning and falls back to Ollama.
 
 Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
 
@@ -259,12 +268,35 @@ What happens:
 - Set `DEFAULT_MODEL` to any pulled model, for example `gemma3:4b`
 - The provider wrapper in `models.OllamaProvider` calls `ollama.chat`
 
-### Gemini
+### Gemini (API)
 
 - Set `LLM_PROVIDER=gemini`
 - Set `DEFAULT_MODEL` to a supported Gemini model, for example `gemini-2.0-flash`
 - Provide `GEMINI_API_KEY`
 - The wrapper in `models.GeminiProvider` adapts responses to a unified format
+
+### Claude (API)
+
+- Set `LLM_PROVIDER=claude`
+- Set `DEFAULT_MODEL` to a Claude model, for example `claude-sonnet-4-6`
+- Provide `ANTHROPIC_API_KEY`
+- The wrapper in `models.AnthropicProvider` calls the Anthropic Messages API and adapts the response to the unified format
+
+### Claude Code CLI
+
+- Set `LLM_PROVIDER=claude_cli`
+- Set `DEFAULT_MODEL` to any model your CLI accepts, for example `sonnet` or `claude-sonnet-4-6`
+- Make sure the `claude` command is installed and logged in (`claude` once interactively). No API key is needed.
+- `models.ClaudeCLIProvider` runs `claude -p --output-format json` as a subprocess, piping the prompt over stdin and parsing the JSON result.
+
+### Gemini CLI
+
+- Set `LLM_PROVIDER=gemini_cli`
+- Set `DEFAULT_MODEL` to any model your CLI accepts, for example `gemini-2.5-pro`
+- Make sure the `gemini` command is installed and logged in (`gemini` once interactively). No API key is needed.
+- `models.GeminiCLIProvider` runs the `gemini` CLI non-interactively, piping the prompt over stdin and capturing stdout.
+
+> **Windows note:** the npm-installed `claude`/`gemini` commands are `.cmd` shims. The providers resolve them via `PATH` and invoke them through `cmd /c` automatically, so no extra configuration is required.
 
 ---
 
