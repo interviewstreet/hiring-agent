@@ -43,48 +43,66 @@ def _fetch_github_api(api_url, params=None):
 
     response = requests.get(api_url, params, timeout=10, headers=headers)
     status_code = response.status_code
-    
+
     # Check GitHub rate limit headers
     rate_limit_remaining = response.headers.get("X-RateLimit-Remaining")
     rate_limit_limit = response.headers.get("X-RateLimit-Limit")
     rate_limit_reset = response.headers.get("X-RateLimit-Reset")
-    logger.info(f"{rate_limit_remaining}/{rate_limit_limit}. Reset at {rate_limit_reset}")
-    
+    logger.info(
+        f"{rate_limit_remaining}/{rate_limit_limit}. Reset at {rate_limit_reset}"
+    )
+
     if rate_limit_remaining is not None and rate_limit_limit is not None:
         remaining = int(rate_limit_remaining)
         limit = int(rate_limit_limit)
-        
-        # Log rate limit information and handle proactively
+
+        # Handle a nearly-exhausted rate limit. Rather than blocking for a long
+        # time, only wait when the reset is close; otherwise warn and proceed.
         if remaining < 10 and rate_limit_reset:
             reset_timestamp = int(rate_limit_reset)
             current_timestamp = int(time.time())
-            wait_seconds = max(0, reset_timestamp - current_timestamp) + 5  # Add 5 second buffer
+            wait_seconds = max(0, reset_timestamp - current_timestamp) + 5  # 5s buffer
             reset_time = datetime.datetime.fromtimestamp(reset_timestamp)
-            
-            # Cap maximum wait time at 1 hour
-            max_wait = 3600
-            if wait_seconds > max_wait:
-                print(f"⚠️  Rate limit reset time is too far in the future ({wait_seconds}s). Capping wait to {max_wait}s")
-                wait_seconds = max_wait
-            
-            logger.error(f"⚠️  GitHub API rate limit low: {remaining}/{limit} requests remaining. Resets at {reset_time}")
-            print(f"💡 Tip: Set GITHUB_TOKEN environment variable to increase rate limits (60/hour → 5000/hour)")
-            
-            if wait_seconds > 0:
-                logger.info(f"⏳ Proactively sleeping for {wait_seconds} seconds until rate limit resets...")
+
+            logger.warning(
+                f"⚠️  GitHub API rate limit nearly exhausted: {remaining}/{limit} remaining "
+                f"(resets at {reset_time})."
+            )
+            if not os.environ.get("GITHUB_TOKEN"):
+                logger.warning(
+                    "💡 No GITHUB_TOKEN set: limited to 60 requests/hour. Set GITHUB_TOKEN "
+                    "to raise this to 5000/hour and avoid rate-limit waits."
+                )
+
+            try:
+                max_wait = int(os.environ.get("GITHUB_MAX_RATE_LIMIT_WAIT", "60"))
+            except ValueError:
+                max_wait = 60
+
+            if 0 < wait_seconds <= max_wait:
+                logger.info(
+                    f"⏳ Waiting {wait_seconds}s for the GitHub rate limit to reset..."
+                )
                 time.sleep(wait_seconds)
-                print(f"✅ Rate limit should be reset now. Continuing...")
+                logger.info("✅ GitHub rate limit reset. Continuing...")
+            elif wait_seconds > max_wait:
+                logger.warning(
+                    f"⏭️  Rate limit resets in {wait_seconds}s, over the {max_wait}s cap "
+                    f"(GITHUB_MAX_RATE_LIMIT_WAIT). Skipping the wait. GitHub enrichment "
+                    f"may be incomplete. Set GITHUB_TOKEN to avoid this."
+                )
         elif remaining < 100:
-            logger.info(f"ℹ️  GitHub API rate limit: {remaining}/{limit} requests remaining")
-    
+            logger.info(
+                f"ℹ️  GitHub API rate limit: {remaining}/{limit} requests remaining"
+            )
+
     data = response.json() if response.status_code == 200 else {}
 
     if DEVELOPMENT_MODE and status_code == 200:
         try:
             os.makedirs("cache", exist_ok=True)
             Path(cache_filename).write_text(
-                json.dumps(data, indent=2, ensure_ascii=False),
-                encoding='utf-8'
+                json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
             )
         except Exception as e:
             logger.error(f"Error caching GitHub data to {cache_filename}: {e}")
@@ -437,7 +455,15 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
 
 
 def fetch_and_display_github_info(github_url: str) -> Dict:
-    logger.info(f"{github_url}")
+    logger.info(f"🔍 Fetching GitHub data for: {github_url}")
+    if os.environ.get("GITHUB_TOKEN"):
+        logger.info("🔑 GITHUB_TOKEN detected. GitHub API limit is 5000 requests/hour.")
+    else:
+        logger.warning(
+            "🔓 No GITHUB_TOKEN set. GitHub API is limited to 60 requests/hour, which is "
+            "easily exhausted (each repo costs an extra call for contributors). "
+            "Set GITHUB_TOKEN to raise it to 5000/hour."
+        )
     github_profile = fetch_github_profile(github_url)
     if not github_profile:
         print("\n❌ Failed to fetch GitHub profile details.")
