@@ -215,6 +215,12 @@ What happens:
 2. If a GitHub profile is found in the resume, repositories are fetched and cached to `cache/githubcache_<basename>.json`.
 3. The evaluator prints a report and, in development mode, appends a CSV row to `resume_evaluations.csv`.
 
+### Flags
+
+- `--force`: bypass caches and fully re-extract from the PDF.
+- `--no-github`: skip GitHub enrichment (useful when rate-limited or offline).
+- `--max-workers N`: control parallel section extraction (default: 3). Lower it if you hit LLM 429s.
+
 ---
 
 ## Directory layout

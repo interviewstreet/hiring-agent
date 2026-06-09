@@ -41,6 +41,7 @@ class TemplateManager:
             "skills": "skills.jinja",
             "projects": "projects.jinja",
             "awards": "awards.jinja",
+            "languages": "languages.jinja",
             "system_message": "system_message.jinja",
             "github_project_selection": "github_project_selection.jinja",
             "resume_evaluation_criteria": "resume_evaluation_criteria.jinja",
@@ -56,6 +57,29 @@ class TemplateManager:
                     print(f"⚠️ Template file not found: {template_path}")
             except Exception as e:
                 print(f"❌ Error loading template {filename}: {e}")
+
+    def get_template_source(self, section_name: str) -> Optional[str]:
+        """Return raw template source for hashing/versioning."""
+        if section_name not in self._templates:
+            return None
+        try:
+            # FileSystemLoader get_source returns (source, filename, uptodate)
+            loader = self.env.loader
+            if hasattr(loader, "get_source"):
+                source_tuple = loader.get_source(self.env, self._templates[section_name].name)
+                return source_tuple[0]
+        except Exception:
+            return None
+        return None
+
+    def get_all_template_sources(self) -> dict:
+        """Return mapping of template name to source for all loaded templates."""
+        sources = {}
+        for name in self._templates:
+            src = self.get_template_source(name)
+            if src is not None:
+                sources[name] = src
+        return sources
 
     def get_available_sections(self) -> list:
         """

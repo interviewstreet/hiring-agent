@@ -57,23 +57,13 @@ def _fetch_github_api(api_url, params=None):
         # Log rate limit information and handle proactively
         if remaining < 10 and rate_limit_reset:
             reset_timestamp = int(rate_limit_reset)
-            current_timestamp = int(time.time())
-            wait_seconds = max(0, reset_timestamp - current_timestamp) + 5  # Add 5 second buffer
             reset_time = datetime.datetime.fromtimestamp(reset_timestamp)
-            
-            # Cap maximum wait time at 1 hour
-            max_wait = 3600
-            if wait_seconds > max_wait:
-                print(f"⚠️  Rate limit reset time is too far in the future ({wait_seconds}s). Capping wait to {max_wait}s")
-                wait_seconds = max_wait
-            
-            logger.error(f"⚠️  GitHub API rate limit low: {remaining}/{limit} requests remaining. Resets at {reset_time}")
-            print(f"💡 Tip: Set GITHUB_TOKEN environment variable to increase rate limits (60/hour → 5000/hour)")
-            
-            if wait_seconds > 0:
-                logger.info(f"⏳ Proactively sleeping for {wait_seconds} seconds until rate limit resets...")
-                time.sleep(wait_seconds)
-                print(f"✅ Rate limit should be reset now. Continuing...")
+            logger.error(
+                f"⚠️  GitHub API rate limit low: {remaining}/{limit} requests remaining. Resets at {reset_time}"
+            )
+            print(
+                "💡 Tip: Set GITHUB_TOKEN environment variable to increase rate limits (60/hour → 5000/hour). Continuing without delay."
+            )
         elif remaining < 100:
             logger.info(f"ℹ️  GitHub API rate limit: {remaining}/{limit} requests remaining")
     
@@ -210,24 +200,66 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
         if status_code == 200:
             projects = []
             for repo in repos_data:
-                if repo.get("fork") and repo.get("forks_count", 0) < 5:
+                repo_name = repo.get("name")
+                if not repo_name:
                     continue
 
-                repo_name = repo.get("name")
-
+                # Fetch contributors for user's fork (or original if not fork)
                 contributors_data = fetch_repo_contributors(username, repo_name)
                 contributor_count = len(contributors_data)
-
                 user_contributions, total_contributions = fetch_contributions_count(
                     username, contributors_data
                 )
 
+                # Determine project type (consider upstream if fork)
                 project_type = (
                     "open_source" if contributor_count > 1 else "self_project"
                 )
 
+                github_details = {
+                    "stars": repo.get("stargazers_count", 0),
+                    "forks": repo.get("forks_count", 0),
+                    "language": repo.get("language"),
+                    "description": repo.get("description"),
+                    "created_at": repo.get("created_at"),
+                    "updated_at": repo.get("updated_at"),
+                    "topics": repo.get("topics", []),
+                    "open_issues": repo.get("open_issues_count", 0),
+                    "size": repo.get("size", 0),
+                    "fork": repo.get("fork", False),
+                    "archived": repo.get("archived", False),
+                    "default_branch": repo.get("default_branch"),
+                    "contributors": contributor_count,
+                }
+
+                upstream_details = None
+                if repo.get("fork"):
+                    # Fetch upstream parent for accurate stats (#155) and avoid skipping low-fork repos (#162)
+                    upstream_api = f"https://api.github.com/repos/{username}/{repo_name}"
+                    status_code, upstream_data = _fetch_github_api(upstream_api)
+                    if status_code == 200 and isinstance(upstream_data, dict):
+                        parent = upstream_data.get("parent")
+                        if parent:
+                            upstream_details = {
+                                "name": parent.get("name"),
+                                "owner": parent.get("owner", {}).get("login"),
+                                "html_url": parent.get("html_url"),
+                                "stars": parent.get("stargazers_count", 0),
+                                "forks": parent.get("forks_count", 0),
+                                "language": parent.get("language"),
+                                "topics": parent.get("topics", []),
+                                "description": parent.get("description"),
+                            }
+                            # Prefer upstream popularity metrics for evaluation
+                            github_details["stars"] = upstream_details["stars"]
+                            github_details["forks"] = upstream_details["forks"]
+                            github_details["topics"] = upstream_details["topics"]
+                            github_details["upstream_owner"] = upstream_details["owner"]
+                            github_details["upstream_name"] = upstream_details["name"]
+                            github_details["upstream_html_url"] = upstream_details["html_url"]
+
                 project = {
-                    "name": repo.get("name"),
+                    "name": repo_name,
                     "description": repo.get("description"),
                     "github_url": repo.get("html_url"),
                     "live_url": repo.get("homepage") if repo.get("homepage") else None,
@@ -238,21 +270,8 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                     "contributor_count": contributor_count,
                     "author_commit_count": user_contributions,
                     "total_commit_count": total_contributions,
-                    "github_details": {
-                        "stars": repo.get("stargazers_count", 0),
-                        "forks": repo.get("forks_count", 0),
-                        "language": repo.get("language"),
-                        "description": repo.get("description"),
-                        "created_at": repo.get("created_at"),
-                        "updated_at": repo.get("updated_at"),
-                        "topics": repo.get("topics", []),
-                        "open_issues": repo.get("open_issues_count", 0),
-                        "size": repo.get("size", 0),
-                        "fork": repo.get("fork", False),
-                        "archived": repo.get("archived", False),
-                        "default_branch": repo.get("default_branch"),
-                        "contributors": contributor_count,
-                    },
+                    "github_details": github_details,
+                    "upstream_details": upstream_details,
                 }
                 projects.append(project)
 

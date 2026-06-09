@@ -1,0 +1,23 @@
+Extract ONLY the spoken languages from this resume.
+
+--- The input resume markdown starts here ---
+
+{{ text_content }}
+
+--- The input resume markdown ends here ---
+
+Return ONLY a JSON object with this structure:
+{
+  "languages": [
+    {
+      "language": "Language name",
+      "fluency": "Fluency level (e.g., Native, Professional, Intermediate)"
+    }
+  ]
+}
+
+Rules:
+- Only include languages explicitly present in the resume text.
+- If fluency/level is not stated, set "fluency" to null.
+- Do not invent or infer languages.
+- Return valid JSON only; no extra commentary.

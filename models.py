@@ -158,6 +158,8 @@ class Project(BaseModel):
     description: Optional[str] = None
     highlights: Optional[List[str]] = None
     url: Optional[str] = None
+    repo_url: Optional[str] = None
+    live_url: Optional[str] = None
     technologies: Optional[List[str]] = None
     skills: Optional[List[str]] = None
 
@@ -196,6 +198,12 @@ class AwardsSection(BaseModel):
     """Awards section containing a list of awards."""
 
     awards: Optional[List[Award]] = None
+
+
+class LanguagesSection(BaseModel):
+    """Language section containing a list of languages."""
+
+    languages: Optional[List[Language]] = None
 
 
 class JSONResume(BaseModel):
@@ -247,6 +255,7 @@ class EvaluationData(BaseModel):
     deductions: Deductions
     key_strengths: List[str] = Field(min_items=1, max_items=5)
     areas_for_improvement: List[str] = Field(min_items=1, max_items=5)
+    meta: Optional[Dict[str, Any]] = None  # metadata: template hashes, model, provider, timestamps
 
 
 class GitHubProfile(BaseModel):
