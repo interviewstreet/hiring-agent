@@ -22,7 +22,7 @@
 - [Architecture](#architecture)
 - [Installation and Setup](#installation-and-setup)
   - [Prerequisites](#prerequisites)
-  - [Quick setup with pip](#quick-setup-with-pip)
+  - [Quick setup with uv](#quick-setup-with-uv)
   - [Ollama models](#ollama-models)
 - [Configuration](#configuration)
 - [How it works](#how-it-works)
@@ -36,7 +36,7 @@
 
 ## Overview
 
-Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama or use Google Gemini.
+Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama, use Google Gemini, or route hosted models through OpenRouter.
 
 ---
 
@@ -85,24 +85,34 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
 
   The repository pins `.python-version` to 3.11.13.
 
-- **One LLM backend** (either of them)
+- **One LLM backend**
 
   - **Ollama** for local models
     Install from the [official site](https://ollama.com/), then run `ollama serve`.
   - **Google Gemini** if you have an API key, get it from [here](https://aistudio.google.com/api-keys).
+  - **OpenRouter** if you want one API key that can route to many hosted models.
 
-### Quick setup with pip
+### Quick setup with uv
 
 ```bash
 $ git clone https://github.com/interviewstreet/hiring-agent
 $ cd hiring-agent
 
-$ python -m venv .venv
-# Linux or macOS
-$ source .venv/bin/activate
-# Windows
-# .venv\Scripts\activate
+$ uv sync
+```
 
+This creates or updates `.venv` using the Python version pinned in `.python-version`.
+Run commands with `uv run`, for example:
+
+```bash
+$ uv run python score.py /path/to/resume.pdf
+```
+
+If you prefer pip, you can still install the pinned dependencies manually:
+
+```bash
+$ python -m venv .venv
+$ source .venv/bin/activate
 $ pip install -r requirements.txt
 ```
 
@@ -136,14 +146,32 @@ $ cp .env.example .env
 
 **Environment variables**
 
-| Variable         | Values                                      | Description                                                            |
-| ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `LLM_PROVIDER`   | `ollama` or `gemini`                        | Chooses provider. Defaults to Ollama.                                  |
-| `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
-| `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
-| `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
+| Variable                  | Values                                                                   | Description                                                            |
+| ------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| `LLM_PROVIDER`            | `ollama`, `gemini`, or `openrouter`                                      | Chooses provider. Defaults to Ollama.                                  |
+| `DEFAULT_MODEL`           | for example `gemma3:4b`, `gemini-2.5-pro`, `anthropic/claude-sonnet-4.5` | Model name passed to the provider.                                     |
+| `GEMINI_API_KEY`          | string                                                                   | Required when `LLM_PROVIDER=gemini`.                                   |
+| `OPENROUTER_API_KEY`      | string                                                                   | Required when `LLM_PROVIDER=openrouter`.                               |
+| `OPENROUTER_APP_TITLE`    | optional                                                                 | OpenRouter attribution title. Defaults to `hiring-agent`.              |
+| `OPENROUTER_HTTP_REFERER` | optional                                                                 | OpenRouter attribution URL.                                            |
+| `GITHUB_TOKEN`            | optional                                                                 | Inherits from your shell environment, improves GitHub API rate limits. |
 
-Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
+Provider mapping lives in `prompt.py` and `models.py`. To use OpenRouter, set any OpenRouter model ID as `DEFAULT_MODEL`, for example:
+
+```bash
+LLM_PROVIDER=openrouter
+DEFAULT_MODEL=anthropic/claude-sonnet-4.5
+OPENROUTER_API_KEY=sk-or-...
+```
+
+Other examples:
+
+```bash
+DEFAULT_MODEL=google/gemini-2.5-pro
+DEFAULT_MODEL=deepseek/deepseek-chat-v3.1
+```
+
+The `config.py` file has a single flag:
 
 ```python
 # config.py
@@ -265,6 +293,14 @@ What happens:
 - Set `DEFAULT_MODEL` to a supported Gemini model, for example `gemini-2.0-flash`
 - Provide `GEMINI_API_KEY`
 - The wrapper in `models.GeminiProvider` adapts responses to a unified format
+
+### OpenRouter
+
+- Set `LLM_PROVIDER=openrouter`
+- Set `DEFAULT_MODEL` to any OpenRouter model ID, for example `anthropic/claude-sonnet-4.5`, `google/gemini-2.5-pro`, or `deepseek/deepseek-chat-v3.1`
+- Provide `OPENROUTER_API_KEY`
+- Optionally set `OPENROUTER_APP_TITLE`, `OPENROUTER_HTTP_REFERER`, or `OPENROUTER_BASE_URL`
+- The wrapper in `models.OpenRouterProvider` adapts responses to a unified format
 
 ---
 
