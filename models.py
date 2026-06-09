@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    OPENROUTER = "openrouter"
 
 
 @runtime_checkable
@@ -19,7 +20,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -281,7 +282,7 @@ class OllamaProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
 
@@ -324,7 +325,7 @@ class GeminiProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Google Gemini API."""
         # Map options to Gemini parameters
@@ -351,3 +352,74 @@ class GeminiProvider:
 
         # Convert Gemini response to Ollama-like format for compatibility
         return {"message": {"role": "assistant", "content": response.text}}
+
+
+class OpenRouterProvider:
+    """OpenRouter provider implementation."""
+
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str = "https://openrouter.ai/api/v1",
+        http_referer: Optional[str] = None,
+        app_title: Optional[str] = None,
+    ):
+        import requests
+
+        self.requests = requests
+        self.base_url = base_url.rstrip("/")
+        self.headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        if http_referer:
+            self.headers["HTTP-Referer"] = http_referer
+        if app_title:
+            self.headers["X-Title"] = app_title
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Send a chat request to OpenRouter.
+
+        The rest of the app expects an Ollama-shaped response, so this adapts
+        OpenRouter responses to {"message": {"content": ...}}.
+        """
+        provider_options = options.copy() if options else {}
+        provider_options.pop("stream", None)
+
+        payload = {
+            "model": model,
+            "messages": messages,
+        }
+
+        for option_name in (
+            "temperature",
+            "top_p",
+            "max_tokens",
+            "max_completion_tokens",
+        ):
+            if option_name in provider_options:
+                payload[option_name] = provider_options[option_name]
+
+        if "stream" in kwargs:
+            payload["stream"] = kwargs["stream"]
+
+        if "format" in kwargs:
+            payload["response_format"] = {"type": "json_object"}
+
+        response = self.requests.post(
+            f"{self.base_url}/chat/completions",
+            headers=self.headers,
+            json=payload,
+            timeout=120,
+        )
+        response.raise_for_status()
+        data = response.json()
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+
+        return {"message": {"role": "assistant", "content": content}}
