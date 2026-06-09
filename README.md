@@ -81,9 +81,19 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
 
 ### Prerequisites
 
+- **uv** for Python version and dependency management.
+
+  Install uv with the official installer if it is not already available:
+
+  ```bash
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  ```
+
 - **Python 3.11+**
 
-  The repository pins `.python-version` to 3.11.13.
+  The repository pins `.python-version` to 3.11.13. `uv sync` will use that
+  version when it is available, or install it if your uv configuration allows
+  managed Python downloads.
 
 - **One LLM backend**
 
@@ -94,26 +104,43 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
 
 ### Quick setup with uv
 
-```bash
-$ git clone https://github.com/interviewstreet/hiring-agent
-$ cd hiring-agent
+Clone the repository and install the locked dependencies into a local `.venv`:
 
-$ uv sync
+```bash
+git clone https://github.com/interviewstreet/hiring-agent
+cd hiring-agent
+uv sync
 ```
 
-This creates or updates `.venv` using the Python version pinned in `.python-version`.
-Run commands with `uv run`, for example:
+Copy the environment template and configure a provider. For OpenRouter:
 
 ```bash
-$ uv run python score.py /path/to/resume.pdf
+cp .env.example .env
+# edit .env:
+# LLM_PROVIDER=openrouter
+# DEFAULT_MODEL=anthropic/claude-sonnet-4.5
+# OPENROUTER_API_KEY=sk-or-...
+```
+
+Run the scorer through uv so it uses the project environment:
+
+```bash
+uv run python score.py /path/to/resume.pdf
+```
+
+If dependencies change later, run `uv sync` again. For a reproducible install
+that refuses to update `uv.lock`, use:
+
+```bash
+uv sync --frozen
 ```
 
 If you prefer pip, you can still install the pinned dependencies manually:
 
 ```bash
-$ python -m venv .venv
-$ source .venv/bin/activate
-$ pip install -r requirements.txt
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ### Ollama Models
