@@ -78,6 +78,8 @@ class ResumeEvaluator:
             response = self.provider.chat(**chat_params, **kwargs)
 
             response_text = response["message"]["content"]
+            if response_text is None:
+                raise ValueError("LLM returned empty content for evaluation")
             response_text = extract_json_from_response(response_text)
             logger.error(f"🔤 Prompt response: {response_text}")
 

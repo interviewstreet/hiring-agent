@@ -138,9 +138,10 @@ $ cp .env.example .env
 
 | Variable         | Values                                      | Description                                                            |
 | ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `LLM_PROVIDER`   | `ollama` or `gemini`                        | Chooses provider. Defaults to Ollama.                                  |
-| `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
+| `LLM_PROVIDER`   | `ollama`, `gemini`, or `sarvam`              | Chooses provider. Defaults to Ollama.                                  |
+| `DEFAULT_MODEL`  | e.g. `gemma3:4b`, `gemini-2.5-pro`, or `sarvam-30b` | Model name passed to the provider.                              |
 | `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
+| `SARVAM_API_KEY` | string                                      | Required when `LLM_PROVIDER=sarvam`.                                   |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
 
 Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
@@ -265,6 +266,15 @@ What happens:
 - Set `DEFAULT_MODEL` to a supported Gemini model, for example `gemini-2.0-flash`
 - Provide `GEMINI_API_KEY`
 - The wrapper in `models.GeminiProvider` adapts responses to a unified format
+
+### Sarvam AI
+
+- Set `LLM_PROVIDER=sarvam`
+- Set `DEFAULT_MODEL` to a supported Sarvam AI model:
+  - `sarvam-30b`: High-performance multilingual LLM (64K context window)
+  - `sarvam-105b`: Flagship model with advanced reasoning capabilities (128K context window)
+- Provide `SARVAM_API_KEY` (subscription key)
+- The wrapper in `models.SarvamProvider` integrates with the official `sarvamai` SDK and handles transient failures/rate-limiting proactively
 
 ---
 

@@ -109,6 +109,10 @@ class PDFHandler:
             response_text = response["message"]["content"]
 
             try:
+                if response_text is None:
+                    raise ValueError(
+                        f"LLM returned empty content for {section_name} section"
+                    )
                 response_text = extract_json_from_response(response_text)
                 json_start = response_text.find("{")
                 json_end = response_text.rfind("}")

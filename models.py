@@ -1,6 +1,10 @@
 from typing import List, Optional, Dict, Tuple, Any, Protocol, runtime_checkable
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum
+import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ModelProvider(Enum):
@@ -8,6 +12,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    SARVAM = "sarvam"
 
 
 @runtime_checkable
@@ -19,7 +24,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -281,7 +286,7 @@ class OllamaProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
 
@@ -324,9 +329,9 @@ class GeminiProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
-        """Send a chat request to Google Gemini API."""
+        """Send a chat request to Google Gemini API with automatic rate limit / quota retry."""
         # Map options to Gemini parameters
         generation_config = {}
         if options:
@@ -346,8 +351,105 @@ class GeminiProvider:
             role = "user" if msg["role"] == "user" else "model"
             gemini_messages.append({"role": role, "parts": [msg["content"]]})
 
-        # Send the chat request
-        response = gemini_model.generate_content(gemini_messages)
+        max_retries = 8
+        base_delay = 10
+        for attempt in range(max_retries):
+            try:
+                # Send the chat request
+                response = gemini_model.generate_content(gemini_messages)
+                return {"message": {"role": "assistant", "content": response.text}}
+            except Exception as e:
+                # If we're out of attempts, raise
+                if attempt == max_retries - 1:
+                    raise e
 
-        # Convert Gemini response to Ollama-like format for compatibility
-        return {"message": {"role": "assistant", "content": response.text}}
+                # Check if it's a rate limit or quota issue
+                err_str = str(e).lower()
+                if (
+                    "quota" in err_str
+                    or "429" in err_str
+                    or "exhausted" in err_str
+                    or "rate limit" in err_str
+                ):
+                    delay = base_delay * (2**attempt)
+                    logger.warning(
+                        f"⚠️ Gemini API quota exceeded or rate limit hit. Retrying in {delay} seconds (attempt {attempt + 1}/{max_retries})..."
+                    )
+                    time.sleep(delay)
+                else:
+                    raise e
+
+
+class SarvamProvider:
+    """Sarvam AI API provider implementation using the official sarvamai SDK.
+
+    Supported models (as of 2026):
+        - sarvam-30b: High-performance multilingual LLM (64K context window)
+        - sarvam-105b: Flagship model with advanced reasoning (128K context window)
+
+    Authentication is via the `api-subscription-key` parameter.
+    See: https://docs.sarvam.ai/
+    """
+
+    def __init__(self, api_key: str):
+        from sarvamai import SarvamAI
+
+        self.client = SarvamAI(api_subscription_key=api_key)
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Send a chat request to Sarvam AI via the official SDK with automatic retry."""
+        # Build the completion kwargs
+        completion_kwargs: Dict[str, Any] = {
+            "model": model,
+            "messages": [
+                {"role": msg["role"], "content": msg["content"]} for msg in messages
+            ],
+        }
+
+        if options:
+            if "temperature" in options:
+                completion_kwargs["temperature"] = options["temperature"]
+            if "top_p" in options:
+                completion_kwargs["top_p"] = options["top_p"]
+
+        max_retries = 8
+        base_delay = 5
+        for attempt in range(max_retries):
+            try:
+                response = self.client.chat.completions(**completion_kwargs)
+                content = response.choices[0].message.content
+                return {"message": {"role": "assistant", "content": content}}
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise e
+
+                err_str = str(e).lower()
+                is_retryable = any(
+                    keyword in err_str
+                    for keyword in [
+                        "429",
+                        "rate limit",
+                        "quota",
+                        "500",
+                        "502",
+                        "503",
+                        "504",
+                        "timeout",
+                        "connection",
+                    ]
+                )
+                if is_retryable:
+                    delay = base_delay * (2**attempt)
+                    logger.warning(
+                        f"Sarvam AI API error (attempt {attempt + 1}/{max_retries}): {e}. "
+                        f"Retrying in {delay}s..."
+                    )
+                    time.sleep(delay)
+                else:
+                    raise e

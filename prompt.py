@@ -39,6 +39,9 @@ MODEL_PARAMETERS = {
     "gemini-2.5-pro": {"temperature": 0.1, "top_p": 0.9},
     "gemini-2.5-flash": {"temperature": 0.1, "top_p": 0.9},
     "gemini-2.5-flash-lite": {"temperature": 0.1, "top_p": 0.9},
+    # Sarvam AI models (https://docs.sarvam.ai/)
+    "sarvam-30b": {"temperature": 0.1, "top_p": 0.9},  # 64K context
+    "sarvam-105b": {"temperature": 0.1, "top_p": 0.9},  # 128K context
 }
 
 # Model provider mapping
@@ -57,7 +60,11 @@ MODEL_PROVIDER_MAPPING = {
     "gemini-2.5-flash": ModelProvider.GEMINI,
     "gemini-2.5-flash-lite": ModelProvider.GEMINI,
     "gemini-2.5-pro": ModelProvider.GEMINI,
+    # Sarvam AI models (https://docs.sarvam.ai/)
+    "sarvam-30b": ModelProvider.SARVAM,
+    "sarvam-105b": ModelProvider.SARVAM,
 }
 
 # Get API keys from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+SARVAM_API_KEY = os.getenv("SARVAM_API_KEY", "")
