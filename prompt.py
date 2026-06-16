@@ -42,6 +42,8 @@ MODEL_PARAMETERS = {
     # Sarvam AI models (https://docs.sarvam.ai/)
     "sarvam-30b": {"temperature": 0.1, "top_p": 0.9},  # 64K context
     "sarvam-105b": {"temperature": 0.1, "top_p": 0.9},  # 128K context
+    "gemini-3.5-flash": {"temperature": 0.1, "top_p": 0.9},
+    "gemini-3.1-flash-lite": {"temperature": 0.1, "top_p": 0.9},
 }
 
 # Model provider mapping
@@ -63,6 +65,8 @@ MODEL_PROVIDER_MAPPING = {
     # Sarvam AI models (https://docs.sarvam.ai/)
     "sarvam-30b": ModelProvider.SARVAM,
     "sarvam-105b": ModelProvider.SARVAM,
+    "gemini-3.5-flash": ModelProvider.GEMINI,
+    "gemini-3.1-flash-lite": ModelProvider.GEMINI,
 }
 
 # Get API keys from environment
