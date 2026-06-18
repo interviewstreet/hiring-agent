@@ -18,7 +18,12 @@ DEFAULT_PROVIDER = ModelProvider.OLLAMA
 
 # Get model and provider from environment or use defaults
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", DEFAULT_MODEL_NAME)
-PROVIDER = os.getenv("LLM_PROVIDER", DEFAULT_PROVIDER.value)
+PROVIDER = os.getenv("LLM_PROVIDER", DEFAULT_PROVIDER.value).lower()
+
+PROVIDER_ALIASES = {
+    "open-router": ModelProvider.OPENROUTER.value,
+}
+PROVIDER = PROVIDER_ALIASES.get(PROVIDER, PROVIDER)
 
 # Validate provider
 if PROVIDER not in [p.value for p in ModelProvider]:
@@ -41,6 +46,11 @@ MODEL_PARAMETERS = {
     "gemini-2.5-flash-lite": {"temperature": 0.1, "top_p": 0.9},
     "gemini-3.5-flash": {"temperature": 0.1, "top_p": 0.9},
     "gemini-3.1-flash-lite": {"temperature": 0.1, "top_p": 0.9},
+    # OpenRouter examples. Any OpenRouter model ID also works with the
+    # default parameters when LLM_PROVIDER=openrouter.
+    "anthropic/claude-sonnet-4.5": {"temperature": 0.1, "top_p": 0.9},
+    "google/gemini-2.5-pro": {"temperature": 0.1, "top_p": 0.9},
+    "deepseek/deepseek-chat-v3.1": {"temperature": 0.1, "top_p": 0.9},
 }
 
 # Model provider mapping
@@ -61,7 +71,15 @@ MODEL_PROVIDER_MAPPING = {
     "gemini-2.5-pro": ModelProvider.GEMINI,
     "gemini-3.5-flash": ModelProvider.GEMINI,
     "gemini-3.1-flash-lite": ModelProvider.GEMINI,
+    # OpenRouter examples. Any unmapped model uses LLM_PROVIDER.
+    "anthropic/claude-sonnet-4.5": ModelProvider.OPENROUTER,
+    "google/gemini-2.5-pro": ModelProvider.OPENROUTER,
+    "deepseek/deepseek-chat-v3.1": ModelProvider.OPENROUTER,
 }
 
 # Get API keys from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+OPENROUTER_HTTP_REFERER = os.getenv("OPENROUTER_HTTP_REFERER")
+OPENROUTER_APP_TITLE = os.getenv("OPENROUTER_APP_TITLE", "hiring-agent")
