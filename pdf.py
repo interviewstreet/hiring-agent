@@ -36,7 +36,6 @@ logger = logging.getLogger(__name__)
 
 
 class PDFHandler:
-
     def __init__(self):
         self.template_manager = TemplateManager()
         self._initialize_llm_provider()
@@ -294,7 +293,10 @@ class PDFHandler:
                 complete_resume.update(section_data)
                 logger.debug(f"✅ Successfully extracted {section_name} section")
             else:
-                logger.error(f"⚠️ Failed to extract {section_name} section")
+                logger.error(
+                    f"⚠️ Failed to extract {section_name} section. Aborting extraction to prevent partial/invalid resume data."
+                )
+                return None
 
         try:
             if complete_resume.get("basics") and isinstance(

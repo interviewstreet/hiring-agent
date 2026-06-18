@@ -188,6 +188,20 @@ def _evaluate_resume(
     return evaluation_result
 
 
+def is_valid_resume_data(resume_data: JSONResume) -> bool:
+    """Check if the resume data has at least some extracted core content."""
+    if not resume_data:
+        return False
+    core_sections = [
+        resume_data.basics,
+        resume_data.work,
+        resume_data.education,
+        resume_data.skills,
+        resume_data.projects,
+    ]
+    return any(section is not None for section in core_sections)
+
+
 def find_profile(profiles, network):
     if not profiles:
         return None
@@ -206,12 +220,30 @@ def main(pdf_path):
         f"cache/githubcache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
     )
 
+    resume_data = None
+    cache_loaded = False
+
     # Check if cache exists and we're in development mode
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
         print(f"Loading cached data from {cache_filename}")
-        cached_data = json.loads(Path(cache_filename).read_text())
-        resume_data = JSONResume(**cached_data)
-    else:
+        try:
+            cached_data = json.loads(Path(cache_filename).read_text(encoding="utf-8"))
+            loaded_resume = JSONResume(**cached_data)
+            if not is_valid_resume_data(loaded_resume):
+                raise ValueError("Cached resume data contains no core content")
+            resume_data = loaded_resume
+            cache_loaded = True
+        except Exception as e:
+            print(f"⚠️ Warning: Invalid cache file {cache_filename}: {e}")
+            print("Ignoring cache and reprocessing PDF...")
+            try:
+                os.remove(cache_filename)
+            except Exception as delete_err:
+                print(
+                    f"Failed to delete invalid cache file {cache_filename}: {delete_err}"
+                )
+
+    if not cache_loaded:
         logger.debug(
             f"Extracting data from PDF"
             + (" and caching to " + cache_filename if DEVELOPMENT_MODE else "")
@@ -223,23 +255,45 @@ def main(pdf_path):
             return None
 
         if DEVELOPMENT_MODE:
-            os.makedirs(os.path.dirname(cache_filename), exist_ok=True)
-            Path(cache_filename).write_text(
-                json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False),
-                encoding='utf-8'
-            )
+            if is_valid_resume_data(resume_data):
+                os.makedirs(os.path.dirname(cache_filename), exist_ok=True)
+                Path(cache_filename).write_text(
+                    json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+            else:
+                logger.warning(
+                    "Newly extracted resume data is empty/invalid. Skipping cache write."
+                )
 
     # Check if cache exists and we're in development mode
     github_data = {}
+    github_cache_loaded = False
     if DEVELOPMENT_MODE and os.path.exists(github_cache_filename):
         print(f"Loading cached data from {github_cache_filename}")
-        github_data = json.loads(Path(github_cache_filename).read_text())
-    else:
-        print(
-            f"Fetching GitHub data"
-            + (" and caching to " + github_cache_filename if DEVELOPMENT_MODE else "")
-        )
+        try:
+            loaded_github = json.loads(
+                Path(github_cache_filename).read_text(encoding="utf-8")
+            )
+            if (
+                not isinstance(loaded_github, dict)
+                or not loaded_github
+                or "profile" not in loaded_github
+            ):
+                raise ValueError("Cached GitHub data is invalid or empty")
+            github_data = loaded_github
+            github_cache_loaded = True
+        except Exception as e:
+            print(f"⚠️ Warning: Invalid GitHub cache file {github_cache_filename}: {e}")
+            print("Ignoring GitHub cache and refetching...")
+            try:
+                os.remove(github_cache_filename)
+            except Exception as delete_err:
+                print(
+                    f"Failed to delete invalid GitHub cache file {github_cache_filename}: {delete_err}"
+                )
 
+    if not github_cache_loaded:
         # Add validation to handle None values
         profiles = []
         if resume_data and hasattr(resume_data, "basics") and resume_data.basics:
@@ -247,13 +301,27 @@ def main(pdf_path):
         github_profile = find_profile(profiles, "Github")
 
         if github_profile:
-            github_data = fetch_and_display_github_info(github_profile.url)
-        if DEVELOPMENT_MODE:
-            os.makedirs(os.path.dirname(github_cache_filename), exist_ok=True)
-            Path(github_cache_filename).write_text(
-                json.dumps(github_data, indent=2, ensure_ascii=False),
-                encoding='utf-8'
+            print(
+                f"Fetching GitHub data"
+                + (
+                    " and caching to " + github_cache_filename
+                    if DEVELOPMENT_MODE
+                    else ""
+                )
             )
+            github_data = fetch_and_display_github_info(github_profile.url)
+
+            if (
+                DEVELOPMENT_MODE
+                and github_data
+                and isinstance(github_data, dict)
+                and "profile" in github_data
+            ):
+                os.makedirs(os.path.dirname(github_cache_filename), exist_ok=True)
+                Path(github_cache_filename).write_text(
+                    json.dumps(github_data, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
 
     score = _evaluate_resume(resume_data, github_data)
 
