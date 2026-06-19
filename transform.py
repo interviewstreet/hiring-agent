@@ -657,11 +657,14 @@ def transform_evaluation_response(
 
     # Extract GitHub data
     if github_data:
-        csv_row["github_repos"] = github_data.get("public_repos", 0)
-        csv_row["github_followers"] = github_data.get("followers", 0)
-        csv_row["github_following"] = github_data.get("following", 0)
-        csv_row["github_created_at"] = github_data.get("created_at", "")
-        csv_row["github_bio"] = github_data.get("bio", "")
+        # Profile stats live under github_data["profile"] (see
+        # github.fetch_and_display_github_info), not at the top level.
+        github_profile_data = github_data.get("profile", {})
+        csv_row["github_repos"] = github_profile_data.get("public_repos", 0)
+        csv_row["github_followers"] = github_profile_data.get("followers", 0)
+        csv_row["github_following"] = github_profile_data.get("following", 0)
+        csv_row["github_created_at"] = github_profile_data.get("created_at", "")
+        csv_row["github_bio"] = github_profile_data.get("bio", "")
     else:
         csv_row["github_repos"] = 0
         csv_row["github_followers"] = 0
