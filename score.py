@@ -58,15 +58,14 @@ def print_evaluation_results(
     if hasattr(evaluation, "bonus_points") and evaluation.bonus_points:
         total_score += evaluation.bonus_points.total
 
-    # Subtract deductions
+    # Subtract deductions (clamp negative values to zero)
     if hasattr(evaluation, "deductions") and evaluation.deductions:
-        total_score -= evaluation.deductions.total
+        deduction_total = max(0, evaluation.deductions.total)
+        total_score -= deduction_total
 
-    # Ensure total score doesn't exceed maximum possible score
+    # Ensure total score stays within valid bounds
     max_possible_score = max_score + 20  # 120 (100 categories + 20 bonus)
-    if total_score > max_possible_score:
-        total_score = max_possible_score
-        print(f"⚠️  Warning: Total score capped at maximum possible value")
+    total_score = max(0, min(total_score, max_possible_score))
 
     # Overall Score
     print(f"\n🎯 OVERALL SCORE: {total_score:.1f}/{max_score}")

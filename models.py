@@ -19,7 +19,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -240,6 +240,30 @@ class Deductions(BaseModel):
     )
     reasons: str = Field(description="Reasons for deductions")
 
+    @field_validator("total", mode="before")
+    @classmethod
+    def normalize_total(cls, value):
+        """Normalize LLM deductions by parsing numeric strings and using absolute totals."""
+
+        def _error(invalid_value):
+            return ValueError(
+                "deductions.total must be a numeric value, "
+                f"received {type(invalid_value).__name__}: {invalid_value!r}"
+            )
+
+        if value is None:
+            return 0
+        if isinstance(value, bool):
+            raise _error(value)
+        if isinstance(value, (int, float)):
+            return abs(value)
+        if isinstance(value, str):
+            try:
+                return abs(float(value.strip()))
+            except ValueError:
+                raise _error(value)
+        raise _error(value)
+
 
 class EvaluationData(BaseModel):
     scores: Scores
@@ -281,7 +305,7 @@ class OllamaProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
 
@@ -324,7 +348,7 @@ class GeminiProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Google Gemini API."""
         import re
