@@ -203,12 +203,29 @@ def fetch_repo_contributors(owner: str, repo_name: str) -> list[dict]:
     try:
         api_url = f"https://api.github.com/repos/{owner}/{repo_name}/contributors"
 
-        status_code, contributors_data = _fetch_github_api(api_url)
+        # The /contributors endpoint is paginated (30 per page by default).
+        # Without paging we only ever see the first 30 contributors, which
+        # understates contributor_count/total_commit_count and can wrongly
+        # classify popular repos. Request 100 per page and follow pages until
+        # a short (or empty) page is returned.
+        per_page = 100
+        max_pages = 10  # safety cap: up to 1000 contributors
+        all_contributors: list[dict] = []
 
-        if status_code == 200:
-            return contributors_data
-        else:
-            return []
+        for page in range(1, max_pages + 1):
+            params = {"per_page": per_page, "page": page}
+            status_code, contributors_data = _fetch_github_api(api_url, params=params)
+
+            if status_code != 200 or not isinstance(contributors_data, list):
+                break
+
+            all_contributors.extend(contributors_data)
+
+            # Last page reached when fewer than a full page is returned.
+            if len(contributors_data) < per_page:
+                break
+
+        return all_contributors
 
     except Exception as e:
         logger.error(f"Error fetching contributors for {owner}/{repo_name}: {e}")
