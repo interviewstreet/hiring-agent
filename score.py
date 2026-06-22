@@ -5,6 +5,7 @@ import logging
 import csv
 from pdf import PDFHandler
 from github import fetch_and_display_github_info
+from blog import fetch_and_display_blog_info
 from models import JSONResume, EvaluationData
 from typing import List, Optional, Dict
 from evaluator import ResumeEvaluator
@@ -219,6 +220,9 @@ def main(pdf_path):
     github_cache_filename = (
         f"cache/githubcache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
     )
+    blog_cache_filename = (
+        f"cache/blogcache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
+    )
 
     resume_data = None
     cache_loaded = False
@@ -323,7 +327,44 @@ def main(pdf_path):
                     encoding="utf-8",
                 )
 
-    score = _evaluate_resume(resume_data, github_data)
+    blog_data = {}
+    if DEVELOPMENT_MODE and os.path.exists(blog_cache_filename):
+        print(f"Loading cached blog data from {blog_cache_filename}")
+        blog_data = json.loads(Path(blog_cache_filename).read_text())
+    else:
+        print(
+            f"Fetching blog data"
+            + (" and caching to " + blog_cache_filename if DEVELOPMENT_MODE else "")
+        )
+
+        profiles = []
+        if resume_data and hasattr(resume_data, "basics") and resume_data.basics:
+            profiles = resume_data.basics.profiles or []
+
+        blog_profile = None
+        for network in ["Medium", "Dev.to", "DEV Community", "Hashnode"]:
+            blog_profile = find_profile(profiles, network)
+            if blog_profile:
+                break
+                
+        # If no explicit network matched, check the urls in all profiles
+        if not blog_profile:
+            for p in profiles:
+                if p.url and ("medium.com" in p.url.lower() or "dev.to" in p.url.lower() or "hashnode.com" in p.url.lower() or "hashnode.dev" in p.url.lower()):
+                    blog_profile = p
+                    break
+
+        if blog_profile and blog_profile.url:
+            blog_data = fetch_and_display_blog_info(blog_profile.url)
+
+        if DEVELOPMENT_MODE:
+            os.makedirs(os.path.dirname(blog_cache_filename), exist_ok=True)
+            Path(blog_cache_filename).write_text(
+                json.dumps(blog_data, indent=2, ensure_ascii=False),
+                encoding='utf-8'
+            )
+
+    score = _evaluate_resume(resume_data, github_data, blog_data)
 
     # Get candidate name for display
     candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
