@@ -243,7 +243,7 @@ class Deductions(BaseModel):
     @field_validator("total", mode="before")
     @classmethod
     def normalize_total(cls, value):
-        """Normalize deductions: null->0, negatives->absolute value, non-numeric->error."""
+        """Normalize deductions: missing totals default to 0; negative totals become positive."""
 
         def _error(v):
             return ValueError(
@@ -252,9 +252,7 @@ class Deductions(BaseModel):
 
         if value is None:
             return 0
-        if isinstance(value, bool):
-            raise _error(value)
-        if isinstance(value, (int, float)):
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
             return abs(value)
         if isinstance(value, str):
             try:
