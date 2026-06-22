@@ -36,7 +36,7 @@
 
 ## Overview
 
-Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama or use Google Gemini.
+Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. It defaults to fully local **Ollama** and can also run with **Google Gemini** or, with no API key, through an already-authenticated local **Claude Code CLI** or **Codex CLI**.
 
 ---
 
@@ -85,11 +85,16 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
 
   The repository pins `.python-version` to 3.11.13.
 
-- **One LLM backend** (either of them)
+- **One LLM backend** (any one of them)
 
   - **Ollama** for local models
     Install from the [official site](https://ollama.com/), then run `ollama serve`.
   - **Google Gemini** if you have an API key, get it from [here](https://aistudio.google.com/api-keys).
+  - **Claude Code CLI** (no API key) - uses your existing Claude Code
+    subscription / session. Install from [claude.com/claude-code](https://claude.com/claude-code),
+    then run `claude` once and sign in. Verify with `claude --version`.
+  - **Codex CLI** (no API key) - uses your existing Codex session. Verify with
+    `codex --version` and sign in with `codex login` if needed.
 
 ### Quick setup with pip
 
@@ -136,12 +141,18 @@ $ cp .env.example .env
 
 **Environment variables**
 
-| Variable         | Values                                      | Description                                                            |
-| ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `LLM_PROVIDER`   | `ollama` or `gemini`                        | Chooses provider. Defaults to Ollama.                                  |
-| `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
-| `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
-| `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
+| Variable                      | Values                                                | Description                                                                  |
+| ----------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------- |
+| `LLM_PROVIDER`                | `ollama`, `gemini`, `claude_code`, or `codex`         | Chooses the provider. CLI providers are forced when set, regardless of model. |
+| `DEFAULT_MODEL`               | e.g. `gemma3:4b`, `gemini-2.5-pro`, `claude-code`, or `codex-cli` | Model name passed to the provider. Use `claude-code` or `codex-cli` for CLI mode. |
+| `CLAUDE_CODE_COMMAND`         | optional, default `claude`                            | Command or full path to the Claude Code CLI.                                |
+| `CLAUDE_CODE_TIMEOUT_SECONDS` | optional, default `300`                               | Per-call timeout for the Claude Code CLI.                                    |
+| `CLAUDE_CODE_MODEL`           | optional, e.g. `sonnet`                               | Pin a specific model for nested calls. Empty = your session default.        |
+| `CODEX_COMMAND`               | optional, default `codex`                             | Command or full path to the Codex CLI.                                      |
+| `CODEX_TIMEOUT_SECONDS`       | optional, default `300`                               | Per-call timeout for the Codex CLI.                                         |
+| `CODEX_MODEL`                 | optional                                              | Pin a specific Codex model for nested calls. Empty = Codex CLI default.     |
+| `GEMINI_API_KEY`              | string                                                | Required when `LLM_PROVIDER=gemini`.                                         |
+| `GITHUB_TOKEN`                | optional                                              | Inherits from your shell environment, improves GitHub API rate limits.      |
 
 Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
 
@@ -209,6 +220,61 @@ Provide a path to a resume PDF.
 $ python score.py /path/to/resume.pdf
 ```
 
+> On systems where `python` is not on `PATH`, use `python3` instead:
+>
+> ```bash
+> $ python3 score.py /path/to/resume.pdf
+> ```
+
+#### Run with Claude Code (no API key)
+
+Set these values in `.env`:
+
+```bash
+LLM_PROVIDER=claude_code
+DEFAULT_MODEL=claude-code
+CLAUDE_CODE_COMMAND=claude
+CLAUDE_CODE_TIMEOUT_SECONDS=300
+```
+
+Then run:
+
+```bash
+$ claude --version            # confirm the CLI is installed and signed in
+$ python3 score.py /path/to/resume.pdf
+```
+
+Each pipeline run makes **multiple** LLM calls per resume (one per resume
+section, GitHub project selection, and the final evaluation), and every call
+shells out to `claude`. Expect it to be **slower** than Ollama and to consume
+Claude Code usage accordingly. Pin a cheaper model with `CLAUDE_CODE_MODEL`
+(for example `sonnet`) to reduce cost.
+
+#### Run with Codex (no API key)
+
+Set these values in `.env`:
+
+```bash
+LLM_PROVIDER=codex
+DEFAULT_MODEL=codex-cli
+CODEX_COMMAND=codex
+CODEX_TIMEOUT_SECONDS=300
+# CODEX_MODEL=
+```
+
+Then run:
+
+```bash
+$ codex --version             # confirm the CLI is installed
+$ codex login                 # sign in if needed
+$ python3 score.py /path/to/resume.pdf
+```
+
+Codex mode uses the same shared CLI provider wrapper as Claude Code mode, but
+builds Codex-specific commands with `codex exec`, `--ephemeral`, read-only
+sandboxing, and `--output-schema` for structured calls. Leave `CODEX_MODEL`
+unset to use the Codex CLI's configured default model.
+
 What happens:
 
 1. If development mode is on, the PDF extraction result is cached to `cache/resumecache_<basename>.json`.
@@ -252,6 +318,35 @@ What happens:
 ---
 
 ## Provider details
+
+### Claude Code (no API key)
+
+- Set `LLM_PROVIDER=claude_code` and `DEFAULT_MODEL=claude-code`
+- Requires the `claude` CLI installed and authenticated; no `ANTHROPIC_API_KEY`
+  or any other key is used
+- `models.CliLLMProvider` shells out to `claude -p` in non-interactive print
+  mode with all built-in tools disabled (`--tools ""`) and project config
+  isolated (`--safe-mode`), so the nested Claude only answers the prompt; it
+  never edits files, runs commands, or acts as a recursive coding agent
+- System messages are passed through `--system-prompt`; JSON schemas
+  (`kwargs["format"]`) are passed through Claude Code's native `--json-schema`
+  flag; the CLI's stdout is adapted to the unified
+  `{"message": {"content": ...}}` shape
+- Tune with `CLAUDE_CODE_COMMAND`, `CLAUDE_CODE_TIMEOUT_SECONDS`, and the
+  optional `CLAUDE_CODE_MODEL`
+
+### Codex CLI (no API key)
+
+- Set `LLM_PROVIDER=codex` and `DEFAULT_MODEL=codex-cli`
+- Requires the `codex` CLI installed and authenticated with `codex login`; no
+  separate API key is required
+- `models.CliLLMProvider` shells out to `codex exec` with `--ephemeral`,
+  `--ignore-rules`, `--ignore-user-config`, and read-only sandboxing, so each
+  nested call behaves like a constrained text-generation step
+- JSON schemas (`kwargs["format"]`) are written to a temporary schema file and
+  passed through Codex's native `--output-schema` flag
+- Tune with `CODEX_COMMAND`, `CODEX_TIMEOUT_SECONDS`, and the optional
+  `CODEX_MODEL`
 
 ### Ollama
 
