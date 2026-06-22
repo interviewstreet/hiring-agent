@@ -8,6 +8,10 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    GROQ = "groq"
+    OPENROUTER = "openrouter"
+    MISTRAL = "mistral"
+    CEREBRAS = "cerebras"
 
 
 @runtime_checkable
@@ -351,3 +355,35 @@ class GeminiProvider:
 
         # Convert Gemini response to Ollama-like format for compatibility
         return {"message": {"role": "assistant", "content": response.text}}
+
+
+class OpenAICompatibleProvider:
+    """OpenAI-compatible API provider (Groq, OpenRouter, Mistral, Cerebras)."""
+
+    def __init__(self, api_key: str, base_url: str):
+        from openai import OpenAI
+
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Send a chat request to an OpenAI-compatible API."""
+        params: Dict[str, Any] = {"model": model, "messages": messages}
+
+        if options:
+            if "temperature" in options:
+                params["temperature"] = options["temperature"]
+            if "top_p" in options:
+                params["top_p"] = options["top_p"]
+
+        if kwargs.get("format"):
+            params["response_format"] = {"type": "json_object"}
+
+        response = self.client.chat.completions.create(**params)
+        content = response.choices[0].message.content or ""
+        return {"message": {"role": "assistant", "content": content}}
