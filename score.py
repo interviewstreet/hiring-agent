@@ -180,12 +180,17 @@ def _evaluate_resume(
         blog_text = convert_blog_data_to_text(blog_data)
         resume_text += blog_text
 
-    # Evaluate the enhanced resume
-    evaluation_result = evaluator.evaluate_resume(resume_text)
-
-    # print(evaluation_result)
-
-    return evaluation_result
+    # Evaluate the enhanced resume. If the provider returns malformed output or
+    # fails mid-request, keep the run alive and let callers record N/A scores.
+    try:
+        return evaluator.evaluate_resume(resume_text)
+    except Exception as exc:
+        logger.error(
+            "Resume evaluation failed; skipping AI score for this resume. Reason: %s",
+            exc,
+        )
+        logger.debug("Evaluation failure details", exc_info=True)
+        return None
 
 
 def is_valid_resume_data(resume_data: JSONResume) -> bool:
