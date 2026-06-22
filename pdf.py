@@ -106,6 +106,9 @@ class PDFHandler:
             response = self.provider.chat(**chat_params, **kwargs)
 
             response_text = response["message"]["content"]
+            logger.debug(
+                f"📥 Raw {section_name} response ({len(response_text) if response_text else 0} chars)"
+            )
 
             try:
                 response_text = extract_json_from_response(response_text)
@@ -117,6 +120,16 @@ class PDFHandler:
                 logger.debug(f"✅ Successfully extracted {section_name} section")
 
                 transformed_data = transform_parsed_data(parsed_data)
+
+                if not transformed_data:
+                    # Valid JSON but an empty object. Surface the raw response so an
+                    # empty section is distinguishable from a parse/extraction
+                    # failure (which is logged in the JSONDecodeError branch below).
+                    logger.warning(
+                        f"⚠️ {section_name} section returned an empty object. "
+                        f"Raw response: {response_text!r}"
+                    )
+
                 end_time = time.time()
                 total_time = end_time - start_time
                 logger.debug(
@@ -289,14 +302,21 @@ class PDFHandler:
         for section_name in sections:
             section_data = self._extract_section_data(text_content, section_name)
 
-            if section_data:
-                complete_resume.update(section_data)
-                logger.debug(f"✅ Successfully extracted {section_name} section")
-            else:
+            if section_data is None:
+                # Real extraction/parse failure: abort to avoid partial/invalid data.
                 logger.error(
                     f"⚠️ Failed to extract {section_name} section. Aborting extraction to prevent partial/invalid resume data."
                 )
                 return None
+            elif not section_data:
+                # Valid response but an empty object (e.g. a CV with no skills).
+                # Leave the section unset and continue instead of aborting the run.
+                logger.warning(
+                    f"ℹ️ {section_name} section is empty; continuing with it unset."
+                )
+            else:
+                complete_resume.update(section_data)
+                logger.debug(f"✅ Successfully extracted {section_name} section")
 
         try:
             if complete_resume.get("basics") and isinstance(
