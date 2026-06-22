@@ -245,13 +245,15 @@ class Deductions(BaseModel):
     def normalize_total(cls, value):
         """Normalize deductions: missing totals default to 0; negative totals become positive."""
 
-        def _error(v):
+        def _error(invalid_value):
             return ValueError(
-                f"deductions.total must be a numeric value, received {type(v).__name__}: {v!r}"
+                "deductions.total must be a numeric value, "
+                f"received {type(invalid_value).__name__}: {invalid_value!r}"
             )
 
         if value is None:
             return 0
+        # Exclude bool explicitly because bool is a subclass of int in Python.
         if isinstance(value, (int, float)) and not isinstance(value, bool):
             return abs(value)
         if isinstance(value, str):
