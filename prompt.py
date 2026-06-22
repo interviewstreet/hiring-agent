@@ -39,6 +39,8 @@ MODEL_PARAMETERS = {
     "gemini-2.5-pro": {"temperature": 0.1, "top_p": 0.9},
     "gemini-2.5-flash": {"temperature": 0.1, "top_p": 0.9},
     "gemini-2.5-flash-lite": {"temperature": 0.1, "top_p": 0.9},
+    "gemini-3-flash-preview": {"temperature": 0.1, "top_p": 0.9},
+    "gemini-3.1-pro-preview": {"temperature": 0.1, "top_p": 0.9},
     "gemini-3.5-flash": {"temperature": 0.1, "top_p": 0.9},
     "gemini-3.1-flash-lite": {"temperature": 0.1, "top_p": 0.9},
 }
@@ -59,9 +61,31 @@ MODEL_PROVIDER_MAPPING = {
     "gemini-2.5-flash": ModelProvider.GEMINI,
     "gemini-2.5-flash-lite": ModelProvider.GEMINI,
     "gemini-2.5-pro": ModelProvider.GEMINI,
+    "gemini-3-flash-preview": ModelProvider.GEMINI,
+    "gemini-3.1-pro-preview": ModelProvider.GEMINI,
     "gemini-3.5-flash": ModelProvider.GEMINI,
     "gemini-3.1-flash-lite": ModelProvider.GEMINI,
 }
 
 # Get API keys from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+# Supported Gemini model IDs (derived from the mapping above)
+SUPPORTED_GEMINI_MODELS = [
+    model
+    for model, provider in MODEL_PROVIDER_MAPPING.items()
+    if provider == ModelProvider.GEMINI
+]
+
+# Validate the configured Gemini model so unknown IDs fail loudly with a helpful
+# message instead of silently falling back to Ollama (see
+# llm_utils.initialize_llm_provider, which defaults unknown models to Ollama).
+if PROVIDER == ModelProvider.GEMINI.value and (
+    MODEL_PROVIDER_MAPPING.get(DEFAULT_MODEL) != ModelProvider.GEMINI
+):
+    raise ValueError(
+        f"DEFAULT_MODEL '{DEFAULT_MODEL}' is not a supported Gemini model.\n"
+        f"Supported Gemini models: {', '.join(SUPPORTED_GEMINI_MODELS)}.\n"
+        "To use a newer model, register it in MODEL_PARAMETERS and "
+        "MODEL_PROVIDER_MAPPING in prompt.py."
+    )

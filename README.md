@@ -262,7 +262,14 @@ What happens:
 ### Gemini
 
 - Set `LLM_PROVIDER=gemini`
-- Set `DEFAULT_MODEL` to a supported Gemini model, for example `gemini-2.0-flash`
+- Set `DEFAULT_MODEL` to a supported Gemini model. Supported IDs:
+  - `gemini-2.0-flash`, `gemini-2.0-flash-lite`
+  - `gemini-2.5-pro`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`
+  - `gemini-3-flash-preview`, `gemini-3.1-pro-preview`
+  - `gemini-3.5-flash`, `gemini-3.1-flash-lite`
+- If `DEFAULT_MODEL` is not one of the supported Gemini IDs, startup fails with an
+  error listing the supported models. To add a new one, register it in
+  `MODEL_PARAMETERS` and `MODEL_PROVIDER_MAPPING` in `prompt.py`.
 - Provide `GEMINI_API_KEY`
 - The wrapper in `models.GeminiProvider` adapts responses to a unified format
 
