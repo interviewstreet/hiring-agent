@@ -36,7 +36,7 @@
 
 ## Overview
 
-Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama or use Google Gemini.
+Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama, use any OpenAI-compatible server (LM Studio, vLLM, llama.cpp, LocalAI), or use Google Gemini.
 
 ---
 
@@ -85,10 +85,12 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
 
   The repository pins `.python-version` to 3.11.13.
 
-- **One LLM backend** (either of them)
+- **One LLM backend** (any of these)
 
   - **Ollama** for local models
     Install from the [official site](https://ollama.com/), then run `ollama serve`.
+  - **Any OpenAI-compatible server** ([LM Studio](https://lmstudio.ai/), [vLLM](https://docs.vllm.ai/), [llama.cpp server](https://github.com/ggerganov/llama.cpp), [LocalAI](https://localai.io/), etc.)
+    Start your server and note the base URL it reports.
   - **Google Gemini** if you have an API key, get it from [here](https://aistudio.google.com/api-keys).
 
 ### Quick setup with pip
@@ -136,12 +138,13 @@ $ cp .env.example .env
 
 **Environment variables**
 
-| Variable         | Values                                      | Description                                                            |
-| ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `LLM_PROVIDER`   | `ollama` or `gemini`                        | Chooses provider. Defaults to Ollama.                                  |
-| `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
-| `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
-| `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
+| Variable         | Values                                             | Description                                                            |
+| ---------------- | -------------------------------------------------- | ---------------------------------------------------------------------- |
+| `LLM_PROVIDER`   | `ollama`, `gemini`, or `openai`                    | Chooses provider. Defaults to Ollama.                                  |
+| `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro`        | Model name passed to the provider.                                     |
+| `GEMINI_API_KEY` | string                                             | Required when `LLM_PROVIDER=gemini`.                                   |
+| `OPENAI_BASE_URL`| URL, default `http://localhost:1234/v1`            | Base URL for the OpenAI-compatible server. Required when `LLM_PROVIDER=openai`. |
+| `GITHUB_TOKEN`   | optional                                           | Inherits from your shell environment, improves GitHub API rate limits. |
 
 Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
 
@@ -265,6 +268,14 @@ What happens:
 - Set `DEFAULT_MODEL` to a supported Gemini model, for example `gemini-2.0-flash`
 - Provide `GEMINI_API_KEY`
 - The wrapper in `models.GeminiProvider` adapts responses to a unified format
+
+### OpenAI-compatible
+
+- Set `LLM_PROVIDER=openai`
+- Set `DEFAULT_MODEL` to the model identifier your server reports (check your server's UI or `/v1/models` endpoint)
+- Set `OPENAI_BASE_URL` to your server's base URL (default: `http://localhost:1234/v1`)
+- Works with [LM Studio](https://lmstudio.ai/), [vLLM](https://docs.vllm.ai/), [llama.cpp server](https://github.com/ggerganov/llama.cpp), [LocalAI](https://localai.io/), and any OpenAI-compatible endpoint
+- The wrapper in `models.OpenAICompatibleProvider` uses the `openai` Python SDK and adapts responses to the unified format
 
 ---
 
