@@ -249,7 +249,7 @@ class Deductions(BaseModel):
         try:
             return abs(float(value))
         except (TypeError, ValueError):
-            return value
+            raise ValueError("deductions.total must be a numeric value")
 
 
 class EvaluationData(BaseModel):
