@@ -2,8 +2,9 @@
 Utility functions for LLM providers.
 """
 
+import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 from models import ModelProvider, OllamaProvider, GeminiProvider
 from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY
 
@@ -60,3 +61,59 @@ def initialize_llm_provider(model_name: str) -> Any:
     else:
         logger.info(f"🔄 Using Ollama provider with model {model_name}")
     return provider
+
+
+def parse_llm_response(
+    response_text: str, structured_output: bool = False
+) -> Union[Dict, Any]:
+    """
+    Parse LLM response, with special handling for structured output.
+
+    Args:
+        response_text: Raw response text from LLM
+        structured_output: Whether this response came from structured output
+
+    Returns:
+        Parsed data structure
+
+    Raises:
+        Exception: If parsing fails
+    """
+    if structured_output:
+        # For structured output, the response should already be valid JSON
+        try:
+            return json.loads(response_text)
+        except json.JSONDecodeError as e:
+            logger.warning(
+                f"Structured output JSON parsing failed: {e}. Trying cleanup..."
+            )
+            # Fallback to cleanup and parse
+            cleaned_text = extract_json_from_response(response_text)
+            return json.loads(cleaned_text)
+    else:
+        # Regular parsing with cleanup
+        try:
+            cleaned_text = extract_json_from_response(response_text)
+            return json.loads(cleaned_text)
+        except Exception as json_error:
+            logger.error(f"JSON parsing failed: {json_error}")
+            raise json_error
+
+
+def supports_structured_output(provider: Any, model: str) -> bool:
+    """
+    Check if the provider and model support structured output.
+
+    Args:
+        provider: LLM provider instance
+        model: Model name
+
+    Returns:
+        True if structured output is supported
+    """
+    # Only Gemini supports structured output for now
+    if isinstance(provider, GeminiProvider):
+        return hasattr(provider, "use_new_api") and provider.use_new_api
+
+    # Ollama doesn't use structured output (keep traditional JSON parsing)
+    return False

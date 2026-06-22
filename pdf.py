@@ -20,7 +20,12 @@ from models import (
     ProjectsSection,
     AwardsSection,
 )
-from llm_utils import initialize_llm_provider, extract_json_from_response
+from llm_utils import (
+    initialize_llm_provider,
+    extract_json_from_response,
+    parse_llm_response,
+    supports_structured_output,
+)
 from pymupdf_rag import to_markdown
 from typing import List, Optional, Dict, Any
 from prompt import (
@@ -108,13 +113,17 @@ class PDFHandler:
             response_text = response["message"]["content"]
 
             try:
-                response_text = extract_json_from_response(response_text)
-                json_start = response_text.find("{")
-                json_end = response_text.rfind("}")
-                if json_start != -1 and json_end != -1:
-                    response_text = response_text[json_start : json_end + 1]
-                parsed_data = json.loads(response_text)
-                logger.debug(f"✅ Successfully extracted {section_name} section")
+                # Check if we used structured output
+                used_structured_output = (
+                    return_model is not None
+                    and supports_structured_output(self.provider, DEFAULT_MODEL)
+                )
+                parsed_data = parse_llm_response(
+                    response_text, structured_output=used_structured_output
+                )
+                logger.debug(
+                    f"✅ Successfully extracted {section_name} section (structured_output: {used_structured_output})"
+                )
 
                 transformed_data = transform_parsed_data(parsed_data)
                 end_time = time.time()
@@ -124,8 +133,10 @@ class PDFHandler:
                 )
 
                 return transformed_data
-            except json.JSONDecodeError as e:
-                logger.error(f"❌ Error parsing JSON for {section_name} section: {e}")
+            except Exception as e:
+                logger.error(
+                    f"❌ Error parsing response for {section_name} section: {e}"
+                )
                 logger.error(f"Raw response: {response_text}")
                 return None
 
@@ -235,33 +246,35 @@ class PDFHandler:
 
         return section_extractors[section_name](text_content)
 
-    def _extract_single_section(
-        self, text_content: str, section_name: str, return_model=None
-    ) -> Optional[Dict]:
-        section_data = self._extract_section_data(
-            text_content, section_name, return_model
-        )
-        if section_data:
-            complete_resume = {
-                "basics": None,
-                "work": None,
-                "volunteer": None,
-                "education": None,
-                "awards": None,
-                "certificates": None,
-                "publications": None,
-                "skills": None,
-                "languages": None,
-                "interests": None,
-                "references": None,
-                "projects": None,
-                "meta": None,
-            }
+    # Not being used currently, keeping it for future reference
 
-            complete_resume.update(section_data)
-            return complete_resume
+    # def _extract_single_section(
+    #     self, text_content: str, section_name: str, return_model=None
+    # ) -> Optional[Dict]:
+    #     section_data = self._extract_section_data(
+    #         text_content, section_name, return_model
+    #     )
+    #     if section_data:
+    #         complete_resume = {
+    #             "basics": None,
+    #             "work": None,
+    #             "volunteer": None,
+    #             "education": None,
+    #             "awards": None,
+    #             "certificates": None,
+    #             "publications": None,
+    #             "skills": None,
+    #             "languages": None,
+    #             "interests": None,
+    #             "references": None,
+    #             "projects": None,
+    #             "meta": None,
+    #         }
 
-        return None
+    #         complete_resume.update(section_data)
+    #         return complete_resume
+
+    #     return None
 
     def _extract_all_sections_separately(
         self, text_content: str

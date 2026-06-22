@@ -39,6 +39,21 @@ Thanks for your interest in improving this project. Contributions are welcome, i
 * Use [Black](https://black.readthedocs.io/en/stable/) for formatting.
 * Keep functions short and focused. Prefer pure helpers for prompt assembly and transformations.
 
+### Pre-commit Hooks
+
+This project uses [pre-commit](https://pre-commit.com/) hooks to maintain code quality. The following hooks are configured:
+
+- **black**: Python code formatter to ensure consistent code style.
+
+**Setup:**
+
+1. Install pre-commit hooks: `pre-commit install`
+
+The hooks will run automatically on every commit. To manually run all hooks on all files, use:
+```bash
+pre-commit run --all-files
+```
+
 ### Prompts and Providers
 
 * Keep prompts declarative and provider agnostic.
