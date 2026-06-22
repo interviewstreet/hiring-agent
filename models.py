@@ -1,3 +1,8 @@
+import json
+import os
+import shutil
+import subprocess
+import tempfile
 from typing import List, Optional, Dict, Tuple, Any, Protocol, runtime_checkable
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum
@@ -8,6 +13,8 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    CLAUDE_CODE = "claude_code"
+    CODEX = "codex"
 
 
 @runtime_checkable
@@ -19,7 +26,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -281,7 +288,7 @@ class OllamaProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
 
@@ -324,7 +331,7 @@ class GeminiProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Google Gemini API."""
         import re
@@ -375,7 +382,7 @@ class GeminiProvider:
                 api_hint = float(match.group(1)) if match else None
 
                 # Exponential backoff: BASE_DELAY * 2^attempt, capped at MAX_DELAY
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
 
                 # Prefer the API hint when it is shorter than our computed delay
                 delay = api_hint if (api_hint and api_hint < exp_delay) else exp_delay
@@ -389,3 +396,316 @@ class GeminiProvider:
                     f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)
+
+
+class CliLLMProvider:
+    """LLM provider that routes chat requests through authenticated local CLIs.
+
+    This lets the pipeline run using an already-authenticated local agent CLI
+    session instead of Ollama, Gemini, or any API key. Backend-specific command
+    shapes are kept in this class so Claude Code and Codex share the same
+    prompt/schema/subprocess wrapper.
+
+    Responses are wrapped to match Ollama's response shape so every existing
+    consumer keeps working unchanged::
+
+        {"message": {"content": "...model output..."}}
+    """
+
+    BACKENDS = {
+        ModelProvider.CLAUDE_CODE.value: {
+            "label": "Claude Code CLI",
+            "default_command": "claude",
+            "missing_help": (
+                "Install it and sign in - an interactive `claude` session must "
+                "be authenticated first (see https://claude.com/claude-code) - "
+                "or set CLAUDE_CODE_COMMAND to the CLI's full path."
+            ),
+            "schema_output": "json_envelope",
+            "supports_system_prompt": True,
+        },
+        ModelProvider.CODEX.value: {
+            "label": "Codex CLI",
+            "default_command": "codex",
+            "missing_help": (
+                "Install it and sign in with `codex login`, or set "
+                "CODEX_COMMAND to the CLI's full path."
+            ),
+            "schema_output": "raw_json",
+            "supports_system_prompt": False,
+        },
+    }
+
+    def __init__(
+        self,
+        backend: str,
+        command: Optional[str] = None,
+        timeout: int = 300,
+        model: Optional[str] = None,
+    ):
+        if backend not in self.BACKENDS:
+            supported = ", ".join(sorted(self.BACKENDS))
+            raise ValueError(
+                f"Unsupported CLI backend '{backend}'. Use one of: {supported}"
+            )
+
+        self.backend = backend
+        self.backend_config = self.BACKENDS[backend]
+        self.command = command or self.backend_config["default_command"]
+        self.timeout = timeout
+        # Optional concrete model / alias. When None, the CLI uses its default.
+        self.model = model or None
+
+        # Fail fast with a clear, actionable message if the CLI is missing.
+        command_path = shutil.which(self.command)
+        if command_path is None:
+            raise RuntimeError(
+                f"{self.backend_config['label']} '{self.command}' was not found "
+                f"on PATH. {self.backend_config['missing_help']}"
+            )
+        self.command_path = os.path.abspath(command_path)
+
+    def _build_system_prompt(self, messages: List[Dict[str, str]]) -> Optional[str]:
+        """Extract system messages for Claude's native system prompt flag."""
+        system_parts = [
+            m.get("content", "")
+            for m in messages
+            if m.get("role") == "system" and m.get("content")
+        ]
+        return "\n\n".join(system_parts) if system_parts else None
+
+    def _format_json_schema(self, json_schema: Any = None) -> Optional[str]:
+        """Return a compact, CLI-compatible JSON schema string."""
+        if json_schema is None:
+            return None
+        if isinstance(json_schema, str):
+            try:
+                json_schema = json.loads(json_schema)
+            except json.JSONDecodeError:
+                return json_schema
+        normalized_schema = self._normalize_json_schema(json_schema)
+        return json.dumps(normalized_schema, separators=(",", ":"))
+
+    def _normalize_json_schema(self, node: Any) -> Any:
+        """Tighten Pydantic schemas for strict CLI structured-output validators."""
+        if isinstance(node, list):
+            return [self._normalize_json_schema(item) for item in node]
+        if not isinstance(node, dict):
+            return node
+
+        normalized = {
+            key: self._normalize_json_schema(value) for key, value in node.items()
+        }
+        properties = normalized.get("properties")
+        if isinstance(properties, dict):
+            normalized.setdefault("additionalProperties", False)
+            normalized["required"] = list(properties.keys())
+        return normalized
+
+    def _build_prompt(
+        self,
+        messages: List[Dict[str, str]],
+        requires_json: bool = False,
+        include_system_prompt: bool = False,
+    ) -> str:
+        """Flatten non-system chat messages into a single prompt.
+
+        Agent CLIs take a single prompt on stdin. For backends without a native
+        system prompt flag, system messages are folded into the prompt.
+        """
+        convo_parts = []
+        if include_system_prompt:
+            system_prompt = self._build_system_prompt(messages)
+            if system_prompt:
+                convo_parts.append(f"System instructions:\n{system_prompt}")
+
+        for m in messages:
+            role = m.get("role")
+            content = m.get("content", "")
+            if not content or role == "system":
+                continue
+            if role == "assistant":
+                convo_parts.append(f"Assistant (previous turn):\n{content}")
+            else:
+                convo_parts.append(content)
+
+        sections = ["\n\n".join(convo_parts)] if convo_parts else []
+
+        if requires_json:
+            sections.append(
+                "Respond with a SINGLE valid JSON object and nothing else. "
+                "Do not add explanations, comments, or prose. "
+                "Do NOT wrap the JSON in Markdown code fences (no triple "
+                "backticks of any kind). The response must strictly conform to "
+                "the JSON Schema supplied to the CLI."
+            )
+
+        return "\n\n".join(sections)
+
+    def _build_command(
+        self,
+        json_schema: Optional[str],
+        system_prompt: Optional[str],
+        temp_dir: str,
+    ) -> tuple[list[str], str]:
+        """Build backend-specific argv while sharing provider orchestration."""
+        if self.backend == ModelProvider.CLAUDE_CODE.value:
+            output_format = "json" if json_schema else "text"
+            cmd = [
+                self.command_path,
+                "-p",
+                "--input-format",
+                "text",
+                "--output-format",
+                output_format,
+                "--no-session-persistence",
+                "--safe-mode",
+            ]
+            if system_prompt:
+                cmd += ["--system-prompt", system_prompt]
+            if json_schema:
+                cmd += ["--json-schema", json_schema]
+            if self.model:
+                cmd += ["--model", self.model]
+            # Keep --tools last: "" disables all tools and is variadic-safe at
+            # the end of the argument list.
+            cmd += ["--tools", ""]
+            return cmd, os.path.expanduser("~")
+
+        if self.backend == ModelProvider.CODEX.value:
+            cmd = [
+                self.command_path,
+                "exec",
+                "--ephemeral",
+                "--ignore-user-config",
+                "--ignore-rules",
+                "--sandbox",
+                "read-only",
+                "--skip-git-repo-check",
+                "-C",
+                temp_dir,
+            ]
+            if json_schema:
+                schema_path = os.path.join(temp_dir, "output_schema.json")
+                with open(schema_path, "w", encoding="utf-8") as schema_file:
+                    schema_file.write(json_schema)
+                cmd += ["--output-schema", schema_path]
+            if self.model:
+                cmd += ["--model", self.model]
+            cmd.append("-")
+            return cmd, temp_dir
+
+        raise RuntimeError(f"Unsupported CLI backend '{self.backend}'")
+
+    def _extract_structured_content(self, content: str) -> str:
+        """Normalize backend-specific structured-output envelopes to raw JSON."""
+        if self.backend_config["schema_output"] == "json_envelope":
+            try:
+                cli_response = json.loads(content)
+            except json.JSONDecodeError as e:
+                raise RuntimeError(
+                    f"{self.backend_config['label']} returned invalid JSON output "
+                    "while structured output was requested.\n"
+                    f"Stdout:\n{content}"
+                ) from e
+
+            if cli_response.get("is_error"):
+                raise RuntimeError(
+                    f"{self.backend_config['label']} reported an error while "
+                    f"structured output was requested.\nResponse:\n{content}"
+                )
+
+            structured_output = cli_response.get("structured_output")
+            if structured_output is None:
+                result_text = cli_response.get("result")
+                if result_text:
+                    return str(result_text).strip()
+                raise RuntimeError(
+                    f"{self.backend_config['label']} did not include "
+                    f"structured_output in its JSON response.\nResponse:\n{content}"
+                )
+            return json.dumps(structured_output, ensure_ascii=False)
+
+        if self.backend_config["schema_output"] == "raw_json":
+            try:
+                return json.dumps(json.loads(content), ensure_ascii=False)
+            except json.JSONDecodeError as e:
+                raise RuntimeError(
+                    f"{self.backend_config['label']} returned invalid JSON output "
+                    "while structured output was requested.\n"
+                    f"Stdout:\n{content}"
+                ) from e
+
+        raise RuntimeError(
+            f"Unsupported schema output mode '{self.backend_config['schema_output']}'"
+        )
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Send a chat request through an authenticated local CLI.
+
+        ``options`` (temperature / top_p / stream) is accepted for interface
+        parity but ignored by CLI backends. ``kwargs["format"]`` is treated as
+        a JSON schema and passed through each CLI's native schema mechanism.
+        """
+        json_schema = self._format_json_schema(kwargs.get("format"))
+        supports_system_prompt = self.backend_config["supports_system_prompt"]
+        prompt_text = self._build_prompt(
+            messages,
+            requires_json=bool(json_schema),
+            include_system_prompt=not supports_system_prompt,
+        )
+        system_prompt = (
+            self._build_system_prompt(messages) if supports_system_prompt else None
+        )
+
+        try:
+            with tempfile.TemporaryDirectory(
+                prefix=f"{self.backend}_provider_"
+            ) as temp_dir:
+                cmd, cwd = self._build_command(json_schema, system_prompt, temp_dir)
+                result = subprocess.run(
+                    cmd,
+                    input=prompt_text,
+                    capture_output=True,
+                    text=True,
+                    timeout=self.timeout,
+                    cwd=cwd,
+                )
+        except FileNotFoundError as e:
+            raise RuntimeError(
+                f"{self.backend_config['label']} '{self.command}' was not found. "
+                f"{self.backend_config['missing_help']}"
+            ) from e
+        except subprocess.TimeoutExpired as e:
+            raise RuntimeError(
+                f"{self.backend_config['label']} timed out after {self.timeout}s. "
+                "Increase the provider timeout if your prompts are large."
+            ) from e
+
+        if result.returncode != 0:
+            stderr = (result.stderr or "").strip()
+            raise RuntimeError(
+                f"{self.backend_config['label']} exited with code "
+                f"{result.returncode}.\n"
+                f"Stderr:\n{stderr}"
+            )
+
+        content = (result.stdout or "").strip()
+        if not content:
+            stderr = (result.stderr or "").strip()
+            detail = f"\nStderr:\n{stderr}" if stderr else ""
+            raise RuntimeError(
+                f"{self.backend_config['label']} returned an empty response.{detail}"
+            )
+
+        if json_schema:
+            content = self._extract_structured_content(content)
+
+        # Match Ollama's response shape so all consumers work unchanged.
+        return {"message": {"role": "assistant", "content": content}}

@@ -3,6 +3,16 @@ import pdb
 from models import JSONResume
 
 
+def _as_list(value) -> List:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, dict):
+        return [value]
+    return []
+
+
 def transform_parsed_data(parsed_data: Dict) -> Dict:
     try:
         if isinstance(parsed_data, dict):
@@ -173,6 +183,7 @@ def extract_username_from_url(url: str, domain: str) -> str:
 
 
 def transform_work_experience(work_list: List) -> List[Dict]:
+    work_list = _as_list(work_list)
     transformed = []
     for item in work_list:
         if isinstance(item, dict):
@@ -222,6 +233,7 @@ def transform_work_experience(work_list: List) -> List[Dict]:
 
 
 def transform_organizations(org_list: List) -> List[Dict]:
+    org_list = _as_list(org_list)
     transformed = []
     for item in org_list:
         if isinstance(item, dict):
@@ -240,6 +252,7 @@ def transform_organizations(org_list: List) -> List[Dict]:
 
 
 def transform_education(edu_list: List) -> List[Dict]:
+    edu_list = _as_list(edu_list)
     transformed = []
     for item in edu_list:
         if isinstance(item, dict):
@@ -275,6 +288,7 @@ def transform_education(edu_list: List) -> List[Dict]:
 
 
 def transform_achievements(achievements_list: List) -> List[Dict]:
+    achievements_list = _as_list(achievements_list)
     transformed = []
     for item in achievements_list:
         if isinstance(item, dict):
@@ -294,6 +308,7 @@ def transform_achievements(achievements_list: List) -> List[Dict]:
 
 
 def transform_skills(skills_list: List) -> List[Dict]:
+    skills_list = _as_list(skills_list)
     transformed = []
     for item in skills_list:
         if isinstance(item, dict):
@@ -311,6 +326,7 @@ def transform_skills(skills_list: List) -> List[Dict]:
 
 
 def transform_projects(projects_list: List) -> List[Dict]:
+    projects_list = _as_list(projects_list)
     transformed = []
     for item in projects_list:
         if isinstance(item, dict):
@@ -382,7 +398,7 @@ def transform_projects_comprehensive(parsed_data: Dict) -> List[Dict]:
         projects.extend(transform_projects(parsed_data["projects"]))
 
     if "projectsOpenSource" in parsed_data:
-        for item in parsed_data["projectsOpenSource"]:
+        for item in _as_list(parsed_data["projectsOpenSource"]):
             if isinstance(item, dict):
                 skills = []
                 project_name = item.get("name", "")
