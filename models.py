@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    CLAUDE_CODE = "claude_code"
 
 
 @runtime_checkable
@@ -308,6 +309,53 @@ class OllamaProvider:
             chat_params["format"] = kwargs["format"]
 
         return self.client.chat(**chat_params)
+
+
+class ClaudeCodeProvider:
+    """LLM provider that calls the Claude Code CLI as a subprocess.
+
+    Requires no API key — uses the existing `claude` CLI authentication.
+    Run `claude` in your terminal to confirm you are logged in before using this.
+    """
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Send a chat request via the `claude -p` CLI."""
+        import subprocess
+
+        # Build a single prompt: system message first, then user messages
+        parts = []
+        for m in messages:
+            if m["role"] == "system":
+                parts.append(m["content"])
+            else:
+                parts.append(m["content"])
+        prompt = "\n\n".join(parts)
+
+        # When the caller wants a JSON response, make that explicit in the prompt
+        if kwargs.get("format") == "json":
+            prompt += "\n\nReturn valid JSON only. No markdown fences, no explanation text."
+
+        cmd = ["claude", "-p", prompt]
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"Claude Code CLI returned exit code {result.returncode}:\n{result.stderr}"
+            )
+
+        return {"message": {"role": "assistant", "content": result.stdout.strip()}}
 
 
 class GeminiProvider:

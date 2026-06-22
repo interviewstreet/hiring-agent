@@ -41,6 +41,8 @@ MODEL_PARAMETERS = {
     "gemini-2.5-flash-lite": {"temperature": 0.1, "top_p": 0.9},
     "gemini-3.5-flash": {"temperature": 0.1, "top_p": 0.9},
     "gemini-3.1-flash-lite": {"temperature": 0.1, "top_p": 0.9},
+    # Claude Code CLI — no API key needed, uses local `claude` CLI login
+    "claude-code": {"temperature": 0.1, "top_p": 0.9},
 }
 
 # Model provider mapping
@@ -61,6 +63,8 @@ MODEL_PROVIDER_MAPPING = {
     "gemini-2.5-pro": ModelProvider.GEMINI,
     "gemini-3.5-flash": ModelProvider.GEMINI,
     "gemini-3.1-flash-lite": ModelProvider.GEMINI,
+    # Claude Code CLI
+    "claude-code": ModelProvider.CLAUDE_CODE,
 }
 
 # Get API keys from environment
