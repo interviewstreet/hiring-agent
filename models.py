@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    OPENROUTER = "openrouter"
 
 
 @runtime_checkable
@@ -19,7 +20,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -281,7 +282,7 @@ class OllamaProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
 
@@ -324,7 +325,7 @@ class GeminiProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Google Gemini API."""
         import re
@@ -375,7 +376,7 @@ class GeminiProvider:
                 api_hint = float(match.group(1)) if match else None
 
                 # Exponential backoff: BASE_DELAY * 2^attempt, capped at MAX_DELAY
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
 
                 # Prefer the API hint when it is shorter than our computed delay
                 delay = api_hint if (api_hint and api_hint < exp_delay) else exp_delay
@@ -389,3 +390,122 @@ class GeminiProvider:
                     f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)
+
+
+class OpenRouterProvider:
+    """OpenRouter API provider implementation."""
+
+    API_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Send a chat request to OpenRouter."""
+        import requests
+
+        if not self.api_key:
+            raise ValueError(
+                "OPENROUTER_API_KEY is required when LLM_PROVIDER=openrouter"
+            )
+
+        openrouter_options = options.copy() if options else {}
+        stream = bool(openrouter_options.pop("stream", kwargs.pop("stream", False)))
+
+        payload = {
+            "model": model,
+            "messages": self._prepare_messages(messages, kwargs.get("format")),
+            "stream": stream,
+        }
+
+        for option in ("temperature", "top_p"):
+            if option in openrouter_options:
+                payload[option] = openrouter_options[option]
+
+        schema = kwargs.get("format")
+        if schema:
+            payload["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "hiring_agent_response",
+                    "strict": True,
+                    "schema": schema,
+                },
+            }
+            payload["structured_outputs"] = True
+
+        try:
+            return self._post(payload)
+        except requests.HTTPError as error:
+            if not schema or not self._is_response_format_error(error):
+                raise
+
+            fallback_payload = payload.copy()
+            fallback_payload["response_format"] = {"type": "json_object"}
+            fallback_payload.pop("structured_outputs", None)
+            return self._post(fallback_payload)
+
+    def _prepare_messages(
+        self, messages: List[Dict[str, str]], schema: Optional[Dict[str, Any]]
+    ) -> List[Dict[str, str]]:
+        if not schema:
+            return messages
+
+        schema_instruction = (
+            "Return only valid JSON matching the requested schema. "
+            "Do not wrap the response in markdown."
+        )
+
+        prepared_messages = [message.copy() for message in messages]
+        if prepared_messages and prepared_messages[0].get("role") == "system":
+            prepared_messages[0]["content"] = (
+                prepared_messages[0].get("content", "") + "\n\n" + schema_instruction
+            )
+        else:
+            prepared_messages.insert(
+                0, {"role": "system", "content": schema_instruction}
+            )
+        return prepared_messages
+
+    def _post(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        import requests
+
+        response = requests.post(
+            self.API_URL,
+            json=payload,
+            timeout=120,
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "X-OpenRouter-Title": "Hiring Agent",
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+        choices = data.get("choices") or []
+        if not choices or "message" not in choices[0]:
+            raise ValueError("OpenRouter response did not include a chat message")
+
+        content = choices[0]["message"].get("content", "")
+        return {"message": {"role": "assistant", "content": content}}
+
+    def _is_response_format_error(self, error: Exception) -> bool:
+        response = getattr(error, "response", None)
+        if response is None or response.status_code not in (400, 422):
+            return False
+        try:
+            body = response.text.lower()
+        except Exception:
+            body = ""
+        return (
+            "response_format" in body
+            or "structured" in body
+            or "invalid_json_schema" in body
+            or "schema" in body
+        )

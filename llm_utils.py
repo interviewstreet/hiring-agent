@@ -4,8 +4,8 @@ Utility functions for LLM providers.
 
 import logging
 from typing import Any, Dict, Optional
-from models import ModelProvider, OllamaProvider, GeminiProvider
-from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY
+from models import ModelProvider, OllamaProvider, GeminiProvider, OpenRouterProvider
+from prompt import MODEL_PROVIDER_MAPPING, PROVIDER, GEMINI_API_KEY, OPENROUTER_API_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -45,18 +45,30 @@ def initialize_llm_provider(model_name: str) -> Any:
         model_name: The name of the model to use
 
     Returns:
-        An initialized LLM provider (either OllamaProvider or GeminiProvider)
+        An initialized LLM provider
     """
-    # Default to Ollama provider
-    provider = OllamaProvider()
-    # If using Gemini and API key is available, use Gemini provider
-    model_provider = MODEL_PROVIDER_MAPPING.get(model_name, ModelProvider.OLLAMA)
+    configured_provider = (
+        ModelProvider(PROVIDER)
+        if PROVIDER in [provider.value for provider in ModelProvider]
+        else ModelProvider.OLLAMA
+    )
+    model_provider = (
+        configured_provider
+        if configured_provider != ModelProvider.OLLAMA
+        else MODEL_PROVIDER_MAPPING.get(model_name, configured_provider)
+    )
+
     if model_provider == ModelProvider.GEMINI:
         if not GEMINI_API_KEY:
             logger.warning("⚠️ Gemini API key not found. Falling back to Ollama.")
+            provider = OllamaProvider()
         else:
             logger.info(f"🔄 Using Google Gemini API provider with model {model_name}")
             provider = GeminiProvider(api_key=GEMINI_API_KEY)
+    elif model_provider == ModelProvider.OPENROUTER:
+        logger.info(f"🔄 Using OpenRouter API provider with model {model_name}")
+        provider = OpenRouterProvider(api_key=OPENROUTER_API_KEY)
     else:
         logger.info(f"🔄 Using Ollama provider with model {model_name}")
+        provider = OllamaProvider()
     return provider
