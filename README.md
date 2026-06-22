@@ -90,6 +90,7 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
   - **Ollama** for local models
     Install from the [official site](https://ollama.com/), then run `ollama serve`.
   - **Google Gemini** if you have an API key, get it from [here](https://aistudio.google.com/api-keys).
+  - **OpenAI** if you have an API key, get it from [here](https://platform.openai.com/api-keys).
 
 ### Quick setup with pip
 
@@ -138,10 +139,11 @@ $ cp .env.example .env
 
 | Variable         | Values                                      | Description                                                            |
 | ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `LLM_PROVIDER`   | `ollama` or `gemini`                        | Chooses provider. Defaults to Ollama.                                  |
-| `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
-| `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
-| `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
+| `LLM_PROVIDER`   | `ollama`, `gemini`, or `openai`                       | Chooses provider. Defaults to Ollama.                                  |
+| `DEFAULT_MODEL`  | for example `gemma3:4b`, `gemini-2.5-pro`, or `gpt-4o-mini` | Model name passed to the provider.                                     |
+| `GEMINI_API_KEY` | string                                                | Required when using Gemini models.                                     |
+| `OPENAI_API_KEY` | string                                                | Required when using OpenAI models.                                     |
+| `GITHUB_TOKEN`   | optional                                              | Inherits from your shell environment, improves GitHub API rate limits. |
 
 Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
 
@@ -265,6 +267,13 @@ What happens:
 - Set `DEFAULT_MODEL` to a supported Gemini model, for example `gemini-2.0-flash`
 - Provide `GEMINI_API_KEY`
 - The wrapper in `models.GeminiProvider` adapts responses to a unified format
+
+### OpenAI
+
+- Set `LLM_PROVIDER=openai`
+- Set `DEFAULT_MODEL` to a supported OpenAI model, for example `gpt-4o-mini`
+- Provide `OPENAI_API_KEY`
+- The wrapper in `models.OpenAIProvider` adapts Responses API output to a unified format
 
 ---
 

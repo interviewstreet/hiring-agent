@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    OPENAI = "openai"
 
 
 @runtime_checkable
@@ -351,3 +352,57 @@ class GeminiProvider:
 
         # Convert Gemini response to Ollama-like format for compatibility
         return {"message": {"role": "assistant", "content": response.text}}
+
+
+class OpenAIProvider:
+    """OpenAI LLM provider implementation."""
+
+    def __init__(self, api_key: str):
+        from openai import OpenAI
+
+        self.client = OpenAI(api_key=api_key)
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Send a chat request to OpenAI and return an Ollama-like response."""
+        instructions = "\n\n".join(
+            msg["content"] for msg in messages if msg["role"] == "system"
+        )
+        input_messages = [
+            {"role": msg["role"], "content": msg["content"]}
+            for msg in messages
+            if msg["role"] != "system"
+        ]
+
+        request_params: Dict[str, Any] = {
+            "model": model,
+            "input": input_messages,
+        }
+
+        if instructions:
+            request_params["instructions"] = instructions
+
+        if options:
+            if "temperature" in options:
+                request_params["temperature"] = options["temperature"]
+            if "top_p" in options:
+                request_params["top_p"] = options["top_p"]
+
+        if "format" in kwargs:
+            request_params["text"] = {
+                "format": {
+                    "type": "json_schema",
+                    "name": "structured_response",
+                    "schema": kwargs["format"],
+                    "strict": False,
+                }
+            }
+
+        response = self.client.responses.create(**request_params)
+
+        return {"message": {"role": "assistant", "content": response.output_text}}
