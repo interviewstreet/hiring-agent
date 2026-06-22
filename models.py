@@ -19,7 +19,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -244,18 +244,24 @@ class Deductions(BaseModel):
     @classmethod
     def normalize_total(cls, value):
         """Normalize deductions: null->0, negatives->absolute value, non-numeric->error."""
+
+        def _error(v):
+            return ValueError(
+                f"deductions.total must be a numeric value, received {type(v).__name__}: {v!r}"
+            )
+
         if value is None:
             return 0
         if isinstance(value, bool):
-            raise ValueError("deductions.total must be a numeric value")
+            raise _error(value)
         if isinstance(value, (int, float)):
             return abs(value)
         if isinstance(value, str):
             try:
                 return abs(float(value.strip()))
             except ValueError:
-                raise ValueError("deductions.total must be a numeric value")
-        raise ValueError("deductions.total must be a numeric value")
+                raise _error(value)
+        raise _error(value)
 
 
 class EvaluationData(BaseModel):
@@ -298,7 +304,7 @@ class OllamaProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
 
@@ -341,7 +347,7 @@ class GeminiProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Google Gemini API."""
         # Map options to Gemini parameters
