@@ -240,6 +240,17 @@ class Deductions(BaseModel):
     )
     reasons: str = Field(description="Reasons for deductions")
 
+    @field_validator("total", mode="before")
+    @classmethod
+    def normalize_total(cls, value):
+        """Normalize LLM-provided deductions to a non-negative number."""
+        if value is None:
+            return 0
+        try:
+            return abs(float(value))
+        except (TypeError, ValueError):
+            return value
+
 
 class EvaluationData(BaseModel):
     scores: Scores
