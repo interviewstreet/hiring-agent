@@ -286,17 +286,30 @@ class PDFHandler:
             "meta": None,
         }
 
+        # Only `basics` (candidate identity) is treated as required. Every other
+        # section is optional: many resumes legitimately omit them, and under the
+        # schema `format` constraint a small model can return an empty `{}` for any
+        # section (issue #202) -- if those were required, the abort this change
+        # fixes would still fire for them. An empty optional section is skipped
+        # (with a warning) instead of discarding every section extracted so far.
+        required_sections = {"basics"}
+
         for section_name in sections:
             section_data = self._extract_section_data(text_content, section_name)
 
             if section_data:
                 complete_resume.update(section_data)
                 logger.debug(f"✅ Successfully extracted {section_name} section")
-            else:
+            elif section_name in required_sections:
                 logger.error(
-                    f"⚠️ Failed to extract {section_name} section. Aborting extraction to prevent partial/invalid resume data."
+                    f"⚠️ Failed to extract required '{section_name}' section. "
+                    "Aborting extraction to prevent invalid resume data."
                 )
                 return None
+            else:
+                logger.warning(
+                    f"ℹ️ No '{section_name}' section found (optional). Skipping."
+                )
 
         try:
             if complete_resume.get("basics") and isinstance(
