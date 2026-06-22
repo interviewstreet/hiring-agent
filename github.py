@@ -307,6 +307,85 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
         return []
 
 
+def aggregate_external_repos(items: List[Dict], username: str) -> Dict[str, Dict]:
+    repos: Dict[str, Dict] = {}
+    for item in items:
+        repo_api_url = item.get("repository_url", "")
+        if not repo_api_url:
+            continue
+        full_name = repo_api_url.replace("https://api.github.com/repos/", "")
+        owner = full_name.split("/", 1)[0] if "/" in full_name else ""
+        # Only count contributions to other people's repositories
+        if not owner or owner.lower() == username.lower():
+            continue
+        entry = repos.setdefault(
+            full_name, {"api_url": repo_api_url, "merged_pr_count": 0}
+        )
+        entry["merged_pr_count"] += 1
+    return repos
+
+
+def fetch_external_contributions(
+    username: Optional[str], max_repos: int = 10
+) -> List[Dict]:
+    if not username:
+        return []
+
+    try:
+        api_url = "https://api.github.com/search/issues"
+        params = {
+            "q": f"author:{username} type:pr is:merged",
+            "per_page": 100,
+            "sort": "created",
+            "order": "desc",
+        }
+
+        status_code, data = _fetch_github_api(api_url, params=params)
+        if status_code != 200 or not isinstance(data, dict):
+            return []
+
+        repos = aggregate_external_repos(data.get("items", []) or [], username)
+        if not repos:
+            return []
+
+        top_repos = sorted(
+            repos.items(), key=lambda kv: kv[1]["merged_pr_count"], reverse=True
+        )[:max_repos]
+
+        contributions = []
+        for full_name, info in top_repos:
+            stars = 0
+            language = None
+            description = None
+            html_url = f"https://github.com/{full_name}"
+
+            repo_status, repo_data = _fetch_github_api(info["api_url"])
+            if repo_status == 200 and isinstance(repo_data, dict):
+                stars = repo_data.get("stargazers_count", 0)
+                language = repo_data.get("language")
+                description = repo_data.get("description")
+                html_url = repo_data.get("html_url", html_url)
+
+            contributions.append(
+                {
+                    "repo": full_name,
+                    "owner": full_name.split("/", 1)[0],
+                    "html_url": html_url,
+                    "merged_pr_count": info["merged_pr_count"],
+                    "stars": stars,
+                    "language": language,
+                    "description": description,
+                }
+            )
+
+        contributions.sort(key=lambda c: c["stars"], reverse=True)
+        return contributions
+
+    except Exception as e:
+        logger.error(f"Error fetching external contributions for {username}: {e}")
+        return []
+
+
 def generate_profile_json(profile: GitHubProfile) -> Dict:
     if not profile:
         return {}
@@ -472,10 +551,24 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
     profile_json = generate_profile_json(github_profile)
     projects_json = generate_projects_json(projects)
 
+    print(
+        "🔗 Detecting external open-source contributions (merged PRs to repos the user does not own)..."
+    )
+    username = extract_github_username(github_url)
+    external_contributions = fetch_external_contributions(username)
+    if external_contributions:
+        total_prs = sum(c["merged_pr_count"] for c in external_contributions)
+        print(
+            f"✅ Found {total_prs} merged PR(s) across {len(external_contributions)} external repositor(ies)"
+        )
+    else:
+        print("ℹ️  No external open-source contributions detected")
+
     result = {
         "profile": profile_json,
         "projects": projects_json,
         "total_projects": len(projects_json),
+        "open_source_contributions": external_contributions,
     }
 
     return result

@@ -57,7 +57,8 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 **CRITICAL RULES:**
 - Having personal GitHub repositories does NOT constitute open source contribution
 - True open source contribution means contributing to OTHER people's projects
-- When GitHub data shows all projects are 'self_project' type, open source score MUST be 10 points or less
+- When GitHub data shows all projects are 'self_project' type AND there is NO "Verified External Open-Source Contributions" section, open source score MUST be 10 points or less
+- EXCEPTION: If a "Verified External Open-Source Contributions" section is present (confirmed merged PRs to repositories the candidate does NOT own), treat those as genuine open source contributions and score this category on their significance — the stars of the contributed-to projects and the number of merged PRs — even when all of the candidate's OWN listed repos are 'self_project'
 
 ### Self Projects (0-30 points)
 **HIGH SCORES (20-30 points):**
@@ -137,8 +138,8 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 - -1 to -2 points for each project with broken or inactive links
 
 **CRITICAL ENFORCEMENT:**
-- When GitHub data shows all projects are 'self_project' type, apply 3-5 point deductions for lack of true open source contributions
-- For candidates with only personal GitHub repositories, open source score should NEVER exceed 10 points
+- When GitHub data shows all projects are 'self_project' type AND no "Verified External Open-Source Contributions" section is present, apply 3-5 point deductions for lack of true open source contributions
+- For candidates with only personal GitHub repositories and no verified external contributions, open source score should NEVER exceed 10 points
 - For candidates with only tutorial-based projects, self_projects score should NEVER exceed 15 points
 
 ## CRITICAL REQUIREMENTS
