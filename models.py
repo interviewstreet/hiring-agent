@@ -243,7 +243,7 @@ class Deductions(BaseModel):
     @field_validator("total", mode="before")
     @classmethod
     def normalize_total(cls, value):
-        """Normalize LLM-provided deductions to a non-negative number."""
+        """Normalize LLM deductions by coercing null to 0 and taking absolute value."""
         if value is None:
             return 0
         try:
