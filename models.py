@@ -243,13 +243,19 @@ class Deductions(BaseModel):
     @field_validator("total", mode="before")
     @classmethod
     def normalize_total(cls, value):
-        """Normalize LLM deductions by coercing null to 0 and taking absolute value."""
+        """Normalize deductions: null->0, negatives->absolute value, non-numeric->error."""
         if value is None:
             return 0
-        try:
-            return abs(float(value))
-        except (TypeError, ValueError):
+        if isinstance(value, bool):
             raise ValueError("deductions.total must be a numeric value")
+        if isinstance(value, (int, float)):
+            return abs(value)
+        if isinstance(value, str):
+            try:
+                return abs(float(value.strip()))
+            except ValueError:
+                raise ValueError("deductions.total must be a numeric value")
+        raise ValueError("deductions.total must be a numeric value")
 
 
 class EvaluationData(BaseModel):
