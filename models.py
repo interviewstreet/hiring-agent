@@ -243,7 +243,7 @@ class Deductions(BaseModel):
     @field_validator("total", mode="before")
     @classmethod
     def normalize_total(cls, value):
-        """Normalize deductions: missing totals default to 0; negative totals become positive."""
+        """Normalize LLM deductions by parsing numeric strings and using absolute totals."""
 
         def _error(invalid_value):
             return ValueError(
@@ -253,8 +253,9 @@ class Deductions(BaseModel):
 
         if value is None:
             return 0
-        # Exclude bool explicitly because bool is a subclass of int in Python.
-        if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if isinstance(value, bool):
+            raise _error(value)
+        if isinstance(value, (int, float)):
             return abs(value)
         if isinstance(value, str):
             try:
