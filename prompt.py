@@ -13,8 +13,11 @@ from models import ModelProvider
 load_dotenv()
 
 # Constants
-DEFAULT_MODEL_NAME = "gemma3:4b"
-DEFAULT_PROVIDER = ModelProvider.OLLAMA
+# Default model name for Gemini
+DEFAULT_MODEL_NAME = "gemini-2.0-flash"
+
+# Default provider is set to Gemini
+DEFAULT_PROVIDER = ModelProvider.GEMINI
 
 # Get model and provider from environment or use defaults
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", DEFAULT_MODEL_NAME)
