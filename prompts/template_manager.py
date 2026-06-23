@@ -6,6 +6,7 @@ section-specific resume extraction prompts.
 """
 
 import os
+from pathlib import Path
 from typing import Dict, Optional
 from jinja2 import Environment, FileSystemLoader, Template
 
@@ -33,27 +34,17 @@ class TemplateManager:
         self._load_templates()
 
     def _load_templates(self):
-        """Load all available templates."""
-        template_files = {
-            "basics": "basics.jinja",
-            "work": "work.jinja",
-            "education": "education.jinja",
-            "skills": "skills.jinja",
-            "projects": "projects.jinja",
-            "awards": "awards.jinja",
-            "system_message": "system_message.jinja",
-            "github_project_selection": "github_project_selection.jinja",
-            "resume_evaluation_criteria": "resume_evaluation_criteria.jinja",
-            "resume_evaluation_system_message": "resume_evaluation_system_message.jinja",
-        }
+        """Load all .jinja templates from the templates directory."""
+        template_dir = Path(self.template_dir)
+        if not template_dir.is_dir():
+            print(f"Template directory not found: {self.template_dir}")
+            return
 
-        for section_name, filename in template_files.items():
+        for template_path in template_dir.glob("*.jinja"):
+            section_name = template_path.stem
+            filename = template_path.name
             try:
-                template_path = os.path.join(self.template_dir, filename)
-                if os.path.exists(template_path):
-                    self._templates[section_name] = self.env.get_template(filename)
-                else:
-                    print(f"⚠️ Template file not found: {template_path}")
+                self._templates[section_name] = self.env.get_template(filename)
             except Exception as e:
                 print(f"❌ Error loading template {filename}: {e}")
 
