@@ -685,6 +685,14 @@ def transform_evaluation_response(
         csv_row["technical_skills_score"] = scores.technical_skills.score
         csv_row["technical_skills_max"] = scores.technical_skills.max
 
+        # Job match scores (if available)
+        if hasattr(scores, "job_match") and scores.job_match:
+            csv_row["job_match_score"] = scores.job_match.score
+            csv_row["job_match_max"] = scores.job_match.max
+        else:
+            csv_row["job_match_score"] = "N/A"
+            csv_row["job_match_max"] = "N/A"
+
         total_score = (
             scores.open_source.score
             + scores.self_projects.score
@@ -698,6 +706,11 @@ def transform_evaluation_response(
             + scores.technical_skills.max
         )
 
+        # Add job match to totals if available
+        if hasattr(scores, "job_match") and scores.job_match:
+            total_score += scores.job_match.score
+            total_max += scores.job_match.max
+
         csv_row["total_score"] = total_score
         csv_row["total_max"] = total_max
     else:
@@ -709,6 +722,8 @@ def transform_evaluation_response(
         csv_row["production_max"] = "N/A"
         csv_row["technical_skills_score"] = "N/A"
         csv_row["technical_skills_max"] = "N/A"
+        csv_row["job_match_score"] = "N/A"
+        csv_row["job_match_max"] = "N/A"
         csv_row["total_score"] = "N/A"
         csv_row["total_max"] = "N/A"
 
@@ -737,6 +752,17 @@ def transform_evaluation_response(
         csv_row["areas_for_improvement"] = "; ".join(evaluation.areas_for_improvement)
     else:
         csv_row["areas_for_improvement"] = ""
+
+    # Extract job description and job match analysis
+    if evaluation and hasattr(evaluation, "job_description"):
+        csv_row["job_description"] = evaluation.job_description or ""
+    else:
+        csv_row["job_description"] = ""
+
+    if evaluation and hasattr(evaluation, "job_match_analysis"):
+        csv_row["job_match_analysis"] = evaluation.job_match_analysis or ""
+    else:
+        csv_row["job_match_analysis"] = ""
 
     return csv_row
 

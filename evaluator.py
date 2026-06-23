@@ -37,17 +37,17 @@ class ResumeEvaluator:
         """Initialize the appropriate LLM provider based on the model."""
         self.provider = initialize_llm_provider(self.model_name)
 
-    def _load_evaluation_prompt(self, resume_text: str) -> str:
+    def _load_evaluation_prompt(self, resume_text: str, job_description: str = None) -> str:
         criteria_template = self.template_manager.render_template(
-            "resume_evaluation_criteria", text_content=resume_text
+            "resume_evaluation_criteria", text_content=resume_text, job_description=job_description
         )
         if criteria_template is None:
             raise ValueError("Failed to load resume evaluation criteria template")
         return criteria_template
 
-    def evaluate_resume(self, resume_text: str) -> EvaluationData:
+    def evaluate_resume(self, resume_text: str, job_description: str = None) -> EvaluationData:
         self._last_resume_text = resume_text
-        full_prompt = self._load_evaluation_prompt(resume_text)
+        full_prompt = self._load_evaluation_prompt(resume_text, job_description)
         # logger.info(f"🔤 Evaluation prompt being sent: {full_prompt}")
         try:
             system_message = self.template_manager.render_template(
