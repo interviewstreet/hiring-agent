@@ -15,6 +15,8 @@ from prompt import (
     MODEL_PARAMETERS,
     MODEL_PROVIDER_MAPPING,
     GEMINI_API_KEY,
+    RESUME_EVALUATION_ORGANIZATION,
+    RESUME_EVALUATION_ROLE,
 )
 from prompts.template_manager import TemplateManager
 
@@ -39,7 +41,10 @@ class ResumeEvaluator:
 
     def _load_evaluation_prompt(self, resume_text: str) -> str:
         criteria_template = self.template_manager.render_template(
-            "resume_evaluation_criteria", text_content=resume_text
+            "resume_evaluation_criteria",
+            text_content=resume_text,
+            role=RESUME_EVALUATION_ROLE,
+            organization=RESUME_EVALUATION_ORGANIZATION,
         )
         if criteria_template is None:
             raise ValueError("Failed to load resume evaluation criteria template")

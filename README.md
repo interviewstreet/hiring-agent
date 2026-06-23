@@ -142,6 +142,8 @@ $ cp .env.example .env
 | `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
 | `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
+| `RESUME_EVALUATION_ROLE` | for example `Software Engineer Intern` | Role used in the resume evaluation criteria prompt. Defaults to `Software Engineer Intern`. |
+| `RESUME_EVALUATION_ORGANIZATION` | for example `HackerRank` | Organization used in the resume evaluation criteria prompt. Defaults to `HackerRank`. |
 
 Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
 

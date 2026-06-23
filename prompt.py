@@ -15,6 +15,8 @@ load_dotenv()
 # Constants
 DEFAULT_MODEL_NAME = "gemma3:4b"
 DEFAULT_PROVIDER = ModelProvider.OLLAMA
+DEFAULT_RESUME_EVALUATION_ROLE = "Software Engineer Intern"
+DEFAULT_RESUME_EVALUATION_ORGANIZATION = "HackerRank"
 
 # Get model and provider from environment or use defaults
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", DEFAULT_MODEL_NAME)
@@ -65,3 +67,11 @@ MODEL_PROVIDER_MAPPING = {
 
 # Get API keys from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+# Resume evaluation context
+RESUME_EVALUATION_ROLE = os.getenv(
+    "RESUME_EVALUATION_ROLE", DEFAULT_RESUME_EVALUATION_ROLE
+)
+RESUME_EVALUATION_ORGANIZATION = os.getenv(
+    "RESUME_EVALUATION_ORGANIZATION", DEFAULT_RESUME_EVALUATION_ORGANIZATION
+)
