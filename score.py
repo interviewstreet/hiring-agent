@@ -158,6 +158,8 @@ def print_evaluation_results(
 
     print("\n" + "=" * 80)
 
+    return total_score
+
 
 def _evaluate_resume(
     resume_data: JSONResume, github_data: dict = None, blog_data: dict = None
@@ -336,7 +338,34 @@ def main(pdf_path):
         candidate_name = resume_data.basics.name
 
     # Print evaluation results in readable format
-    print_evaluation_results(score, candidate_name)
+    calculated_total_score = print_evaluation_results(score, candidate_name)
+
+    # --- WEBHOOK DATA PREPARATION ---
+    # Extract GitHub URL safely
+    github_url = ""
+    if github_data and isinstance(github_data, dict) and "profile" in github_data:
+        github_url = github_data["profile"].get("html_url", "")
+
+    # Extract top 3 strengths and improvements
+    strengths = []
+    improvements = []
+    if score:
+        if hasattr(score, "key_strengths") and score.key_strengths:
+            strengths = score.key_strengths[:3]  # Grab top 3
+        if hasattr(score, "areas_for_improvement") and score.areas_for_improvement:
+            improvements = score.areas_for_improvement[:3]  # Grab top 3
+
+    # Build payload
+    summary_data = {
+        "name": candidate_name,
+        "score": calculated_total_score,
+        "github_url": github_url,
+        "strengths": strengths,
+        "improvements": improvements,
+    }
+
+    send_webhook_notification(summary_data)
+    # --------------------------------------
 
     if DEVELOPMENT_MODE:
         csv_row = transform_evaluation_response(
@@ -362,6 +391,58 @@ def main(pdf_path):
             writer.writerow(csv_row)
 
     return score
+
+
+import os
+import requests
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def send_webhook_notification(candidate_summary):
+    """
+    Sends a formatted summary to a Slack/Discord/Custom webhook if configured.
+    """
+    webhook_url = os.getenv("WEBHOOK_URL") or os.getenv("SLACK_WEBHOOK_URL")
+    if not webhook_url:
+        return
+
+    name = candidate_summary.get("name", "Unknown Candidate")
+    score = candidate_summary.get("score", 0)
+    github_url = candidate_summary.get("github_url", "")
+    strengths = candidate_summary.get("strengths", [])
+    improvements = candidate_summary.get("improvements", [])
+
+    # 1. Build the Header
+    message_text = f"--------------------------------------------------\n"
+    message_text += f"🚀 *New Candidate Evaluated!*\n*Name:* {name}\n"
+    message_text += f"*Score:* {score:.1f}/100\n"
+    if github_url:
+        message_text += f"*GitHub:* <{github_url}|View Profile>\n"
+    message_text += "\n"
+
+    # 2. Add Strengths (with bullet points)
+    if strengths:
+        message_text += "*✅ Key Strengths:*\n"
+        for s in strengths:
+            message_text += f"• {s}\n"
+        message_text += "\n"
+
+    # 3. Add Areas for Improvement (with bullet points)
+    if improvements:
+        message_text += "*🔧 Areas for Improvement:*\n"
+        for i in improvements:
+            message_text += f"• {i}\n"
+
+    payload = {"text": message_text.strip()}
+
+    try:
+        response = requests.post(webhook_url, json=payload, timeout=10)
+        response.raise_for_status()
+        logger.info(f"✅ Webhook notification sent successfully for {name}")
+    except requests.exceptions.RequestException as e:
+        logger.error(f"❌ Failed to send webhook notification: {e}")
 
 
 if __name__ == "__main__":
