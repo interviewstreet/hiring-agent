@@ -20,6 +20,14 @@ from config import DEVELOPMENT_MODE
 
 logger = logging.getLogger(__name__)
 
+# Force UTF-8 on stdout/stderr so emoji in print() and log messages don't crash
+# on consoles with a non-UTF-8 default codec (e.g. Windows cp1252), which would
+# otherwise raise UnicodeEncodeError and abort the run.
+for _stream in (sys.stdout, sys.stderr):
+    _reconfigure = getattr(_stream, "reconfigure", None)
+    if _reconfigure is not None:
+        _reconfigure(encoding="utf-8", errors="replace")
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)5s - %(lineno)5d - %(funcName)33s - %(levelname)5s - %(message)s",
