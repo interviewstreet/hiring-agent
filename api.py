@@ -36,6 +36,7 @@ app = FastAPI(
 # Response models
 # ---------------------------------------------------------------------------
 
+
 class CategoryScoreResponse(BaseModel):
     score: float
     max: int
@@ -69,6 +70,7 @@ class EvaluationResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Endpoint
 # ---------------------------------------------------------------------------
+
 
 @app.post(
     "/api/v1/evaluate",
@@ -166,9 +168,7 @@ async def evaluate_resume(file: UploadFile = File(..., description="Resume PDF f
             "max_score": max_score,
             "scores": evaluation.scores.model_dump() if evaluation.scores else {},
             "bonus_points": (
-                evaluation.bonus_points.model_dump()
-                if evaluation.bonus_points
-                else {}
+                evaluation.bonus_points.model_dump() if evaluation.bonus_points else {}
             ),
             "deductions": (
                 evaluation.deductions.model_dump() if evaluation.deductions else {}
@@ -213,9 +213,7 @@ async def list_models():
     return {
         "default_model": DEFAULT_MODEL,
         "available_models": list(MODEL_PARAMETERS.keys()),
-        "provider_mapping": {
-            k: v.value for k, v in MODEL_PROVIDER_MAPPING.items()
-        },
+        "provider_mapping": {k: v.value for k, v in MODEL_PROVIDER_MAPPING.items()},
     }
 
 

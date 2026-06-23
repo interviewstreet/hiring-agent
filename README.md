@@ -27,6 +27,7 @@
 - [Configuration](#configuration)
 - [How it works](#how-it-works)
 - [CLI usage](#cli-usage)
+- [API usage](#api-usage)
 - [Directory layout](#directory-layout)
 - [Provider details](#provider-details)
 - [Contributing](#contributing)
@@ -217,12 +218,88 @@ What happens:
 
 ---
 
+## API usage
+
+The same pipeline is available as a REST API built with FastAPI.
+
+### Start the server
+
+```bash
+$ source .venv/bin/activate
+$ python api.py
+```
+
+The server starts on `http://0.0.0.0:8000`. Override with env vars:
+
+```bash
+$ API_HOST=127.0.0.1 API_PORT=9000 python api.py
+```
+
+Interactive docs are available at `http://localhost:8000/docs`.
+
+### Evaluate a resume with curl
+
+```bash
+$ curl -X POST http://localhost:8000/api/v1/evaluate \
+    -F "file=@/path/to/resume.pdf"
+```
+
+### Evaluate a resume with Python requests
+
+```python
+import requests
+
+url = "http://localhost:8000/api/v1/evaluate"
+
+with open("/path/to/resume.pdf", "rb") as f:
+    resp = requests.post(url, files={"file": ("resume.pdf", f, "application/pdf")})
+
+data = resp.json()
+print(f"Candidate: {data['candidate_name']}")
+print(f"Score: {data['evaluation']['overall_score']}/{data['evaluation']['max_score']}")
+```
+
+### Response format
+
+```json
+{
+  "candidate_name": "Jane Doe",
+  "evaluation": {
+    "overall_score": 74.0,
+    "max_score": 100,
+    "scores": {
+      "open_source": { "score": 15.0, "max": 35, "evidence": "..." },
+      "self_projects": { "score": 20.0, "max": 30, "evidence": "..." },
+      "production": { "score": 25.0, "max": 25, "evidence": "..." },
+      "technical_skills": { "score": 9.0, "max": 10, "evidence": "..." }
+    },
+    "bonus_points": { "total": 5.0, "breakdown": "..." },
+    "deductions": { "total": 0.0, "reasons": "..." },
+    "key_strengths": ["..."],
+    "areas_for_improvement": ["..."]
+  },
+  "resume_data": { "basics": {...}, "work": [...], "education": [...], ... },
+  "github_data": { "profile": {...}, "projects": [...] }
+}
+```
+
+### Other endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/health` | Health check |
+| `GET` | `/api/v1/models` | List available LLM models and providers |
+| `GET` | `/docs` | Swagger UI (interactive API docs) |
+
+---
+
 ## Directory layout
 
 ```text
 .
 ├── .env.example
 ├── .python-version
+├── api.py
 ├── config.py
 ├── evaluator.py
 ├── github.py
@@ -246,7 +323,7 @@ What happens:
 ├── pymupdf_rag.py
 ├── requirements.txt
 ├── score.py
-└── transform.py
+├── transform.py
 ```
 
 ---
