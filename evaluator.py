@@ -82,6 +82,9 @@ class ResumeEvaluator:
             logger.error(f"🔤 Prompt response: {response_text}")
 
             evaluation_dict = json.loads(response_text)
+            if "deductions" in evaluation_dict and "total" in evaluation_dict["deductions"]:
+                value = evaluation_dict["deductions"]["total"]
+                evaluation_dict["deductions"]["total"] = abs(value)
             evaluation_data = EvaluationData(**evaluation_dict)
 
             return evaluation_data
