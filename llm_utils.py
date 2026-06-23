@@ -28,13 +28,31 @@ def extract_json_from_response(response_text: str) -> str:
         if think_start != -1 and think_end != -1:
             response_text = response_text[:think_start] + response_text[think_end + 8 :]
 
-    # Remove leading ```json if present
-    if response_text.startswith("```json"):
-        response_text = response_text[7:]
-    # Remove trailing ``` if present
-    if response_text.endswith("```"):
-        response_text = response_text[:-3]
-    return response_text
+    # Look for JSON code block
+    json_start = response_text.find("```json")
+    if json_start != -1:
+        json_start += 7  # Skip "```json"
+        json_end = response_text.find("```", json_start)
+        if json_end != -1:
+            response_text = response_text[json_start:json_end]
+    else:
+        # Look for JSON object starting with {
+        json_start = response_text.find("{")
+        if json_start != -1:
+            # Find the matching closing brace
+            brace_count = 0
+            json_end = json_start
+            for i, char in enumerate(response_text[json_start:], json_start):
+                if char == '{':
+                    brace_count += 1
+                elif char == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        json_end = i + 1
+                        break
+            response_text = response_text[json_start:json_end]
+    
+    return response_text.strip()
 
 
 def initialize_llm_provider(model_name: str) -> Any:
