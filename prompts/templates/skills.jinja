@@ -1,10 +1,20 @@
 Extract ONLY the skills information from this resume.
 
---- The input markdown starts here ---
+{% if context_snippet %}
+--- RESUME CONTEXT ---
+{{ context_snippet }}
+--- END CONTEXT ---
 
-{{ text_content }}
+{% endif %}
+--- TARGET SECTION: Skills ---
 
---- The input markdown ends here ---
+{{ target_section_text }}
+
+--- END TARGET SECTION ---
+
+{% if context_snippet %}
+**INSTRUCTIONS**: Using the CONTEXT for background understanding, extract ONLY the skills from the TARGET SECTION text into the required JSON format.
+{% endif %}
 
 Return ONLY a JSON object with this structure:
 {
