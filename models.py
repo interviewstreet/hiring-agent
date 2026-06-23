@@ -2,6 +2,10 @@ from typing import List, Optional, Dict, Tuple, Any, Protocol, runtime_checkable
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 
+GEMINI_MAX_RETRIES = 5
+GEMINI_BASE_DELAY_SECONDS = 10.0
+GEMINI_MAX_DELAY_SECONDS = 120.0
+
 
 class ModelProvider(Enum):
     """Enum for supported model providers."""
@@ -19,7 +23,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -268,6 +272,63 @@ class GitHubProfile(BaseModel):
     hireable: Optional[bool] = None
 
 
+def extract_gemini_retry_delay_seconds(error: Exception) -> Optional[float]:
+    """Extract Gemini retry delay hints from ResourceExhausted errors."""
+    import re
+
+    error_text = str(error)
+
+    retry_in_match = re.search(r"retry[_\s-]*in\s+([\d.]+)s", error_text, re.IGNORECASE)
+    if retry_in_match:
+        return float(retry_in_match.group(1))
+
+    retry_delay_match = re.search(
+        r"retry_delay\s*\{[^}]*seconds:\s*(\d+)(?:[^}]*nanos:\s*(\d+))?",
+        error_text,
+        re.DOTALL,
+    )
+    if retry_delay_match:
+        seconds = int(retry_delay_match.group(1))
+        nanos = int(retry_delay_match.group(2) or 0)
+        return seconds + nanos / 1_000_000_000
+
+    return None
+
+
+def calculate_gemini_retry_delay_seconds(error: Exception, attempt: int) -> float:
+    """Calculate the next retry delay without undercutting Gemini's cooldown."""
+    api_hint = extract_gemini_retry_delay_seconds(error)
+    exp_delay = min(GEMINI_BASE_DELAY_SECONDS * (2**attempt), GEMINI_MAX_DELAY_SECONDS)
+
+    if api_hint is None:
+        return exp_delay
+
+    return max(exp_delay, api_hint)
+
+
+def calculate_gemini_sleep_seconds(error: Exception, attempt: int) -> float:
+    """Calculate jittered sleep while respecting Gemini retry hints."""
+    import random
+
+    delay = calculate_gemini_retry_delay_seconds(error, attempt)
+    if delay > GEMINI_MAX_DELAY_SECONDS:
+        raise RuntimeError(
+            f"Gemini retry delay is {delay:.2f}s, above the configured "
+            f"{GEMINI_MAX_DELAY_SECONDS:.0f}s max wait. Quota may be "
+            "exhausted for a longer window."
+        ) from error
+
+    api_hint = extract_gemini_retry_delay_seconds(error)
+    jitter_min = 1.0 if api_hint else 0.8
+    return round(
+        min(
+            delay * random.uniform(jitter_min, 1.2),
+            GEMINI_MAX_DELAY_SECONDS,
+        ),
+        2,
+    )
+
+
 class OllamaProvider:
     """Ollama LLM provider implementation."""
 
@@ -281,7 +342,7 @@ class OllamaProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
 
@@ -324,17 +385,11 @@ class GeminiProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Google Gemini API."""
-        import re
         import time
-        import random
         from google.api_core.exceptions import ResourceExhausted
-
-        MAX_RETRIES = 5
-        BASE_DELAY = 10.0  # seconds — base for exponential backoff
-        MAX_DELAY = 120.0  # cap so we never wait more than 2 minutes
 
         # Map options to Gemini parameters
         generation_config = {}
@@ -355,7 +410,7 @@ class GeminiProvider:
             role = "user" if msg["role"] == "user" else "model"
             gemini_messages.append({"role": role, "parts": [msg["content"]]})
 
-        for attempt in range(MAX_RETRIES):
+        for attempt in range(GEMINI_MAX_RETRIES):
             try:
                 # Send the chat request
                 response = gemini_model.generate_content(gemini_messages)
@@ -364,28 +419,18 @@ class GeminiProvider:
                 return {"message": {"role": "assistant", "content": response.text}}
 
             except ResourceExhausted as e:
-                if attempt == MAX_RETRIES - 1:
+                if attempt == GEMINI_MAX_RETRIES - 1:
                     # All retries exhausted — re-raise the original exception.
                     # This surfaces unrecoverable quota errors (RPD, TPM, etc.)
                     # instead of silently failing or returning bad data.
                     raise
 
-                # Parse the API-suggested retry delay from the error message
-                match = re.search(r"retry[_ ]in\s+([\d.]+)s", str(e), re.IGNORECASE)
-                api_hint = float(match.group(1)) if match else None
-
-                # Exponential backoff: BASE_DELAY * 2^attempt, capped at MAX_DELAY
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
-
-                # Prefer the API hint when it is shorter than our computed delay
-                delay = api_hint if (api_hint and api_hint < exp_delay) else exp_delay
-
                 # Add ±20% randomized jitter to avoid thundering herd
-                sleep_time = round(delay * random.uniform(0.8, 1.2), 2)
+                sleep_time = calculate_gemini_sleep_seconds(e, attempt)
 
                 print(
                     f"[GeminiProvider] Rate limit hit "
-                    f"(attempt {attempt + 1}/{MAX_RETRIES}). "
+                    f"(attempt {attempt + 1}/{GEMINI_MAX_RETRIES}). "
                     f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)
