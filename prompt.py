@@ -32,6 +32,7 @@ MODEL_PARAMETERS = {
     "qwen3:4b": {"temperature": 0.1, "top_p": 0.4},
     "gemma3:4b": {"temperature": 0.1, "top_p": 0.9},
     "gemma3:12b": {"temperature": 0.1, "top_p": 0.9},
+    "qwen2.5:7b": {"temperature": 0.1, "top_p": 0.9},
     "mistral:7b": {"temperature": 0.1, "top_p": 0.9},
     # Google Gemini models
     "gemini-2.0-flash": {"temperature": 0.1, "top_p": 0.9},
@@ -52,6 +53,7 @@ MODEL_PROVIDER_MAPPING = {
     "qwen3:4b": ModelProvider.OLLAMA,
     "gemma3:4b": ModelProvider.OLLAMA,
     "gemma3:12b": ModelProvider.OLLAMA,
+    "qwen2.5:7b": ModelProvider.OLLAMA,
     "mistral:7b": ModelProvider.OLLAMA,
     # Google Gemini models
     "gemini-2.0-flash": ModelProvider.GEMINI,
