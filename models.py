@@ -226,6 +226,7 @@ class Scores(BaseModel):
     self_projects: CategoryScore
     production: CategoryScore
     technical_skills: CategoryScore
+    role_fit: Optional[CategoryScore] = None
 
 
 class BonusPoints(BaseModel):

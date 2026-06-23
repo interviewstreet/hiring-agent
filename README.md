@@ -36,7 +36,7 @@
 
 ## Overview
 
-Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama or use Google Gemini.
+Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama or use Google Gemini. Optionally, you can include a Target Role Description to get a Role Fit score.
 
 ---
 
@@ -52,7 +52,7 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
 2. `pdf.py` calls the LLM per section using Jinja templates under `prompts/templates`.
 3. `github.py` fetches profile and repos, classifies projects, and asks the LLM to select the top 7.
 4. `evaluator.py` runs a strict-scored evaluation with fairness constraints.
-5. `score.py` orchestrates everything end to end and writes CSV when development mode is on.
+5. `score.py` orchestrates everything end to end and writes CSV when development mode is on. If a Target Role Description is provided, Role Fit is computed and included in outputs.
 
 </td>
 <td>
@@ -70,6 +70,7 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
 
 - `prompts/`
   All Jinja templates for extraction and scoring.
+  Includes an optional `role_fit.jinja` used when Role Fit scoring is requested.
 
 </td>
 </tr>
@@ -215,6 +216,18 @@ What happens:
 2. If a GitHub profile is found in the resume, repositories are fetched and cached to `cache/githubcache_<basename>.json`.
 3. The evaluator prints a report and, in development mode, appends a CSV row to `resume_evaluations.csv`.
 
+### Role Fit (optional)
+
+Provide a plain-text file describing the target role. When supplied, a Role Fit score (0–20) will be computed and displayed, and two new CSV columns will be added.
+
+```bash
+$ python score.py /path/to/resume.pdf /path/to/role.txt
+```
+
+Outputs affected:
+- Console: an additional "Role Fit" category with score and evidence.
+- CSV: new columns `role_fit_score`, `role_fit_max`.
+
 ---
 
 ## Directory layout
@@ -240,6 +253,7 @@ What happens:
 │       ├── projects.jinja
 │       ├── resume_evaluation_criteria.jinja
 │       ├── resume_evaluation_system_message.jinja
+│       ├── role_fit.jinja
 │       ├── skills.jinja
 │       ├── system_message.jinja
 │       └── work.jinja
