@@ -16,6 +16,7 @@ from transform import (
     convert_github_data_to_text,
     convert_blog_data_to_text,
 )
+from explain import print_score_explanations
 from config import DEVELOPMENT_MODE
 
 logger = logging.getLogger(__name__)
@@ -337,6 +338,11 @@ def main(pdf_path):
 
     # Print evaluation results in readable format
     print_evaluation_results(score, candidate_name)
+
+    # Print a deterministic, rubric-based explanation of each score and how to
+    # improve it (does not call the LLM).
+    if score:
+        print_score_explanations(score)
 
     if DEVELOPMENT_MODE:
         csv_row = transform_evaluation_response(
