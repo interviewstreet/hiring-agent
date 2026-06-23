@@ -1,5 +1,7 @@
 from typing import Dict, List, Optional
 import pdb
+import re
+from urllib.parse import urlparse
 from models import JSONResume
 
 
@@ -96,13 +98,46 @@ def transform_parsed_data(parsed_data: Dict) -> Dict:
 
 
 def extract_domain_from_url(url: str) -> str:
+    """
+    Extract domain from URL with proper validation and sanitization.
+    
+    Args:
+        url: URL string to extract domain from
+        
+    Returns:
+        Extracted domain or empty string if invalid
+    """
+    # Input validation
+    if not url or not isinstance(url, str):
+        return ""
+    
+    # Limit input length to prevent DoS attacks
+    if len(url) > 2048:
+        return ""
+    
     try:
-        if "://" in url:
-            url = url.split("://")[1]
-        domain = url.split("/")[0]
+        # Parse URL using urllib for proper validation
+        parsed = urlparse(url)
+        
+        # Validate URL has required components
+        if not parsed.scheme or not parsed.netloc:
+            return ""
+        
+        # Only allow http/https schemes
+        if parsed.scheme not in ['http', 'https']:
+            return ""
+        
+        domain = parsed.netloc.lower()
+        
+        # Remove www. prefix if present
         if domain.startswith("www."):
             domain = domain[4:]
-        return domain
+        
+        # Validate domain format using regex
+        if re.match(r'^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', domain):
+            return domain
+        
+        return ""
     except Exception:
         return ""
 
