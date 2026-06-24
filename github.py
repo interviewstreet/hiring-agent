@@ -449,6 +449,8 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
                 "technologies": project.get("technologies", []),
                 "project_type": project.get("project_type", "self_project"),
                 "contributor_count": project.get("contributor_count", 1),
+                "author_commit_count": project.get("author_commit_count", 0),
+                "total_commit_count": project.get("total_commit_count", 0),
                 "github_details": project.get("github_details", {}),
             }
             projects_data.append(project_data)
