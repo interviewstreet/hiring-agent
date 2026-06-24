@@ -55,6 +55,34 @@ class PDFHandler:
                     doc,
                     pages=pages,
                 )
+
+                # Collect HTTP/HTTPS URIs from PDF link annotations.
+                # Many resumes embed clickable hyperlinks (e.g. display text "GitHub"
+                # pointing to https://github.com/user) that to_markdown() drops because
+                # they are annotations, not visible text. Appending them explicitly
+                # ensures the LLM can extract accurate profile URLs.
+                seen_uris: set[str] = set()
+                clickable_urls: list[str] = []
+                for page in doc:
+                    for link in page.get_links():
+                        uri = link.get("uri", "")
+                        if (
+                            uri.startswith(("http://", "https://"))
+                            and uri not in seen_uris
+                        ):
+                            seen_uris.add(uri)
+                            clickable_urls.append(uri)
+
+                if clickable_urls:
+                    url_section = (
+                        "\n\n=== CLICKABLE LINKS IN RESUME ===\n"
+                        + "\n".join(clickable_urls)
+                    )
+                    resume_text = (resume_text or "") + url_section
+                    logger.debug(
+                        f"Appended {len(clickable_urls)} clickable URL(s) from PDF annotations"
+                    )
+
                 logger.debug(
                     f"Extracted text from PDF: {len(resume_text) if resume_text else 0} characters"
                 )
