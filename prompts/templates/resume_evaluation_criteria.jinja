@@ -59,6 +59,13 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 - True open source contribution means contributing to OTHER people's projects
 - When GitHub data shows all projects are 'self_project' type, open source score MUST be 10 points or less
 
+**EXCEPTION FOR VERIFIED EXTERNAL CONTRIBUTIONS:**
+- When GitHub data includes "=== VERIFIED EXTERNAL OPEN-SOURCE CONTRIBUTIONS ===" section (merged PRs to repos the candidate doesn't own, verified via GitHub Search API), score these on their significance:
+  - High-impact: Popular projects (1000+ stars) + multiple merged PRs → 25-35 points
+  - Medium-impact: Moderate stars (100-1000) + several merged PRs → 15-24 points
+  - Low-impact: Few stars (<100) + 1-2 merged PRs → 5-10 points
+- This OVERRIDES the "all self_project → ≤10" cap when verified external contributions exist
+
 ### Self Projects (0-30 points)
 **HIGH SCORES (20-30 points):**
 - Complex projects with real-world impact
