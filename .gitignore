@@ -224,3 +224,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# my stuff
+hiring_after-2.pdf
+ll.pdf
+meet.pdf
+resume_evaluations.csv
+Resume.pdf
+Resume.tex
+working.tex
+.env
+cache

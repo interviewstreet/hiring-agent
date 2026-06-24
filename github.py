@@ -215,6 +215,92 @@ def fetch_repo_contributors(owner: str, repo_name: str) -> list[dict]:
         return []
 
 
+def fetch_external_contributions(username: str) -> List[Dict]:
+    """
+    Search for merged PRs authored by user in repos they don't own.
+    Returns list of {repo_name, repo_url, merged_pr_count, stars, language, description}
+    """
+    try:
+        query = f"author:{username} type:pr is:merged"
+        api_url = "https://api.github.com/search/issues"
+        params = {"q": query, "per_page": 100, "sort": "created", "order": "desc"}
+
+        status_code, data = _fetch_github_api(api_url, params=params)
+
+        if status_code != 200:
+            print(f"GitHub Search API error: {status_code} - {data}")
+            return []
+
+        items = data.get("items", [])
+        if not items:
+            return []
+
+        repo_pr_counts: Dict[str, Dict] = {}
+        for pr in items:
+            repo_url = pr.get("repository_url", "")
+            if not repo_url:
+                continue
+            repo_full_name = repo_url.replace("https://api.github.com/repos/", "")
+            owner, repo_name = repo_full_name.split("/", 1) if "/" in repo_full_name else (None, None)
+            if not owner or not repo_name:
+                continue
+            if owner.lower() == username.lower():
+                continue
+
+            key = f"{owner}/{repo_name}"
+            if key not in repo_pr_counts:
+                repo_pr_counts[key] = {
+                    "owner": owner,
+                    "repo_name": repo_name,
+                    "repo_full_name": key,
+                    "merged_pr_count": 0,
+                    "repo_url": f"https://github.com/{key}",
+                }
+            repo_pr_counts[key]["merged_pr_count"] += 1
+
+        sorted_repos = sorted(
+            repo_pr_counts.values(), key=lambda x: x["merged_pr_count"], reverse=True
+        )
+
+        external_contributions = []
+        for repo_info in sorted_repos[:15]:
+            repo_full_name = repo_info["repo_full_name"]
+            repo_detail_url = f"https://api.github.com/repos/{repo_full_name}"
+            status_code, repo_data = _fetch_github_api(repo_detail_url)
+            if status_code == 200:
+                external_contributions.append(
+                    {
+                        "repo_name": repo_full_name,
+                        "repo_url": repo_info["repo_url"],
+                        "merged_pr_count": repo_info["merged_pr_count"],
+                        "stars": repo_data.get("stargazers_count", 0),
+                        "language": repo_data.get("language"),
+                        "description": repo_data.get("description"),
+                    }
+                )
+            else:
+                external_contributions.append(
+                    {
+                        "repo_name": repo_full_name,
+                        "repo_url": repo_info["repo_url"],
+                        "merged_pr_count": repo_info["merged_pr_count"],
+                        "stars": 0,
+                        "language": None,
+                        "description": None,
+                    }
+                )
+
+        print(f"✅ Found {len(external_contributions)} external repos with merged PRs")
+        return external_contributions
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching external contributions: {e}")
+        return []
+    except Exception as e:
+        print(f"Unexpected error fetching external contributions: {e}")
+        return []
+
+
 def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
     try:
         username = extract_github_username(github_url)
@@ -469,12 +555,19 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
     if not projects:
         print("\n❌ No repositories found or failed to fetch repository details.")
 
+    username = extract_github_username(github_url)
+    external_contributions = []
+    if username:
+        print("🔍 Fetching external PR contributions...")
+        external_contributions = fetch_external_contributions(username)
+
     profile_json = generate_profile_json(github_profile)
     projects_json = generate_projects_json(projects)
 
     result = {
         "profile": profile_json,
         "projects": projects_json,
+        "external_contributions": external_contributions,
         "total_projects": len(projects_json),
     }
 

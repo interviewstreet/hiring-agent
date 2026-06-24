@@ -918,6 +918,20 @@ def convert_github_data_to_text(github_data: dict) -> str:
                 github_text += f"   Language: {details.get('language', 'N/A')}\n"
             github_text += "\n"
 
+    if "external_contributions" in github_data:
+        external = github_data["external_contributions"]
+        if external:
+            github_text += f"\n=== VERIFIED EXTERNAL OPEN-SOURCE CONTRIBUTIONS ===\n"
+            github_text += f"Found {len(external)} external repositories with merged PRs (via GitHub Search API):\n"
+            for i, contrib in enumerate(external, 1):
+                github_text += f"{i}. {contrib.get('repo_name', 'N/A')}\n"
+                github_text += f"   Merged PRs: {contrib.get('merged_pr_count', 0)}\n"
+                github_text += f"   Stars: {contrib.get('stars', 'N/A')}\n"
+                github_text += f"   Language: {contrib.get('language', 'N/A')}\n"
+                github_text += f"   Description: {contrib.get('description', 'N/A')}\n"
+                github_text += f"   URL: {contrib.get('repo_url', 'N/A')}\n"
+                github_text += "\n"
+
     return github_text
 
 
