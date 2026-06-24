@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    OPENAI = "openai"
 
 
 @runtime_checkable
@@ -19,7 +20,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -281,7 +282,7 @@ class OllamaProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
 
@@ -324,7 +325,7 @@ class GeminiProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Google Gemini API."""
         import re
@@ -375,7 +376,7 @@ class GeminiProvider:
                 api_hint = float(match.group(1)) if match else None
 
                 # Exponential backoff: BASE_DELAY * 2^attempt, capped at MAX_DELAY
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
 
                 # Prefer the API hint when it is shorter than our computed delay
                 delay = api_hint if (api_hint and api_hint < exp_delay) else exp_delay
@@ -389,3 +390,73 @@ class GeminiProvider:
                     f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)
+
+
+class OpenAIProvider:
+    """OpenAI API provider implementation."""
+
+    def __init__(self, api_key: str):
+        try:
+            from openai import OpenAI
+        except ModuleNotFoundError as exc:
+            raise ModuleNotFoundError(
+                "OpenAI provider requires the 'openai' package. "
+                "Install dependencies with: pip install -r requirements.txt"
+            ) from exc
+
+        self.client = OpenAI(api_key=api_key)
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Send a chat request to OpenAI."""
+
+        openai_options = options.copy() if options else {}
+        openai_options.pop("stream", None)
+
+        chat_params = {
+            "model": model,
+            "messages": messages,
+        }
+
+        if "temperature" in openai_options:
+            chat_params["temperature"] = openai_options["temperature"]
+        if "top_p" in openai_options:
+            chat_params["top_p"] = openai_options["top_p"]
+
+        if kwargs.get("stream") is not None:
+            chat_params["stream"] = kwargs["stream"]
+
+        response_format = self._build_response_format(kwargs.get("format"))
+        if response_format:
+            chat_params["response_format"] = response_format
+
+        response = self.client.chat.completions.create(**chat_params)
+        message = response.choices[0].message
+
+        return {
+            "message": {
+                "role": message.role or "assistant",
+                "content": message.content or "",
+            }
+        }
+
+    def _build_response_format(self, schema: Any) -> Optional[Dict[str, Any]]:
+        if not schema:
+            return None
+
+        if isinstance(schema, dict):
+            return {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "hiring_agent_response",
+                    "schema": schema,
+                    "strict": False,
+                },
+            }
+
+        return None

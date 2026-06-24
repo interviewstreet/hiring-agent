@@ -51,6 +51,7 @@ Thanks for your interest in improving this project. Contributions are welcome, i
 
   * One run with Ollama using the default local model.
   * One run with Gemini if you have an API key.
+  * One run with OpenAI if you have an API key.
 * Add or adjust small smoke tests that exercise each stage with minimal inputs:
 
   * PDF to Markdown

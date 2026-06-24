@@ -36,7 +36,7 @@
 
 ## Overview
 
-Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama or use Google Gemini.
+Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama or use hosted providers such as Google Gemini or OpenAI.
 
 ---
 
@@ -85,11 +85,12 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
 
   The repository pins `.python-version` to 3.11.13.
 
-- **One LLM backend** (either of them)
+- **One LLM backend**
 
   - **Ollama** for local models
     Install from the [official site](https://ollama.com/), then run `ollama serve`.
   - **Google Gemini** if you have an API key, get it from [here](https://aistudio.google.com/api-keys).
+  - **OpenAI** if you have an API key, get it from the [OpenAI API dashboard](https://platform.openai.com/api-keys).
 
 ### Quick setup with pip
 
@@ -136,12 +137,13 @@ $ cp .env.example .env
 
 **Environment variables**
 
-| Variable         | Values                                      | Description                                                            |
-| ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `LLM_PROVIDER`   | `ollama` or `gemini`                        | Chooses provider. Defaults to Ollama.                                  |
-| `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
-| `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
-| `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
+| Variable         | Values                                                  | Description                                                            |
+| ---------------- | ------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `LLM_PROVIDER`   | `ollama`, `gemini`, or `openai`                         | Chooses provider. Defaults to Ollama.                                  |
+| `DEFAULT_MODEL`  | for example `gemma3:4b`, `gemini-2.5-pro`, or `gpt-5.5` | Model name passed to the provider.                                     |
+| `GEMINI_API_KEY` | string                                                  | Required when `LLM_PROVIDER=gemini`.                                   |
+| `OPENAI_API_KEY` | string                                                  | Required when `LLM_PROVIDER=openai`.                                   |
+| `GITHUB_TOKEN`   | optional                                                | Inherits from your shell environment, improves GitHub API rate limits. |
 
 Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
 
@@ -265,6 +267,13 @@ What happens:
 - Set `DEFAULT_MODEL` to a supported Gemini model, for example `gemini-2.0-flash`
 - Provide `GEMINI_API_KEY`
 - The wrapper in `models.GeminiProvider` adapts responses to a unified format
+
+### OpenAI
+
+- Set `LLM_PROVIDER=openai`
+- Set `DEFAULT_MODEL` to a supported OpenAI model, for example `gpt-5.5`
+- Provide `OPENAI_API_KEY`
+- The wrapper in `models.OpenAIProvider` calls `chat.completions.create` and adapts responses to the unified format
 
 ---
 

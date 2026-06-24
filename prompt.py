@@ -18,11 +18,13 @@ DEFAULT_PROVIDER = ModelProvider.OLLAMA
 
 # Get model and provider from environment or use defaults
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", DEFAULT_MODEL_NAME)
-PROVIDER = os.getenv("LLM_PROVIDER", DEFAULT_PROVIDER.value)
+CONFIGURED_PROVIDER = os.getenv("LLM_PROVIDER")
+PROVIDER = CONFIGURED_PROVIDER or DEFAULT_PROVIDER.value
 
 # Validate provider
 if PROVIDER not in [p.value for p in ModelProvider]:
     PROVIDER = DEFAULT_PROVIDER.value
+    CONFIGURED_PROVIDER = None
 
 # Model-specific parameters
 MODEL_PARAMETERS = {
@@ -41,6 +43,13 @@ MODEL_PARAMETERS = {
     "gemini-2.5-flash-lite": {"temperature": 0.1, "top_p": 0.9},
     "gemini-3.5-flash": {"temperature": 0.1, "top_p": 0.9},
     "gemini-3.1-flash-lite": {"temperature": 0.1, "top_p": 0.9},
+    # OpenAI models
+    "gpt-5.5": {"temperature": 0.1, "top_p": 0.9},
+    "gpt-5.4": {"temperature": 0.1, "top_p": 0.9},
+    "gpt-4.1": {"temperature": 0.1, "top_p": 0.9},
+    "gpt-4.1-mini": {"temperature": 0.1, "top_p": 0.9},
+    "gpt-4o": {"temperature": 0.1, "top_p": 0.9},
+    "gpt-4o-mini": {"temperature": 0.1, "top_p": 0.9},
 }
 
 # Model provider mapping
@@ -61,7 +70,15 @@ MODEL_PROVIDER_MAPPING = {
     "gemini-2.5-pro": ModelProvider.GEMINI,
     "gemini-3.5-flash": ModelProvider.GEMINI,
     "gemini-3.1-flash-lite": ModelProvider.GEMINI,
+    # OpenAI models
+    "gpt-5.5": ModelProvider.OPENAI,
+    "gpt-5.4": ModelProvider.OPENAI,
+    "gpt-4.1": ModelProvider.OPENAI,
+    "gpt-4.1-mini": ModelProvider.OPENAI,
+    "gpt-4o": ModelProvider.OPENAI,
+    "gpt-4o-mini": ModelProvider.OPENAI,
 }
 
 # Get API keys from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
