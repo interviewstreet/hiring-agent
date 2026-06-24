@@ -113,6 +113,37 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 - Projects solving real-world problems
 - Projects demonstrating advanced algorithms or data structures
 
+## BULLET POINT ANALYSIS
+Analyze the individual bullet points found in the candidate's work experience and
+projects (the lines rendered with a "•" marker). For each significant bullet,
+classify it as "strong" or "weak":
+
+**STRONG bullets** follow: action verb + concrete task + measurable result
+(e.g., "Reduced API latency by 40% by introducing Redis caching across 3 services").
+
+**WEAK bullets** show one or more of these issues (list them in `issues`):
+- Vague language with no specifics ("Worked on various tasks", "Helped the team")
+- No metrics or measurable outcome
+- Passive voice ("Was responsible for...", "Tasks were completed")
+- Generic claims any candidate could make ("Team player", "Fast learner")
+- Inflated or unverifiable scope (sweeping ownership claims with no evidence)
+
+Set `authenticity_concern` to true when a bullet's scope or phrasing seems
+inflated, overly generic, or unlikely to reflect real, verifiable experience.
+
+For every WEAK bullet, provide a `suggested_rewrite` in the
+action verb + task + measurable result form. The rewrite MUST stay faithful to
+the candidate's actual work — do NOT invent metrics, numbers, or accomplishments
+that are not implied by the original bullet; if no metric exists, improve the
+structure and specificity without fabricating data.
+
+**BULLET ANALYSIS RULES:**
+- Analyze ONLY bullets that actually appear in the resume; never fabricate bullets.
+- `text` MUST be the original bullet quoted verbatim.
+- Strong bullets should have an empty `issues` list and null `suggested_rewrite`.
+- Limit the analysis to the most significant bullets (up to ~12) to keep the
+  output focused.
+
 ## BONUS POINTS (Maximum total: 20 points)
 - +5 points for Google Summer of Code (GSoC) participation
 - +3 points for Girl Script Summer of Code participation
@@ -145,7 +176,7 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 1. You MUST respond with ONLY the JSON structure below - no summary, no other fields
 2. You MUST fill ALL FOUR score categories: open_source, self_projects, production, technical_skills
 3. You MUST provide evidence for each score
-4. You MUST NOT add any other fields like "summary", "skills", "experience", etc.
+4. You MUST NOT add any other fields beyond those shown in the JSON structure below (no "summary", "skills", "experience", etc.)
 5. You MUST NOT change the field names or structure
 
 **IMPORTANT LIST CONSTRAINTS:**
@@ -177,7 +208,11 @@ Analyze the following resume and provide a JSON response with this EXACT structu
     "bonus_points": {"total": 0, "breakdown": "string"},
     "deductions": {"total": 0, "reasons": "string"},
     "key_strengths": ["strength1", "strength2", "strength3", "strength4", "strength5"],
-    "areas_for_improvement": ["improvement1", "improvement2", "improvement3"]
+    "areas_for_improvement": ["improvement1", "improvement2", "improvement3"],
+    "bullet_point_analysis": [
+        {"text": "original bullet quoted verbatim", "assessment": "weak", "issues": ["no metrics", "passive voice"], "authenticity_concern": false, "suggested_rewrite": "improved action verb + task + measurable result"},
+        {"text": "original bullet quoted verbatim", "assessment": "strong", "issues": [], "authenticity_concern": false, "suggested_rewrite": null}
+    ]
 }
 
 Resume to evaluate:

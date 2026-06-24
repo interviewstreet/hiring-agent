@@ -156,6 +156,30 @@ def print_evaluation_results(
         for i, area in enumerate(evaluation.areas_for_improvement, 1):
             print(f"  {i}. {area}")
 
+    if getattr(evaluation, "bullet_point_analysis", None):
+        bullets = evaluation.bullet_point_analysis
+        strong_bullets = [b for b in bullets if b.assessment == "strong"]
+        weak_bullets = [b for b in bullets if b.assessment == "weak"]
+
+        print(f"\n📝 BULLET POINT ANALYSIS:")
+        print("-" * 30)
+        print(f"   {len(strong_bullets)} strong, {len(weak_bullets)} weak")
+
+        if strong_bullets:
+            print(f"\n  💪 Strong bullets:")
+            for i, bullet in enumerate(strong_bullets, 1):
+                print(f"    {i}. {bullet.text}")
+
+        if weak_bullets:
+            print(f"\n  ⚠️  Weak bullets:")
+            for i, bullet in enumerate(weak_bullets, 1):
+                flag = " 🚩 authenticity concern" if bullet.authenticity_concern else ""
+                print(f"    {i}. {bullet.text}{flag}")
+                if bullet.issues:
+                    print(f"       Issues: {', '.join(bullet.issues)}")
+                if bullet.suggested_rewrite:
+                    print(f"       Rewrite: {bullet.suggested_rewrite}")
+
     print("\n" + "=" * 80)
 
 
