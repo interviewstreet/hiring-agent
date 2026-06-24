@@ -6,7 +6,7 @@ import csv
 from pdf import PDFHandler
 from github import fetch_and_display_github_info
 from models import JSONResume, EvaluationData
-from typing import List, Optional, Dict
+from typing import Optional
 from evaluator import ResumeEvaluator
 from pathlib import Path
 from prompt import DEFAULT_MODEL, MODEL_PARAMETERS
