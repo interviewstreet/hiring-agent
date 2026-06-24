@@ -5,6 +5,7 @@ from llm_utils import initialize_llm_provider, extract_json_from_response
 import logging
 import json
 import re
+import time
 
 MAX_BONUS_POINTS = 20
 MIN_FINAL_SCORE = -20
@@ -48,44 +49,53 @@ class ResumeEvaluator:
     def evaluate_resume(self, resume_text: str) -> EvaluationData:
         self._last_resume_text = resume_text
         full_prompt = self._load_evaluation_prompt(resume_text)
-        # logger.info(f"🔤 Evaluation prompt being sent: {full_prompt}")
-        try:
-            system_message = self.template_manager.render_template(
-                "resume_evaluation_system_message"
-            )
-            if system_message is None:
-                raise ValueError(
-                    "Failed to load resume evaluation system message template"
+
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                system_message = self.template_manager.render_template(
+                    "resume_evaluation_system_message"
                 )
+                if system_message is None:
+                    raise ValueError(
+                        "Failed to load resume evaluation system message template"
+                    )
 
-            # Prepare chat parameters
-            chat_params = {
-                "model": self.model_name,
-                "messages": [
-                    {"role": "system", "content": system_message},
-                    {"role": "user", "content": full_prompt},
-                ],
-                "options": {
-                    "stream": False,
-                    "temperature": self.model_params.get("temperature", 0.5),
-                    "top_p": self.model_params.get("top_p", 0.9),
-                },
-            }
+                chat_params = {
+                    "model": self.model_name,
+                    "messages": [
+                        {"role": "system", "content": system_message},
+                        {"role": "user", "content": full_prompt},
+                    ],
+                    "options": {
+                        "stream": False,
+                        "temperature": self.model_params.get("temperature", 0.5),
+                        "top_p": self.model_params.get("top_p", 0.9),
+                    },
+                }
 
-            # Add format parameter for structured output
-            kwargs = {"format": EvaluationData.model_json_schema()}
-            # Use the appropriate provider to make the API call
-            response = self.provider.chat(**chat_params, **kwargs)
+                kwargs = {"format": EvaluationData.model_json_schema()}
+                response = self.provider.chat(**chat_params, **kwargs)
 
-            response_text = response["message"]["content"]
-            response_text = extract_json_from_response(response_text)
-            logger.error(f"🔤 Prompt response: {response_text}")
+                response_text = response["message"]["content"]
+                response_text = extract_json_from_response(response_text)
+                logger.error(f"🔤 Prompt response: {response_text}")
 
-            evaluation_dict = json.loads(response_text)
-            evaluation_data = EvaluationData(**evaluation_dict)
+                evaluation_dict = json.loads(response_text)
+                evaluation_data = EvaluationData(**evaluation_dict)
 
-            return evaluation_data
+                return evaluation_data
 
-        except Exception as e:
-            logger.error(f"Error evaluating resume: {str(e)}")
-            raise
+            except Exception as e:
+                error_str = str(e)
+                if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str or "quota" in error_str.lower():
+                    retry_delay = 60  # default fallback
+                    match = re.search(r"retry.*?(\d+)s", error_str, re.IGNORECASE)
+                    if match:
+                        retry_delay = int(match.group(1)) + 2
+                    if attempt < max_retries - 1:
+                        logger.warning(f"⏳ Rate limit hit. Retrying in {retry_delay}s... (attempt {attempt + 1}/{max_retries})")
+                        time.sleep(retry_delay)
+                        continue
+                logger.error(f"Error evaluating resume: {error_str}")
+                raise
