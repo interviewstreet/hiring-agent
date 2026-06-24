@@ -1,4 +1,13 @@
-from typing import List, Optional, Dict, Tuple, Any, Protocol, runtime_checkable
+from typing import (
+    List,
+    Optional,
+    Dict,
+    Tuple,
+    Any,
+    Protocol,
+    runtime_checkable,
+    Literal,
+)
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 
@@ -241,12 +250,34 @@ class Deductions(BaseModel):
     reasons: str = Field(description="Reasons for deductions")
 
 
+class BulletPoint(BaseModel):
+    text: str = Field(
+        min_length=1, description="The original resume bullet point, quoted verbatim"
+    )
+    assessment: Literal["strong", "weak"] = Field(
+        description="Whether the bullet is strong (action verb + task + measurable result) or weak"
+    )
+    issues: List[str] = Field(
+        default_factory=list,
+        description="Reasons the bullet is weak (vague language, no metrics, passive voice, generic claim, inflated scope). Empty for strong bullets.",
+    )
+    authenticity_concern: bool = Field(
+        default=False,
+        description="True if the bullet's scope or phrasing seems inflated or not verifiable",
+    )
+    suggested_rewrite: Optional[str] = Field(
+        default=None,
+        description="An improved action-verb + measurable-result rewrite; set only for weak bullets",
+    )
+
+
 class EvaluationData(BaseModel):
     scores: Scores
     bonus_points: BonusPoints
     deductions: Deductions
     key_strengths: List[str] = Field(min_items=1, max_items=5)
     areas_for_improvement: List[str] = Field(min_items=1, max_items=5)
+    bullet_point_analysis: List[BulletPoint] = Field(default_factory=list)
 
 
 class GitHubProfile(BaseModel):
