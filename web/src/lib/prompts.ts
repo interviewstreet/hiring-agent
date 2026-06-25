@@ -16,6 +16,7 @@ export const RESUME_SCHEMA: GeminiSchema = {
       },
     },
     work: { type: "ARRAY", items: { type: "OBJECT", properties: { name: STR, position: STR, url: STR, startDate: STR, endDate: STR, summary: STR, highlights: STR_ARR } } },
+    volunteer: { type: "ARRAY", items: { type: "OBJECT", properties: { name: STR, position: STR, url: STR, startDate: STR, endDate: STR, summary: STR, highlights: STR_ARR } } },
     education: { type: "ARRAY", items: { type: "OBJECT", properties: { institution: STR, area: STR, studyType: STR, startDate: STR, endDate: STR, score: STR } } },
     skills: { type: "ARRAY", items: { type: "OBJECT", properties: { name: STR, level: STR, keywords: STR_ARR } } },
     projects: { type: "ARRAY", items: { type: "OBJECT", properties: { name: STR, description: STR, url: STR, highlights: STR_ARR, technologies: STR_ARR } } },
@@ -61,6 +62,13 @@ export function buildExtractionPrompt(resumeText: string): PromptSpec {
   };
 }
 
+// NOTE: SCORING_SYSTEM and RUBRIC are copied verbatim from the Python Jinja
+// templates to preserve scoring fidelity. Two stale bits are inherited from that
+// source and intentionally left as-is:
+//   - the prose mentions a `candidate_name` field that is NOT in EVAL_SCHEMA;
+//     Gemini's responseSchema constrains output to the schema, so it is never emitted.
+//   - it says areas_for_improvement max 3, while EvaluationSchema permits up to 5
+//     (permissive — a 1-3 item response validates fine).
 // Verbatim contents of prompts/templates/resume_evaluation_system_message.jinja
 const SCORING_SYSTEM = `You are an expert technical recruiter evaluating resumes. Provide accurate, objective evaluations based on the given criteria.
 
