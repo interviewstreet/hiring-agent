@@ -68,9 +68,7 @@ class PDFHandler:
     ) -> Optional[Dict]:
         try:
             start_time = time.time()
-            logger.debug(
-                f"🔄 Extracting {section_name} section using {DEFAULT_MODEL}..."
-            )
+            logger.debug(f"Extracting {section_name} section using {DEFAULT_MODEL}...")
 
             model_params = MODEL_PARAMETERS.get(
                 DEFAULT_MODEL, {"temperature": 0.1, "top_p": 0.9}
@@ -81,7 +79,7 @@ class PDFHandler:
             )
             if not section_system_message:
                 logger.error(
-                    f"❌ Failed to render system message template for {section_name}"
+                    f"Failed to render system message template for {section_name}"
                 )
                 return None
 
@@ -114,23 +112,23 @@ class PDFHandler:
                 if json_start != -1 and json_end != -1:
                     response_text = response_text[json_start : json_end + 1]
                 parsed_data = json.loads(response_text)
-                logger.debug(f"✅ Successfully extracted {section_name} section")
+                logger.debug(f"Successfully extracted {section_name} section")
 
                 transformed_data = transform_parsed_data(parsed_data)
                 end_time = time.time()
                 total_time = end_time - start_time
                 logger.debug(
-                    f"⏱️ Total time for separate section extraction: {total_time:.2f} seconds"
+                    f"Total time for separate section extraction: {total_time:.2f} seconds"
                 )
 
                 return transformed_data
             except json.JSONDecodeError as e:
-                logger.error(f"❌ Error parsing JSON for {section_name} section: {e}")
+                logger.error(f"Error parsing JSON for {section_name} section: {e}")
                 logger.error(f"Raw response: {response_text}")
                 return None
 
         except Exception as e:
-            logger.error(f"❌ Error calling LLM for {section_name} section: {e}")
+            logger.error(f"Error calling LLM for {section_name} section: {e}")
             return None
 
     def extract_basics_section(self, resume_text: str) -> Optional[Dict]:
@@ -138,14 +136,14 @@ class PDFHandler:
             "basics", text_content=resume_text
         )
         if not prompt:
-            logger.error("❌ Failed to render basics template")
+            logger.error("Failed to render basics template")
             return None
         return self._call_llm_for_section("basics", resume_text, prompt, BasicsSection)
 
     def extract_work_section(self, resume_text: str) -> Optional[Dict]:
         prompt = self.template_manager.render_template("work", text_content=resume_text)
         if not prompt:
-            logger.error("❌ Failed to render work template")
+            logger.error("Failed to render work template")
             return None
         return self._call_llm_for_section("work", resume_text, prompt, WorkSection)
 
@@ -154,7 +152,7 @@ class PDFHandler:
             "education", text_content=resume_text
         )
         if not prompt:
-            logger.error("❌ Failed to render education template")
+            logger.error("Failed to render education template")
             return None
         return self._call_llm_for_section(
             "education", resume_text, prompt, EducationSection
@@ -165,7 +163,7 @@ class PDFHandler:
             "skills", text_content=resume_text
         )
         if not prompt:
-            logger.error("❌ Failed to render skills template")
+            logger.error("Failed to render skills template")
             return None
         return self._call_llm_for_section("skills", resume_text, prompt, SkillsSection)
 
@@ -174,7 +172,7 @@ class PDFHandler:
             "projects", text_content=resume_text
         )
         if not prompt:
-            logger.error("❌ Failed to render projects template")
+            logger.error("Failed to render projects template")
             return None
         return self._call_llm_for_section(
             "projects", resume_text, prompt, ProjectsSection
@@ -185,7 +183,7 @@ class PDFHandler:
             "awards", text_content=resume_text
         )
         if not prompt:
-            logger.error("❌ Failed to render awards template")
+            logger.error("Failed to render awards template")
             return None
         return self._call_llm_for_section("awards", resume_text, prompt, AwardsSection)
 
@@ -198,22 +196,22 @@ class PDFHandler:
 
     def extract_json_from_pdf(self, pdf_path: str) -> Optional[JSONResume]:
         try:
-            logger.debug(f"📄 Extracting text from PDF: {pdf_path}")
+            logger.debug(f"Extracting text from PDF: {pdf_path}")
             text_content = self.extract_text_from_pdf(pdf_path)
 
             if not text_content:
-                logger.error("❌ Failed to extract text from PDF")
+                logger.error("Failed to extract text from PDF")
                 return None
 
             logger.debug(
-                f"✅ Successfully extracted {len(text_content)} characters from PDF"
+                f"Successfully extracted {len(text_content)} characters from PDF"
             )
 
-            logger.debug("🔄 Extracting all sections separately...")
+            logger.debug("Extracting all sections separately...")
             return self._extract_all_sections_separately(text_content)
 
         except Exception as e:
-            logger.error(f"❌ Error during PDF to JSON extraction: {e}")
+            logger.error(f"Error during PDF to JSON extraction: {e}")
             return None
 
     def _extract_section_data(
@@ -229,7 +227,7 @@ class PDFHandler:
         }
 
         if section_name not in section_extractors:
-            logger.error(f"❌ Invalid section name: {section_name}")
+            logger.error(f"Invalid section name: {section_name}")
             logger.error(f"Valid sections: {list(section_extractors.keys())}")
             return None
 
@@ -291,10 +289,10 @@ class PDFHandler:
 
             if section_data:
                 complete_resume.update(section_data)
-                logger.debug(f"✅ Successfully extracted {section_name} section")
+                logger.debug(f"Successfully extracted {section_name} section")
             else:
                 logger.error(
-                    f"⚠️ Failed to extract {section_name} section. Aborting extraction to prevent partial/invalid resume data."
+                    f"Failed to extract {section_name} section. Aborting extraction to prevent partial/invalid resume data."
                 )
                 return None
 
@@ -305,7 +303,7 @@ class PDFHandler:
                 try:
                     complete_resume["basics"] = Basics(**complete_resume["basics"])
                 except Exception as e:
-                    logger.error(f"❌ Error creating Basics object: {e}")
+                    logger.error(f"Error creating Basics object: {e}")
                     complete_resume["basics"] = None
 
             json_resume = JSONResume(**complete_resume)
@@ -313,11 +311,11 @@ class PDFHandler:
             end_time = time.time()
             total_time = end_time - start_time
             logger.info(
-                f"⏱️ Total time for separate section extraction: {total_time:.2f} seconds"
+                f"Total time for separate section extraction: {total_time:.2f} seconds"
             )
 
             return json_resume
 
         except Exception as e:
-            logger.error(f"❌ Error creating JSONResume object: {e}")
+            logger.error(f"Error creating JSONResume object: {e}")
             return None

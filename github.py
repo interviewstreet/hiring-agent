@@ -41,7 +41,7 @@ def _fetch_github_api(api_url, params=None):
                 raise ValueError("Cached data is empty")
             return 200, cached_data
         except Exception as e:
-            print(f"⚠️ Warning: Error reading cache file {cache_filename}: {e}")
+            print(f"[WARNING] Error reading cache file {cache_filename}: {e}")
             try:
                 os.remove(cache_filename)
             except Exception as delete_err:
@@ -77,26 +77,26 @@ def _fetch_github_api(api_url, params=None):
             max_wait = 3600
             if wait_seconds > max_wait:
                 print(
-                    f"⚠️  Rate limit reset time is too far in the future ({wait_seconds}s). Capping wait to {max_wait}s"
+                    f"[WARNING] Rate limit reset time is too far in the future ({wait_seconds}s). Capping wait to {max_wait}s"
                 )
                 wait_seconds = max_wait
 
             logger.error(
-                f"⚠️  GitHub API rate limit low: {remaining}/{limit} requests remaining. Resets at {reset_time}"
+                f"[WARNING] GitHub API rate limit low: {remaining}/{limit} requests remaining. Resets at {reset_time}"
             )
             print(
-                f"💡 Tip: Set GITHUB_TOKEN environment variable to increase rate limits (60/hour → 5000/hour)"
+                f"Tip: Set GITHUB_TOKEN environment variable to increase rate limits (60/hour → 5000/hour)"
             )
 
             if wait_seconds > 0:
                 logger.info(
-                    f"⏳ Proactively sleeping for {wait_seconds} seconds until rate limit resets..."
+                    f"Proactively sleeping for {wait_seconds} seconds until rate limit resets..."
                 )
                 time.sleep(wait_seconds)
-                print(f"✅ Rate limit should be reset now. Continuing...")
+                print(f"Rate limit should be reset now. Continuing...")
         elif remaining < 100:
             logger.info(
-                f"ℹ️  GitHub API rate limit: {remaining}/{limit} requests remaining"
+                f"GitHub API rate limit: {remaining}/{limit} requests remaining"
             )
 
     data = response.json() if response.status_code == 200 else {}
@@ -286,9 +286,9 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                 1 for p in projects if p["project_type"] == "self_project"
             )
 
-            print(f"✅ Found {len(projects)} repositories")
+            print(f"Found {len(projects)} repositories")
             print(
-                f"📊 Project classification: {open_source_count} open source, {self_project_count} self projects"
+                f"Project classification: {open_source_count} open source, {self_project_count} self projects"
             )
             return projects
 
@@ -363,7 +363,7 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
         )
 
         print(
-            f"🤖 Using LLM to select top 5 projects from {len(projects)} repositories..."
+            f"Using LLM to select top 5 projects from {len(projects)} repositories..."
         )
 
         # Initialize the LLM provider
@@ -409,7 +409,7 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
 
             if len(unique_projects) < 7:
                 print(
-                    f"⚠️ LLM selected {len(selected_projects)} projects but {len(unique_projects)} are unique"
+                    f"[WARNING] LLM selected {len(selected_projects)} projects but {len(unique_projects)} are unique"
                 )
 
                 for project in projects_data:
@@ -424,7 +424,7 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
                 [proj.get("name", "N/A") for proj in unique_projects]
             )
             print(
-                f"✅ LLM selected {len(unique_projects)} unique top projects: {project_names}"
+                f"LLM selected {len(unique_projects)} unique top projects: {project_names}"
             )
             return unique_projects
 
@@ -432,12 +432,12 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
             print(f"ERROR: Error parsing LLM response: {e}")
             print(f"ERROR: Raw response: {response_text}")
 
-            print("🔄 Falling back to first 7 projects")
+            print("Falling back to first 7 projects")
             return projects_data[:7]
 
     except Exception as e:
         print(f"Error using LLM for project selection: {e}")
-        print("🔄 Falling back to first 7 projects")
+        print("Falling back to first 7 projects")
 
         projects_data = []
         for project in projects[:7]:
@@ -460,14 +460,14 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
     logger.info(f"{github_url}")
     github_profile = fetch_github_profile(github_url)
     if not github_profile:
-        print("\n❌ Failed to fetch GitHub profile details.")
+        print("\nFailed to fetch GitHub profile details.")
         return {}
 
-    print("🔍 Fetching all repository details...")
+    print("Fetching all repository details...")
     projects = fetch_all_github_repos(github_url)
 
     if not projects:
-        print("\n❌ No repositories found or failed to fetch repository details.")
+        print("\nNo repositories found or failed to fetch repository details.")
 
     profile_json = generate_profile_json(github_profile)
     projects_json = generate_projects_json(projects)

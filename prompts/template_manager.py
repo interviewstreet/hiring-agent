@@ -53,9 +53,9 @@ class TemplateManager:
                 if os.path.exists(template_path):
                     self._templates[section_name] = self.env.get_template(filename)
                 else:
-                    print(f"⚠️ Template file not found: {template_path}")
+                    print(f"[WARNING] Template file not found: {template_path}")
             except Exception as e:
-                print(f"❌ Error loading template {filename}: {e}")
+                print(f"[ERROR] Error loading template {filename}: {e}")
 
     def get_available_sections(self) -> list:
         """
@@ -78,7 +78,7 @@ class TemplateManager:
             Optional[str]: Rendered template string, or None if template not found
         """
         if section_name not in self._templates:
-            print(f"❌ Template not found for section: {section_name}")
+            print(f"[ERROR] Template not found for section: {section_name}")
             print(f"Available sections: {self.get_available_sections()}")
             return None
 
@@ -86,5 +86,5 @@ class TemplateManager:
             template = self._templates[section_name]
             return template.render(**kwargs)
         except Exception as e:
-            print(f"❌ Error rendering template for {section_name}: {e}")
+            print(f"[ERROR] Error rendering template for {section_name}: {e}")
             return None

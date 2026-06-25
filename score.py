@@ -31,11 +31,11 @@ def print_evaluation_results(
 ):
     """Print evaluation results in a readable format."""
     print("\n" + "=" * 80)
-    print(f"📊 RESUME EVALUATION RESULTS FOR: {candidate_name}")
+    print(f"RESUME EVALUATION RESULTS FOR: {candidate_name}")
     print("=" * 80)
 
     if not evaluation:
-        print("❌ No evaluation data available")
+        print("No evaluation data available")
         return
 
     # Calculate overall score
@@ -51,7 +51,7 @@ def print_evaluation_results(
             # Log warning if score was capped
             if category_score < category_data["score"]:
                 print(
-                    f"⚠️  Warning: {category_name} score capped from {category_data['score']} to {category_score} (max: {category_data['max']})"
+                    f"[WARNING] {category_name} score capped from {category_data['score']} to {category_score} (max: {category_data['max']})"
                 )
 
     # Add bonus points
@@ -66,13 +66,13 @@ def print_evaluation_results(
     max_possible_score = max_score + 20  # 120 (100 categories + 20 bonus)
     if total_score > max_possible_score:
         total_score = max_possible_score
-        print(f"⚠️  Warning: Total score capped at maximum possible value")
+        print(f"[WARNING] Total score capped at maximum possible value")
 
     # Overall Score
-    print(f"\n🎯 OVERALL SCORE: {total_score:.1f}/{max_score}")
+    print(f"\nOVERALL SCORE: {total_score:.1f}/{max_score}")
 
     # Detailed Scores
-    print("\n📈 DETAILED SCORES:")
+    print("\nDETAILED SCORES:")
     print("-" * 60)
 
     if hasattr(evaluation, "scores") and evaluation.scores:
@@ -88,7 +88,7 @@ def print_evaluation_results(
         if hasattr(evaluation.scores, "open_source") and evaluation.scores.open_source:
             os_score = evaluation.scores.open_source
             capped_score = min(os_score.score, category_maxes["open_source"])
-            print(f"🌐 Open Source:          {capped_score}/{os_score.max}")
+            print(f"Open Source:          {capped_score}/{os_score.max}")
             print(f"   Evidence: {os_score.evidence}")
             print()
 
@@ -99,7 +99,7 @@ def print_evaluation_results(
         ):
             sp_score = evaluation.scores.self_projects
             capped_score = min(sp_score.score, category_maxes["self_projects"])
-            print(f"🚀 Self Projects:        {capped_score}/{sp_score.max}")
+            print(f"Self Projects:        {capped_score}/{sp_score.max}")
             print(f"   Evidence: {sp_score.evidence}")
             print()
 
@@ -107,7 +107,7 @@ def print_evaluation_results(
         if hasattr(evaluation.scores, "production") and evaluation.scores.production:
             prod_score = evaluation.scores.production
             capped_score = min(prod_score.score, category_maxes["production"])
-            print(f"🏢 Production Experience: {capped_score}/{prod_score.max}")
+            print(f"Production Experience: {capped_score}/{prod_score.max}")
             print(f"   Evidence: {prod_score.evidence}")
             print()
 
@@ -118,13 +118,13 @@ def print_evaluation_results(
         ):
             tech_score = evaluation.scores.technical_skills
             capped_score = min(tech_score.score, category_maxes["technical_skills"])
-            print(f"💻 Technical Skills:     {capped_score}/{tech_score.max}")
+            print(f"Technical Skills:     {capped_score}/{tech_score.max}")
             print(f"   Evidence: {tech_score.evidence}")
             print()
 
     # Bonus Points
     if hasattr(evaluation, "bonus_points") and evaluation.bonus_points:
-        print(f"\n⭐ BONUS POINTS: {evaluation.bonus_points.total}")
+        print(f"\nBONUS POINTS: {evaluation.bonus_points.total}")
         print("-" * 30)
         print(f"   {evaluation.bonus_points.breakdown}")
 
@@ -134,14 +134,14 @@ def print_evaluation_results(
         and evaluation.deductions
         and evaluation.deductions.total > 0
     ):
-        print(f"\n⚠️  DEDUCTIONS: -{evaluation.deductions.total}")
+        print(f"\nDEDUCTIONS: -{evaluation.deductions.total}")
         print("-" * 30)
         if evaluation.deductions.reasons:
             print(f"   {evaluation.deductions.reasons}")
 
     # Key Strengths
     if hasattr(evaluation, "key_strengths") and evaluation.key_strengths:
-        print(f"\n✅ KEY STRENGTHS:")
+        print(f"\nKEY STRENGTHS:")
         print("-" * 30)
         for i, strength in enumerate(evaluation.key_strengths, 1):
             print(f"  {i}. {strength}")
@@ -151,7 +151,7 @@ def print_evaluation_results(
         hasattr(evaluation, "areas_for_improvement")
         and evaluation.areas_for_improvement
     ):
-        print(f"\n🔧 AREAS FOR IMPROVEMENT:")
+        print(f"\nAREAS FOR IMPROVEMENT:")
         print("-" * 30)
         for i, area in enumerate(evaluation.areas_for_improvement, 1):
             print(f"  {i}. {area}")
@@ -234,7 +234,7 @@ def main(pdf_path):
             resume_data = loaded_resume
             cache_loaded = True
         except Exception as e:
-            print(f"⚠️ Warning: Invalid cache file {cache_filename}: {e}")
+            print(f"[WARNING] Invalid cache file {cache_filename}: {e}")
             print("Ignoring cache and reprocessing PDF...")
             try:
                 os.remove(cache_filename)
@@ -284,7 +284,7 @@ def main(pdf_path):
             github_data = loaded_github
             github_cache_loaded = True
         except Exception as e:
-            print(f"⚠️ Warning: Invalid GitHub cache file {github_cache_filename}: {e}")
+            print(f"[WARNING] Invalid GitHub cache file {github_cache_filename}: {e}")
             print("Ignoring GitHub cache and refetching...")
             try:
                 os.remove(github_cache_filename)
