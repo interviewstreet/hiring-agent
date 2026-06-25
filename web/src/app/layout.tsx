@@ -1,6 +1,7 @@
 import "./globals.css";
 import { Instrument_Serif, Archivo, JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "@/ui/ThemeProvider";
+import { SettingsProvider } from "@/ui/SettingsProvider";
 
 const serif = Instrument_Serif({ weight: ["400"], subsets: ["latin"], variable: "--font-instrument-serif", display: "swap" });
 const archivo = Archivo({ subsets: ["latin"], variable: "--font-archivo", display: "swap" });
@@ -15,7 +16,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning className={`${serif.variable} ${archivo.variable} ${mono.variable}`}>
       <head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head>
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <SettingsProvider>{children}</SettingsProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
