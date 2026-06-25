@@ -22,9 +22,13 @@ async function ghGet(url: string, opts: FetchOpts): Promise<any> {
   const f: FetchFn = opts.fetchImpl ?? fetch;
   const headers: Record<string, string> = { Accept: "application/vnd.github+json" };
   if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
-  const res = await f(url, { headers });
-  if (res.status !== 200) return null;
-  return res.json();
+  try {
+    const res = await f(url, { headers });
+    if (res.status !== 200) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchGitHubSummary(profileUrl: string, opts: FetchOpts): Promise<GitHubSummary | null> {
@@ -38,9 +42,11 @@ export async function fetchGitHubSummary(profileUrl: string, opts: FetchOpts): P
   const projects: GitHubSummary["projects"] = [];
   for (const repo of repos) {
     if (repo.fork && (repo.forks_count ?? 0) < 5) continue;
-    const contributors: any[] = (await ghGet(`https://api.github.com/repos/${username}/${repo.name}/contributors`, opts)) ?? [];
+    const repoName: string | undefined = repo.name;
+    if (!repoName) continue;
+    const contributors: any[] = (await ghGet(`https://api.github.com/repos/${username}/${repoName}/contributors`, opts)) ?? [];
     projects.push({
-      name: repo.name,
+      name: repoName,
       project_type: classifyRepo(contributors.length),
       stars: repo.stargazers_count ?? 0,
     });
