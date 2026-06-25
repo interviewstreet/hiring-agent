@@ -31,3 +31,14 @@ export function statusFor(score: number, max: number): Status {
   if (ratio >= 0.4) return "warn";
   return "bad";
 }
+
+export function statusLabel(s: Status): string {
+  switch (s) {
+    case "good":
+      return "Strong";
+    case "warn":
+      return "Needs work";
+    case "bad":
+      return "Weak";
+  }
+}

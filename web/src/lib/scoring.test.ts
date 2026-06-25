@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { CATEGORY_MAX, computeTotal, statusFor, cappedCategory } from "./scoring";
+import { CATEGORY_MAX, computeTotal, statusFor, cappedCategory, statusLabel } from "./scoring";
 import type { Evaluation } from "./schemas";
 
 const ev: Evaluation = {
@@ -44,5 +44,10 @@ describe("scoring", () => {
     expect(statusFor(28, 35)).toBe("good");   // 0.8
     expect(statusFor(10, 25)).toBe("warn");   // 0.4
     expect(statusFor(3, 25)).toBe("bad");     // 0.12
+  });
+  it("maps each status to its human label", () => {
+    expect(statusLabel("good")).toBe("Strong");
+    expect(statusLabel("warn")).toBe("Needs work");
+    expect(statusLabel("bad")).toBe("Weak");
   });
 });
