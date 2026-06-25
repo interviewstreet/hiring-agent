@@ -2,6 +2,7 @@ node_modules/
 .next/
 out/
 next-env.d.ts
+*.tsbuildinfo
 .env*.local
 playwright-report/
 test-results/
