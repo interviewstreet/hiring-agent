@@ -89,6 +89,8 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
 
   - **Ollama** for local models
     Install from the [official site](https://ollama.com/), then run `ollama serve`.
+  - **Ollama Cloud** for hosted models without a local GPU.
+    Get an API key from [Ollama Cloud](https://ollama.com) (free tier available).
   - **Google Gemini** if you have an API key, get it from [here](https://aistudio.google.com/api-keys).
 
 ### Quick setup with pip
@@ -124,6 +126,9 @@ $ ollama pull gemma3:12b
 $ ollama pull gemma3:1b
 ```
 
+> **Ollama Cloud users** can skip `ollama pull` and use larger models like `gemma4:31b`
+> without local hardware. Set `OLLAMA_API_KEY` in your `.env` file (see [Configuration](#configuration)).
+
 ---
 
 ## Configuration
@@ -141,6 +146,7 @@ $ cp .env.example .env
 | `LLM_PROVIDER`   | `ollama` or `gemini`                        | Chooses provider. Defaults to Ollama.                                  |
 | `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
 | `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
+| `OLLAMA_API_KEY` | optional                                    | Enables [Ollama Cloud](https://ollama.com) instead of local Ollama.    |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
 
 Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
@@ -253,11 +259,18 @@ What happens:
 
 ## Provider details
 
-### Ollama
+### Ollama (local)
 
 - Set `LLM_PROVIDER=ollama`
 - Set `DEFAULT_MODEL` to any pulled model, for example `gemma3:4b`
 - The provider wrapper in `models.OllamaProvider` calls `ollama.chat`
+
+### Ollama Cloud
+
+- Set `LLM_PROVIDER=ollama`
+- Set `DEFAULT_MODEL` to a supported cloud model, for example `gemma4:31b`
+- Set `OLLAMA_API_KEY` to your API key from [ollama.com](https://ollama.com)
+- No local GPU or `ollama serve` required
 
 ### Gemini
 
