@@ -21,7 +21,7 @@ from models import (
     AwardsSection,
 )
 from llm_utils import initialize_llm_provider, extract_json_from_response
-from pymupdf_rag import to_markdown
+from pdf_sanitize import extract_visible_text_from_pdf, sanitize_resume_text_for_pipeline
 from typing import List, Optional, Dict, Any
 from prompt import (
     DEFAULT_MODEL,
@@ -50,13 +50,10 @@ class PDFHandler:
                 raise FileNotFoundError(f"PDF file not found: {pdf_path}")
 
             with pymupdf.open(pdf_path) as doc:
-                pages = range(doc.page_count)
-                resume_text = to_markdown(
-                    doc,
-                    pages=pages,
-                )
+                resume_text = extract_visible_text_from_pdf(doc)
+                resume_text = sanitize_resume_text_for_pipeline(resume_text)
                 logger.debug(
-                    f"Extracted text from PDF: {len(resume_text) if resume_text else 0} characters"
+                    f"Extracted visible text from PDF: {len(resume_text) if resume_text else 0} characters"
                 )
                 return resume_text
         except Exception as e:
