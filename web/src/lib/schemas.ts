@@ -120,4 +120,14 @@ export type RunRecord = {
   evaluation: Evaluation;
   coach: Coach;
   githubSummary?: GitHubSummary | null;
+  pdfBlob?: Blob | null;
+};
+
+// ── Persisted settings (UI-facing superset of pipeline Settings) ──
+export type StoredSettings = {
+  geminiKey: string;
+  githubToken: string;
+  model: string;
+  enableGitHub: boolean;
+  rememberKeys: boolean;
 };
