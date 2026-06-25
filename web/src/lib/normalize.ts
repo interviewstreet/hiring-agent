@@ -79,8 +79,8 @@ export function normalizeResume(resume: JSONResume): JSONResume {
           const domain = extractDomain(p.url);
           const net = networkName(domain);
           if (net) {
-            const username = p.username ?? extractUsername(p.url, domain) ?? undefined;
-            return { ...p, network: net, username: username || p.username };
+            const username = p.username ?? (extractUsername(p.url, domain) || undefined);
+            return { ...p, network: net, username };
           }
         }
         return p;

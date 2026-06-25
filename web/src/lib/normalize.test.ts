@@ -16,6 +16,9 @@ describe("url helpers", () => {
   it("extracts linkedin username from second path part", () => {
     expect(extractUsername("https://linkedin.com/in/jane-doe", "linkedin.com")).toBe("jane-doe");
   });
+  it("returns empty string for an empty domain input", () => {
+    expect(extractDomain("")).toBe("");
+  });
 });
 
 describe("parseDateRange", () => {
@@ -28,6 +31,9 @@ describe("parseDateRange", () => {
   it("handles year range '2020-2021'", () => {
     expect(parseDateRange("2020-2021")).toEqual(["2020-01", "2021-12"]);
   });
+  it("returns [null, null] for an empty date range", () => {
+    expect(parseDateRange("")).toEqual([null, null]);
+  });
 });
 
 describe("normalizeResume", () => {
@@ -35,5 +41,9 @@ describe("normalizeResume", () => {
     const out = normalizeResume({ basics: { name: "A", profiles: [{ url: "https://github.com/octocat" }] } });
     expect(out.basics?.profiles?.[0].network).toBe("GitHub");
     expect(out.basics?.profiles?.[0].username).toBe("octocat");
+  });
+  it("leaves a profile that already has a network untouched", () => {
+    const out = normalizeResume({ basics: { name: "A", profiles: [{ network: "GitHub", username: "keep", url: "https://github.com/other" }] } });
+    expect(out.basics?.profiles?.[0].username).toBe("keep");
   });
 });
