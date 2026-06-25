@@ -1,11 +1,11 @@
 "use client";
 import { AppShell } from "@/ui/AppShell";
-import { ScoreScreen } from "@/ui/screens/ScoreScreen";
+import { SettingsScreen } from "@/ui/screens/SettingsScreen";
 
 export default function Page() {
   return (
-    <AppShell active="score">
-      <ScoreScreen />
+    <AppShell active="settings">
+      <SettingsScreen />
     </AppShell>
   );
 }
