@@ -8,6 +8,7 @@ type SettingsContextValue = {
   settings: StoredSettings;
   update: (patch: Partial<StoredSettings>) => void;
   hasKey: boolean;
+  reset: () => void;
 };
 
 const DEFAULTS: StoredSettings = {
@@ -22,6 +23,7 @@ const SettingsContext = createContext<SettingsContextValue>({
   settings: DEFAULTS,
   update: () => {},
   hasKey: false,
+  reset: () => {},
 });
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
@@ -39,8 +41,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const reset = useCallback(() => setSettings(loadSettings()), []);
+
   return (
-    <SettingsContext.Provider value={{ settings, update, hasKey: settings.geminiKey.length > 0 }}>
+    <SettingsContext.Provider value={{ settings, update, hasKey: settings.geminiKey.length > 0, reset }}>
       {children}
     </SettingsContext.Provider>
   );

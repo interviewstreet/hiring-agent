@@ -13,11 +13,9 @@ import type { StoredSettings } from "./schemas";
 vi.mock("./store", () => ({ clearAllRuns: vi.fn(async () => {}) }));
 
 // Node.js 22 exposes `localStorage` as `undefined` experimentally, which prevents
-// Vitest's jsdom environment from overriding it. Patch it explicitly so tests can
-// use a real jsdom-backed localStorage.
+// Vitest's jsdom environment from overriding it via populateGlobal. Patch it
+// explicitly so tests can use a real jsdom-backed localStorage.
 beforeAll(() => {
-  // Node.js 22 exposes `localStorage` as `undefined` experimentally, which prevents
-  // Vitest's jsdom environment from overriding it via populateGlobal. Patch it here.
   const w = window as Window & { jsdom?: { window: Window } };
   if (typeof localStorage === "undefined" && typeof window !== "undefined" && w.jsdom) {
     Object.defineProperty(globalThis, "localStorage", {
