@@ -1,0 +1,324 @@
+export type GeminiSchema = Record<string, unknown> & { type: string };
+export type PromptSpec = { system: string; user: string; responseSchema: GeminiSchema };
+
+// ── Gemini response schemas (OpenAPI subset) ──
+const STR = { type: "STRING" } as const;
+const STR_ARR = { type: "ARRAY", items: { type: "STRING" } } as const;
+
+export const RESUME_SCHEMA: GeminiSchema = {
+  type: "OBJECT",
+  properties: {
+    basics: {
+      type: "OBJECT",
+      properties: {
+        name: STR, email: STR, phone: STR, url: STR, summary: STR,
+        profiles: { type: "ARRAY", items: { type: "OBJECT", properties: { network: STR, username: STR, url: STR } } },
+      },
+    },
+    work: { type: "ARRAY", items: { type: "OBJECT", properties: { name: STR, position: STR, url: STR, startDate: STR, endDate: STR, summary: STR, highlights: STR_ARR } } },
+    education: { type: "ARRAY", items: { type: "OBJECT", properties: { institution: STR, area: STR, studyType: STR, startDate: STR, endDate: STR, score: STR } } },
+    skills: { type: "ARRAY", items: { type: "OBJECT", properties: { name: STR, level: STR, keywords: STR_ARR } } },
+    projects: { type: "ARRAY", items: { type: "OBJECT", properties: { name: STR, description: STR, url: STR, highlights: STR_ARR, technologies: STR_ARR } } },
+    awards: { type: "ARRAY", items: { type: "OBJECT", properties: { title: STR, date: STR, awarder: STR, summary: STR } } },
+  },
+};
+
+const CATEGORY_SCORE_SCHEMA = { type: "OBJECT", properties: { score: { type: "NUMBER" }, max: { type: "NUMBER" }, evidence: STR }, required: ["score", "max", "evidence"] };
+export const EVAL_SCHEMA: GeminiSchema = {
+  type: "OBJECT",
+  properties: {
+    scores: {
+      type: "OBJECT",
+      properties: { open_source: CATEGORY_SCORE_SCHEMA, self_projects: CATEGORY_SCORE_SCHEMA, production: CATEGORY_SCORE_SCHEMA, technical_skills: CATEGORY_SCORE_SCHEMA },
+      required: ["open_source", "self_projects", "production", "technical_skills"],
+    },
+    bonus_points: { type: "OBJECT", properties: { total: { type: "NUMBER" }, breakdown: STR }, required: ["total", "breakdown"] },
+    deductions: { type: "OBJECT", properties: { total: { type: "NUMBER" }, reasons: STR }, required: ["total", "reasons"] },
+    key_strengths: STR_ARR,
+    areas_for_improvement: STR_ARR,
+  },
+  required: ["scores", "bonus_points", "deductions", "key_strengths", "areas_for_improvement"],
+};
+
+export const COACH_SCHEMA: GeminiSchema = {
+  type: "OBJECT",
+  properties: {
+    verdict: STR,
+    fixes: { type: "ARRAY", items: { type: "OBJECT", properties: { priority: { type: "NUMBER" }, category: STR, title: STR, detail: STR, estGain: { type: "NUMBER" } }, required: ["priority", "category", "title", "detail", "estGain"] } },
+    boosts: { type: "ARRAY", items: { type: "OBJECT", properties: { category: STR, text: STR, estGain: { type: "NUMBER" } }, required: ["category", "text", "estGain"] } },
+  },
+  required: ["verdict", "fixes", "boosts"],
+};
+
+// ── Prompts ──
+const EXTRACTION_SYSTEM = "You extract structured data from resumes. Return ONLY JSON matching the provided schema. Use null for missing fields. Do not invent data.";
+
+export function buildExtractionPrompt(resumeText: string): PromptSpec {
+  return {
+    system: EXTRACTION_SYSTEM,
+    user: `Extract this resume into the JSON Resume structure defined by the schema.\n\nResume:\n${resumeText}`,
+    responseSchema: RESUME_SCHEMA,
+  };
+}
+
+// Verbatim contents of prompts/templates/resume_evaluation_system_message.jinja
+const SCORING_SYSTEM = `You are an expert technical recruiter evaluating resumes. Provide accurate, objective evaluations based on the given criteria.
+
+**CRITICAL: You are NOT writing a resume summary. You are SCORING a resume for a job application.**
+
+**CRITICAL FAIRNESS REQUIREMENTS:**
+**SCORES MUST NEVER DEPEND ON THE FOLLOWING FACTORS:**
+- Candidate's name, gender, or any personal demographic information
+- College, university, or educational institution name
+- CGPA, GPA, or academic grades
+- City, location, or geographical information
+- Any personal characteristics unrelated to technical skills and experience
+
+**EVALUATION MUST BE BASED ONLY ON:**
+- Technical skills and programming languages
+- Project complexity and real-world impact
+- Open source contributions and community involvement
+- Work experience and production-level contributions
+- Technical communication and documentation abilities
+- Problem-solving and algorithmic thinking demonstrated in projects
+
+**MANDATORY: You MUST always fill ALL FOUR categories: open_source, self_projects, production, technical_skills.**
+
+- For open_source: Analyze all open source contributions, GitHub/GitLab activity, and community involvement. Look for Google Summer of Code (GSoC) and Girl Script Summer of Code participation. **CRITICAL**: Having personal GitHub repositories does NOT constitute open source contribution. True open source contribution means contributing to OTHER people's projects or the broader community. Personal repositories should receive low scores (5-10 points) unless they demonstrate exceptional complexity or community impact. **CRITICAL**: Hacktoberfest participation alone (without evidence of contributions to significant projects) should receive 5-8 points maximum. **MANDATORY DEDUCTION**: If the only open source activity is Hacktoberfest participation without evidence of contributions to significant projects, apply a 3-5 point deduction to the open source score. **CRITICAL FOR KEY STRENGTHS**: Do NOT list "open source projects" or "active open source contributions" as key strengths unless the candidate has made actual contributions to other people's projects (not just personal repositories). **MANDATORY**: If the evidence states "No evidence of significant open source contributions" or "no demonstrable open source activity beyond personal GitHub projects", then open source should NOT be listed as a key strength. **NEW**: When GitHub data is provided, check the 'project_type' field - projects with 'open_source' type (multiple contributors) should receive higher scores than 'self_project' type (single contributor).
+
+- For self_projects: Analyze the 'projects' section and any personal, hackathon, or side projects. **CRITICAL PROJECT EVALUATION**: Assess project complexity and impact, not just quantity. Simple tutorial projects (todo lists, calculators, basic CRUD apps, weather apps, note-taking apps) should receive LOW SCORES (1-9 points) or trigger deductions. **MANDATORY: For self projects that are basic CRUD applications, give NO POINTS (0 points).** Complex projects with real-world impact, advanced architecture, or contributions to popular open source projects should receive HIGH SCORES (20-30 points). Apply 2-5 point deductions for resumes with only simple tutorial projects. **PROJECT LINK REQUIREMENTS**: Projects without active links, GitHub repositories, or live demos should receive significantly lower scores. Apply 3-5 point deductions for each project without any GitHub link, live demo, or active URL. Projects with only GitHub links (no live demo) should receive 2-3 point deductions. Projects with broken or inactive links should receive 1-2 point deductions. Projects without links are difficult to verify and demonstrate lack of transparency and professionalism.
+
+- For production: Analyze the 'work' and 'volunteer' sections for any real-world, internship, or production experience. If there is any work, internship, or volunteer experience, you MUST score this category and provide evidence. **SPECIAL CONSIDERATION FOR STARTUP EXPERIENCE**: Give extra points for founder roles, co-founder positions, or early-stage engineer roles (first 10-20 employees) at startups, as these demonstrate exceptional initiative, technical leadership, and ability to build products from scratch.
+
+- For technical_skills: Analyze the 'skills', 'languages', and any evidence of technical breadth or problem-solving in projects, work, or competitions. You MUST score this category and provide evidence.
+
+CRITICAL: You MUST respond with the EXACT JSON structure specified in the prompt. Do not change category names, add extra fields, or modify the structure. The response must include ALL required fields: candidate_name, scores (with open_source, self_projects, production, technical_skills), bonus_points, deductions, key_strengths, areas_for_improvement.
+
+**IMPORTANT LIST CONSTRAINTS:**
+- key_strengths: Provide 1-5 items (maximum 5 key strengths)
+- areas_for_improvement: Provide 1-3 items (maximum 3 areas for improvement)
+
+**IMPORTANT SCORE CONSTRAINTS:**
+- Evidence fields cannot be empty string
+- All category scores must be >= 0 (cannot be negative)
+- **CATEGORY SCORE LIMITS** (CANNOT be exceeded under any circumstances):
+  - open_source: 0-35 points (maximum 35)
+  - self_projects: 0-30 points (maximum 30)
+  - production: 0-25 points (maximum 25)
+  - technical_skills: 0-10 points (maximum 10)
+- Bonus points total must be <= 20 (maximum 20 points)
+- **CRITICAL**: The total bonus points cannot exceed 20 points under any circumstances
+- **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed 120 points
+
+IMPORTANT: Always check the structured 'profiles' section in the resume data before applying deductions for missing GitHub/portfolio. Only apply deductions if profiles are genuinely missing from the structured data. When GitHub data is provided in the resume text (look for '=== GITHUB DATA ===' section), thoroughly analyze the GitHub profile and repository information to enhance your evaluation of open source contributions and project quality. **CRITICAL**: Check the 'project_type' field in GitHub data - 'open_source' means multiple contributors, 'self_project' means single contributor. Self projects should receive low open source scores. When blog data is provided in the resume text (look for '=== BLOG DATA ===' section), analyze the technical blog posts, writing quality, topics covered, and frequency of posting to assess the candidate's technical communication skills and knowledge sharing abilities. High-quality technical blogs with regular posting and diverse technical topics should receive bonus points. IMPORTANT: Look for Google Summer of Code (GSoC), Girl Script Summer of Code, Outreachy, Season of Docs, or similar open source programs in the resume and award bonus points for participation in these prestigious programs. **CRITICAL PROJECT ASSESSMENT**: When evaluating projects, prioritize complexity and real-world impact over quantity. Simple tutorial projects should receive low scores and may trigger deductions. A single complex project is worth more than multiple simple ones. **CRITICAL FAIRNESS**: Ignore all personal demographic information, educational institution names, academic grades, and geographical location when scoring. Focus solely on technical skills, project quality, and professional experience. CRITICAL: You MUST respond with valid JSON that includes ALL required fields (candidate_name, scores, bonus_points, deductions, key_strengths, areas_for_improvement). The response must be valid JSON that matches the exact structure specified. Do not omit any fields or add extra fields. **CRITICAL FOR KEY STRENGTHS**: Only list "open source contributions" or "active open source projects" as key strengths if the candidate has made actual contributions to other people's projects (not just personal repositories). Personal GitHub repositories alone do not qualify as open source contributions. **MANDATORY**: If the evidence states "No evidence of significant open source contributions" or "no demonstrable open source activity beyond personal GitHub projects", then open source should NOT be listed as a key strength.`;
+
+// Verbatim contents of prompts/templates/resume_evaluation_criteria.jinja,
+// with trailing {{ text_content }} replaced by ${resumeText} interpolation.
+function RUBRIC(resumeText: string): string {
+  return `You are evaluating a resume for a Software Intern position at HackerRank. Analyze the resume data and provide scores based on these criteria:
+
+**MANDATORY: You MUST always fill ALL FOUR categories: open_source, self_projects, production, technical_skills.**
+
+## CRITICAL FAIRNESS REQUIREMENTS
+**SCORES MUST NEVER DEPEND ON:**
+- Candidate's name, gender, or personal demographic information
+- College, university, or educational institution name
+- CGPA, GPA, or academic grades
+- City, location, or geographical information
+- Any personal characteristics unrelated to technical skills and experience
+
+**EVALUATION MUST BE BASED ONLY ON:**
+- Technical skills and programming languages
+- Project complexity and real-world impact
+- Open source contributions and community involvement
+- Work experience and production-level contributions
+- Technical communication and documentation abilities
+- Problem-solving and algorithmic thinking demonstrated in projects
+
+## PROGRAM DISTINCTIONS
+- "Google Summer of Code (GSoC)" and "Girl Script Summer of Code" are COMPLETELY DIFFERENT programs
+- NEVER use "GSoC" as shorthand for "Girl Script Summer of Code"
+- When you see "Girl Script Summer of Code" in the resume, refer to it as "Girl Script Summer of Code"
+- When you see "Google Summer of Code" in the resume, refer to it as "Google Summer of Code (GSoC)"
+
+## ANALYSIS INSTRUCTIONS
+- Analyze the structured resume data (basics, work, volunteer, projects, skills, etc.)
+- Use GitHub data (if provided in === GITHUB DATA === section) as additional context
+- Use blog data (if provided in === BLOG DATA === section) for technical communication assessment
+
+## SCORING CRITERIA
+
+### Open Source (0-35 points)
+**HIGH SCORES (25-35 points):**
+- Contributions to popular open source projects (1000+ stars)
+- Significant contributions to well-known projects
+- Google Summer of Code (GSoC) participation
+- Substantial community involvement
+
+**MEDIUM SCORES (15-24 points):**
+- Contributions to smaller open source projects
+- Active GitHub presence with meaningful contributions to other repositories
+- Participation in open source programs
+
+**LOW SCORES (5-10 points):**
+- Only personal GitHub repositories with no contributions to other projects
+- Minimal open source activity
+- Basic GitHub presence
+- **CRITICAL**: Hacktoberfest participation alone (without evidence of contributions to significant projects) should receive 3-5 points maximum
+
+**VERY LOW SCORES (0-4 points):**
+- No GitHub presence
+- Only very basic personal repositories
+- Repositories that are clearly tutorial-based with no community involvement
+
+**CRITICAL RULES:**
+- Having personal GitHub repositories does NOT constitute open source contribution
+- True open source contribution means contributing to OTHER people's projects
+- When GitHub data shows all projects are 'self_project' type, open source score MUST be 10 points or less
+
+### Self Projects (0-30 points)
+**HIGH SCORES (20-30 points):**
+- Complex projects with real-world impact
+- Advanced architecture, multiple technologies
+- User adoption or contributions to popular open source projects
+
+**MEDIUM SCORES (10-19 points):**
+- Projects with some complexity, good documentation
+- Multiple features or moderate technical challenge
+
+**LOW SCORES (1-9 points):**
+- Simple tutorial projects (todo lists, calculators, basic CRUD apps, weather apps, note-taking apps, recipe apps, exercise apps)
+- Basic sentiment analysis using standard libraries (NLTK, scikit-learn)
+- Classroom assignments or projects with minimal technical complexity
+
+**ZERO SCORES (0 points):**
+- No projects or only extremely basic projects that demonstrate no technical skills
+
+**PROJECT LINK REQUIREMENTS:**
+- **NO LINKS**: Projects without URLs, GitHub links, or live demos should receive 30-50% lower scores
+- **INACTIVE LINKS**: Projects with broken links should receive 20-30% lower scores
+- **LIVE DEMO BONUS**: Projects with working live demos should receive 10-20% higher scores
+
+### Production (0-25 points)
+- Analyze the 'work' and 'volunteer' sections for real-world, internship, or production experience
+- **SPECIAL CONSIDERATION**: Give extra points for founder roles, co-founder positions, or early-stage engineer roles (first 10-20 employees) at startups
+
+### Technical Skills (0-10 points)
+- Analyze the 'skills', 'languages', and evidence of technical breadth or problem-solving in projects, work, or competitions
+
+## PROJECT COMPLEXITY ASSESSMENT
+
+**Simple/Basic Projects (Low Impact):**
+- Todo list applications, calculators, basic CRUD applications
+- Weather apps using public APIs, note-taking applications
+- Simple portfolio websites, basic form applications
+- "Hello World" applications, classroom assignment projects
+- Tutorial-based projects, recipe sharing applications
+- Exercise/health apps using public APIs
+- Basic sentiment analysis using standard libraries
+- Simple e-commerce applications, basic social media clones
+
+**Complex/Advanced Projects (High Impact):**
+- Full-stack applications with multiple features
+- Projects with user authentication and databases
+- Machine learning or AI applications
+- Real-time applications (chat, streaming, etc.)
+- Mobile applications with native features
+- Projects with microservices architecture
+- Contributions to popular open source projects
+- Projects with significant user adoption
+- Projects solving real-world problems
+- Projects demonstrating advanced algorithms or data structures
+
+## BONUS POINTS (Maximum total: 20 points)
+- +5 points for Google Summer of Code (GSoC) participation
+- +3 points for Girl Script Summer of Code participation
+- +3-5 points for startup founder/co-founder experience
+- +2-3 points for early-stage engineer experience (first 10-20 employees at a startup)
+- +2 points for portfolio website (GitHub URL in basics.url)
+- +1 point for LinkedIn profile
+- +1-3 points for high-quality technical blogs (if blog data provided)
+
+**CRITICAL**: The total bonus points cannot exceed 20 points under any circumstances.
+
+## DEDUCTIONS
+**For Simple Projects:**
+- -2 to -5 points if resume contains only simple tutorial projects
+- -1 to -3 points for each simple project beyond the first one
+- -1 point for projects with generic names like "Calculator", "Todo App", "Weather App"
+- -2 points if all projects are classroom assignments or tutorial-based
+
+**For Projects Without Links:**
+- -3 to -5 points for each project without any GitHub link, live demo, or active URL
+- -2 to -3 points for each project with only GitHub link but no live demo
+- -1 to -2 points for each project with broken or inactive links
+
+**CRITICAL ENFORCEMENT:**
+- When GitHub data shows all projects are 'self_project' type, apply 3-5 point deductions for lack of true open source contributions
+- For candidates with only personal GitHub repositories, open source score should NEVER exceed 10 points
+- For candidates with only tutorial-based projects, self_projects score should NEVER exceed 15 points
+
+## CRITICAL REQUIREMENTS
+1. You MUST respond with ONLY the JSON structure below - no summary, no other fields
+2. You MUST fill ALL FOUR score categories: open_source, self_projects, production, technical_skills
+3. You MUST provide evidence for each score
+4. You MUST NOT add any other fields like "summary", "skills", "experience", etc.
+5. You MUST NOT change the field names or structure
+
+**IMPORTANT LIST CONSTRAINTS:**
+- key_strengths: Provide 1-5 items (maximum 5 key strengths)
+- areas_for_improvement: Provide 1-3 items (maximum 3 areas for improvement)
+
+**IMPORTANT SCORE CONSTRAINTS:**
+- Evidence fields cannot be empty string
+- All category scores must be >= 0 (cannot be negative)
+- **CATEGORY SCORE LIMITS** (CANNOT be exceeded under any circumstances):
+  - open_source: 0-35 points (maximum 35)
+  - self_projects: 0-30 points (maximum 30)
+  - production: 0-25 points (maximum 25)
+  - technical_skills: 0-10 points (maximum 10)
+- Bonus points total must be <= 20 (maximum 20 points)
+- **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed 120 points
+
+**DO NOT RETURN A RESUME SUMMARY. RETURN ONLY THE SCORING EVALUATION IN THE SPECIFIED JSON FORMAT.**
+
+Analyze the following resume and provide a JSON response with this EXACT structure (all fields are required):
+
+{
+    "scores": {
+        "open_source": {"score": 0, "max": 35, "evidence": "string"},
+        "self_projects": {"score": 0, "max": 30, "evidence": "string"},
+        "production": {"score": 0, "max": 25, "evidence": "string"},
+        "technical_skills": {"score": 0, "max": 10, "evidence": "string"}
+    },
+    "bonus_points": {"total": 0, "breakdown": "string"},
+    "deductions": {"total": 0, "reasons": "string"},
+    "key_strengths": ["strength1", "strength2", "strength3", "strength4", "strength5"],
+    "areas_for_improvement": ["improvement1", "improvement2", "improvement3"]
+}
+
+Resume to evaluate:
+
+${resumeText}`;
+}
+
+export function buildScoringPrompt(resumeText: string): PromptSpec {
+  return { system: SCORING_SYSTEM, user: RUBRIC(resumeText), responseSchema: EVAL_SCHEMA };
+}
+
+const COACH_SYSTEM = "You are a precise, encouraging resume coach for software candidates. Be specific and actionable. Return ONLY JSON matching the schema.";
+
+export function buildCoachPrompt(resumeText: string, evaluationJson: string): PromptSpec {
+  return {
+    system: COACH_SYSTEM,
+    user:
+      `Given a resume and its scored evaluation, produce coaching.\n\n` +
+      `Rules:\n` +
+      `- "verdict": one human sentence naming the biggest strength and the biggest weakness.\n` +
+      `- "fixes": the highest-impact changes, ordered by priority (1 = most impactful). Each names the category it boosts, a short title, a specific detail, and estGain (estimated points recoverable).\n` +
+      `- "boosts": small polish for already-strong categories (1-2 points each).\n` +
+      `- category must be one of: open_source, self_projects, production, technical_skills.\n\n` +
+      `Evaluation:\n${evaluationJson}\n\nResume:\n${resumeText}`,
+    responseSchema: COACH_SCHEMA,
+  };
+}
