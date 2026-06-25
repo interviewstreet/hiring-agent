@@ -49,5 +49,16 @@ describe("scoreResume", () => {
     const rec = await scoreResume(new ArrayBuffer(0), d as any);
     expect(d.fetchGitHub).toHaveBeenCalledOnce();
     expect(rec.githubSummary?.profile?.username).toBe("octocat");
+    expect((d.runScoring as any).mock.calls[0][0]).toContain("=== GITHUB DATA ===");
+  });
+
+  it("skips github enrichment when enabled but no github profile is present", async () => {
+    const d = deps({
+      settings: { geminiKey: "k", githubToken: "t", model: "m", enableGitHub: true },
+      runExtraction: vi.fn(async () => ({ basics: { name: "NoGit", profiles: [] } })),
+    });
+    const rec = await scoreResume(new ArrayBuffer(0), d as any);
+    expect(d.fetchGitHub).not.toHaveBeenCalled();
+    expect(rec.githubSummary).toBeNull();
   });
 });

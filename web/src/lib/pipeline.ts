@@ -57,6 +57,8 @@ export async function scoreResume(pdf: File | ArrayBuffer, deps: PipelineDeps): 
   const evaluation = await deps.runScoring(scoringText);
 
   deps.onProgress?.("Coaching");
+  // The coach sees the same (possibly GitHub-enriched) text as the scorer so its
+  // advice stays consistent with what was actually scored.
   const coach = await deps.runCoach(scoringText, JSON.stringify(evaluation));
 
   return {
