@@ -27,8 +27,8 @@ from prompt import (
     DEFAULT_MODEL,
     MODEL_PARAMETERS,
     MODEL_PROVIDER_MAPPING,
-    GEMINI_API_KEY,
 )
+import concurrent.futures
 from prompts.template_manager import TemplateManager
 from transform import transform_parsed_data
 
@@ -36,13 +36,15 @@ logger = logging.getLogger(__name__)
 
 
 class PDFHandler:
-    def __init__(self):
+    def __init__(self, model_name: str = None, api_key: str = None):
         self.template_manager = TemplateManager()
+        self.model_name = model_name or DEFAULT_MODEL
+        self.api_key = api_key
         self._initialize_llm_provider()
 
     def _initialize_llm_provider(self):
         """Initialize the appropriate LLM provider based on the model."""
-        self.provider = initialize_llm_provider(DEFAULT_MODEL)
+        self.provider = initialize_llm_provider(self.model_name, api_key=self.api_key)
 
     def extract_text_from_pdf(self, pdf_path: str) -> Optional[str]:
         try:
@@ -55,6 +57,11 @@ class PDFHandler:
                     doc,
                     pages=pages,
                 )
+                
+                if not resume_text or len(resume_text.strip()) < 50:
+                    logger.info("📄 PDF seems to be an image. Falling back to OCR via Gemini Vision...")
+                    return self._extract_text_via_ocr(doc)
+                    
                 logger.debug(
                     f"Extracted text from PDF: {len(resume_text) if resume_text else 0} characters"
                 )
@@ -63,17 +70,46 @@ class PDFHandler:
             logger.error(f"An error occurred while reading the PDF: {e}")
             return None
 
+    def _extract_text_via_ocr(self, doc) -> Optional[str]:
+        if not self.api_key:
+            logger.error("❌ OCR Fallback requires Gemini API Key, but none was provided.")
+            return None
+            
+        try:
+            from PIL import Image
+            import google.generativeai as genai
+            
+            genai.configure(api_key=self.api_key)
+            vision_model = genai.GenerativeModel("gemini-2.5-flash")
+            
+            full_text = ""
+            for i in range(min(doc.page_count, 3)):  # Limit to 3 pages
+                page = doc.load_page(i)
+                pix = page.get_pixmap(matrix=pymupdf.Matrix(2, 2))  # 2x zoom for clarity
+                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                
+                response = vision_model.generate_content([
+                    img, 
+                    "Extract all the text from this resume exactly as written. Do not add any conversational text or formatting outside of the resume content."
+                ])
+                full_text += response.text + "\n\n"
+                
+            return full_text
+        except Exception as e:
+            logger.error(f"❌ OCR failed: {e}")
+            return None
+
     def _call_llm_for_section(
         self, section_name: str, text_content: str, prompt: str, return_model=None
     ) -> Optional[Dict]:
         try:
             start_time = time.time()
             logger.debug(
-                f"🔄 Extracting {section_name} section using {DEFAULT_MODEL}..."
+                f"🔄 Extracting {section_name} section using {self.model_name}..."
             )
 
             model_params = MODEL_PARAMETERS.get(
-                DEFAULT_MODEL, {"temperature": 0.1, "top_p": 0.9}
+                self.model_name, {"temperature": 0.1, "top_p": 0.9}
             )
 
             section_system_message = self.template_manager.render_template(
@@ -86,7 +122,7 @@ class PDFHandler:
                 return None
 
             chat_params = {
-                "model": DEFAULT_MODEL,
+                "model": self.model_name,
                 "messages": [
                     {"role": "system", "content": section_system_message},
                     {"role": "user", "content": prompt},
@@ -286,17 +322,49 @@ class PDFHandler:
             "meta": None,
         }
 
-        for section_name in sections:
-            section_data = self._extract_section_data(text_content, section_name)
+        is_ollama = type(self.provider).__name__ == "OllamaProvider"
 
-            if section_data:
-                complete_resume.update(section_data)
-                logger.debug(f"✅ Successfully extracted {section_name} section")
-            else:
-                logger.error(
-                    f"⚠️ Failed to extract {section_name} section. Aborting extraction to prevent partial/invalid resume data."
-                )
-                return None
+        if is_ollama:
+            logger.info("🤖 Using Ollama provider. Running sequential extraction to avoid overloading local model.")
+            print("\n🤖 Processing with local model (Sequential Mode - Expected time: 5-20m)\n")
+            for section_name in sections:
+                try:
+                    print(f"⏳ Extracting {section_name.title()} section... ", end="", flush=True)
+                    section_data = self._extract_section_data(text_content, section_name)
+                    if section_data:
+                        complete_resume.update(section_data)
+                        logger.debug(f"✅ Successfully extracted {section_name} section")
+                        print("✅ Done!")
+                    else:
+                        logger.error(f"⚠️ Failed to extract {section_name} section. Aborting extraction to prevent partial/invalid resume data.")
+                        print("❌ Failed!")
+                        return None
+                except Exception as exc:
+                    logger.error(f"⚠️ {section_name} section extraction generated an exception: {exc}")
+                    print("❌ Error!")
+                    return None
+        else:
+            logger.info("☁️ Using cloud provider. Running parallel extraction for speed.")
+            print("\n☁️ Processing with cloud model (Parallel Mode - Expected time: 5-10s)\n")
+            with concurrent.futures.ThreadPoolExecutor(max_workers=len(sections)) as executor:
+                future_to_section = {
+                    executor.submit(self._extract_section_data, text_content, section_name): section_name
+                    for section_name in sections
+                }
+                
+                for future in concurrent.futures.as_completed(future_to_section):
+                    section_name = future_to_section[future]
+                    try:
+                        section_data = future.result()
+                        if section_data:
+                            complete_resume.update(section_data)
+                            logger.debug(f"✅ Successfully extracted {section_name} section")
+                        else:
+                            logger.error(f"⚠️ Failed to extract {section_name} section. Aborting extraction to prevent partial/invalid resume data.")
+                            return None
+                    except Exception as exc:
+                        logger.error(f"⚠️ {section_name} section extraction generated an exception: {exc}")
+                        return None
 
         try:
             if complete_resume.get("basics") and isinstance(

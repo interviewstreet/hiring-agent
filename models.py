@@ -290,8 +290,8 @@ class OllamaProvider:
         # remove steam from ollama options
         ollama_options.pop("stream", None)
 
-        # Add num_ctx 32K context window to options
-        ollama_options["num_ctx"] = 32768
+        # Add num_ctx 8K context window to options (32K causes extreme slowdown/hangs on local PCs)
+        ollama_options["num_ctx"] = 8192
 
         # convert to chat params
         chat_params = {
@@ -300,14 +300,29 @@ class OllamaProvider:
             "options": ollama_options,
         }
 
-        # add it to top level
-        if "stream" in kwargs:
-            chat_params["stream"] = kwargs["stream"]
-
+        # Remove format schema for local Ollama models. 
+        # Schema enforcement causes small models to struggle and return empty responses after 20 minutes!
+        # The prompt already asks for JSON, and extract_json_from_response handles it.
         if "format" in kwargs:
-            chat_params["format"] = kwargs["format"]
+            # chat_params["format"] = kwargs["format"] 
+            pass
 
-        return self.client.chat(**chat_params)
+        # Force streaming so we can print chunks live to the UI terminal
+        chat_params["stream"] = True
+        
+        response_generator = self.client.chat(**chat_params)
+        
+        print("\n\n", end="", flush=True)
+        full_response = ""
+        for chunk in response_generator:
+            content = chunk.get("message", {}).get("content", "")
+            full_response += content
+            # Print to stdout so the Flask app streams it to the user's browser via SSE
+            print(content, end="", flush=True)
+            
+        print("\n\n", end="", flush=True)
+        
+        return {"message": {"role": "assistant", "content": full_response}}
 
 
 class GeminiProvider:

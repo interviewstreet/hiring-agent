@@ -331,7 +331,7 @@ def generate_profile_json(profile: GitHubProfile) -> Dict:
     return profile_data
 
 
-def generate_projects_json(projects: List[Dict]) -> List[Dict]:
+def generate_projects_json(projects: List[Dict], api_key: str = None, model_name: str = None) -> List[Dict]:
     if not projects:
         return []
 
@@ -366,17 +366,17 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
             f"🤖 Using LLM to select top 5 projects from {len(projects)} repositories..."
         )
 
-        # Initialize the LLM provider
-        provider = initialize_llm_provider(DEFAULT_MODEL)
+        model = model_name or DEFAULT_MODEL
+        provider = initialize_llm_provider(model, api_key=api_key)
 
         # Get model parameters
         model_params = MODEL_PARAMETERS.get(
-            DEFAULT_MODEL, {"temperature": 0.1, "top_p": 0.9}
+            model, {"temperature": 0.1, "top_p": 0.9}
         )
 
         # Prepare chat parameters
         chat_params = {
-            "model": DEFAULT_MODEL,
+            "model": model,
             "messages": [
                 {
                     "role": "system",
@@ -456,7 +456,7 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
         return projects_data
 
 
-def fetch_and_display_github_info(github_url: str) -> Dict:
+def fetch_and_display_github_info(github_url: str, api_key: str = None, model_name: str = None) -> Dict:
     logger.info(f"{github_url}")
     github_profile = fetch_github_profile(github_url)
     if not github_profile:
@@ -470,7 +470,7 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
         print("\n❌ No repositories found or failed to fetch repository details.")
 
     profile_json = generate_profile_json(github_profile)
-    projects_json = generate_projects_json(projects)
+    projects_json = generate_projects_json(projects, api_key=api_key, model_name=model_name)
 
     result = {
         "profile": profile_json,
@@ -481,8 +481,8 @@ def fetch_and_display_github_info(github_url: str) -> Dict:
     return result
 
 
-def main(github_url):
-    result = fetch_and_display_github_info(github_url)
+def main(github_url, api_key=None, model_name=None):
+    result = fetch_and_display_github_info(github_url, api_key=api_key, model_name=model_name)
     print("\n" + "=" * 60)
     print("JSON DATA OUTPUT")
     print("=" * 60)

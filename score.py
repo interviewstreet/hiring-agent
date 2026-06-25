@@ -160,12 +160,15 @@ def print_evaluation_results(
 
 
 def _evaluate_resume(
-    resume_data: JSONResume, github_data: dict = None, blog_data: dict = None
+    resume_data: JSONResume, github_data: dict = None, blog_data: dict = None, api_key: str = None, model_name: str = None
 ) -> Optional[EvaluationData]:
     """Evaluate the resume using AI and display results."""
 
-    model_params = MODEL_PARAMETERS.get(DEFAULT_MODEL)
-    evaluator = ResumeEvaluator(model_name=DEFAULT_MODEL, model_params=model_params)
+    if not model_name:
+        model_name = DEFAULT_MODEL
+
+    model_params = MODEL_PARAMETERS.get(model_name)
+    evaluator = ResumeEvaluator(model_name=model_name, model_params=model_params, api_key=api_key)
 
     # Convert JSON resume data to text
     resume_text = convert_json_resume_to_text(resume_data)
@@ -211,7 +214,7 @@ def find_profile(profiles, network):
     )
 
 
-def main(pdf_path):
+def main(pdf_path, api_key=None, model_name=None):
     # Create cache filename based on PDF path
     cache_filename = (
         f"cache/resumecache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
@@ -248,7 +251,7 @@ def main(pdf_path):
             f"Extracting data from PDF"
             + (" and caching to " + cache_filename if DEVELOPMENT_MODE else "")
         )
-        pdf_handler = PDFHandler()
+        pdf_handler = PDFHandler(model_name=model_name, api_key=api_key)
         resume_data = pdf_handler.extract_json_from_pdf(pdf_path)
 
         if resume_data == None:
@@ -309,7 +312,7 @@ def main(pdf_path):
                     else ""
                 )
             )
-            github_data = fetch_and_display_github_info(github_profile.url)
+            github_data = fetch_and_display_github_info(github_profile.url, api_key=api_key, model_name=model_name)
 
             if (
                 DEVELOPMENT_MODE
@@ -323,7 +326,8 @@ def main(pdf_path):
                     encoding="utf-8",
                 )
 
-    score = _evaluate_resume(resume_data, github_data)
+    print("\n🧠 Starting AI Evaluation! (This may take several minutes if using a local Ollama model...)")
+    score = _evaluate_resume(resume_data, github_data, api_key=api_key, model_name=model_name)
 
     # Get candidate name for display
     candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
