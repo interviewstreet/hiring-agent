@@ -1,0 +1,3 @@
+# The repo-root .gitignore ignores `lib/` as a Python venv artifact.
+# This negation re-includes web/src/lib/ (TypeScript source, not a venv).
+!lib/
