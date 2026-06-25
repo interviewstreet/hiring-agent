@@ -36,4 +36,14 @@ describe("callGeminiJSON", () => {
     const ai = fakeAI([async () => ({ text: "not json" })]);
     await expect(callGeminiJSON({ ai: ai as any, model: "m", system: "s", user: "u", responseSchema: { type: "OBJECT" }, validate: (v) => schema.parse(v), sleep: async () => {} })).rejects.toBeInstanceOf(ModelOutputError);
   });
+
+  it("throws ModelOutputError on schema-invalid JSON", async () => {
+    const ai = fakeAI([async () => ({ text: '{"ok":"not-a-boolean"}' })]);
+    await expect(callGeminiJSON({ ai: ai as any, model: "m", system: "s", user: "u", responseSchema: { type: "OBJECT" }, validate: (v) => schema.parse(v), sleep: async () => {} })).rejects.toBeInstanceOf(ModelOutputError);
+  });
+  it("rethrows a non-rate-limit error as-is", async () => {
+    const boom = new Error("network down");
+    const ai = fakeAI([async () => { throw boom; }]);
+    await expect(callGeminiJSON({ ai: ai as any, model: "m", system: "s", user: "u", responseSchema: { type: "OBJECT" }, validate: (v) => schema.parse(v), sleep: async () => {} })).rejects.toBe(boom);
+  });
 });

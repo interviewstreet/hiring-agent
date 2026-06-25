@@ -30,6 +30,10 @@ export async function callGeminiJSON<T>(opts: {
   const { ai, model, system, user, responseSchema, validate } = opts;
   const maxRetries = opts.maxRetries ?? 5;
   const sleep = opts.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
+  // Browser-tuned backoff. The Python GeminiProvider uses 10s base / 120s cap;
+  // we deliberately shorten to 1s base / 30s cap because the user is watching a
+  // live UI and won't tolerate minute-long waits. (We also skip Python's
+  // server-provided retry_in hint parsing for the same reason.)
   const BASE = 1000, CAP = 30000;
 
   let lastErr: unknown;
@@ -53,7 +57,11 @@ export async function callGeminiJSON<T>(opts: {
       } catch {
         throw new ModelOutputError(text);
       }
-      return validate(parsed);
+      try {
+        return validate(parsed);
+      } catch {
+        throw new ModelOutputError(text, "Model output failed schema validation.");
+      }
     } catch (e) {
       lastErr = e;
       if (e instanceof ModelOutputError) throw e;
