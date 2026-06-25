@@ -26,13 +26,6 @@ if PROVIDER not in [p.value for p in ModelProvider]:
 
 # Model-specific parameters
 MODEL_PARAMETERS = {
-    # Ollama models
-    "qwen3:1.7b": {"temperature": 0.0, "top_p": 0.9},
-    "gemma3:1b": {"temperature": 0.0, "top_p": 0.9},
-    "qwen3:4b": {"temperature": 0.1, "top_p": 0.4},
-    "gemma3:4b": {"temperature": 0.1, "top_p": 0.9},
-    "gemma3:12b": {"temperature": 0.1, "top_p": 0.9},
-    "mistral:7b": {"temperature": 0.1, "top_p": 0.9},
     # Google Gemini models
     "gemini-2.0-flash": {"temperature": 0.1, "top_p": 0.9},
     "gemini-2.0-flash-lite": {"temperature": 0.1, "top_p": 0.9},
@@ -47,6 +40,11 @@ MODEL_PARAMETERS = {
 # Maps model names to their provider
 MODEL_PROVIDER_MAPPING = {
     # Ollama models
+    "gemma4": ModelProvider.OLLAMA,
+    "qwen3.6": ModelProvider.OLLAMA,
+    "llama3.2": ModelProvider.OLLAMA,
+    "llama3.1": ModelProvider.OLLAMA,
+    "qwen2.5": ModelProvider.OLLAMA,
     "qwen3:1.7b": ModelProvider.OLLAMA,
     "gemma3:1b": ModelProvider.OLLAMA,
     "qwen3:4b": ModelProvider.OLLAMA,
