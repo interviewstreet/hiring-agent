@@ -34,4 +34,18 @@ describe("diffRuns", () => {
     expect(d.byCategory.open_source).toBe(10);
     expect(d.byCategory.production).toBe(0);
   });
+  it("computes negative deltas when the score drops", () => {
+    const prev = make({ open_source: 28 });
+    const cur = make({ open_source: 18 });
+    const d = diffRuns(cur, prev);
+    expect(d.total).toBe(-10);
+    expect(d.byCategory.open_source).toBe(-10);
+  });
+  it("reflects a bonus change in the total delta", () => {
+    const prev = make({});
+    const cur = make({});
+    cur.evaluation.bonus_points.total = 8;
+    const d = diffRuns(cur, prev);
+    expect(d.total).toBe(8);
+  });
 });
