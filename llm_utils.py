@@ -4,8 +4,8 @@ Utility functions for LLM providers.
 
 import logging
 from typing import Any, Dict, Optional
-from models import ModelProvider, OllamaProvider, GeminiProvider
-from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY
+from models import AnthropicProvider, ModelProvider, OllamaProvider, GeminiProvider
+from prompt import ANTHROPIC_API_KEY, GEMINI_API_KEY, MODEL_PROVIDER_MAPPING
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ def initialize_llm_provider(model_name: str) -> Any:
         model_name: The name of the model to use
 
     Returns:
-        An initialized LLM provider (either OllamaProvider or GeminiProvider)
+        An initialized LLM provider.
     """
     # Default to Ollama provider
     provider = OllamaProvider()
@@ -57,6 +57,13 @@ def initialize_llm_provider(model_name: str) -> Any:
         else:
             logger.info(f"🔄 Using Google Gemini API provider with model {model_name}")
             provider = GeminiProvider(api_key=GEMINI_API_KEY)
+    elif model_provider == ModelProvider.ANTHROPIC:
+        if not ANTHROPIC_API_KEY:
+            raise ValueError(
+                "ANTHROPIC_API_KEY is required when using the Anthropic/Claude provider."
+            )
+        logger.info(f"🔄 Using Anthropic Claude API provider with model {model_name}")
+        provider = AnthropicProvider(api_key=ANTHROPIC_API_KEY)
     else:
         logger.info(f"🔄 Using Ollama provider with model {model_name}")
     return provider
