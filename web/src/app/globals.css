@@ -37,4 +37,17 @@ body{
 .chip:hover{border-color:var(--good)}
 .dot{width:6px;height:6px;border-radius:50%;background:var(--good);display:inline-block}
 
+/* app shell */
+.wrap{max-width:1080px; margin:0 auto; padding:26px 28px 60px}
+.top{display:flex; align-items:center; justify-content:space-between;
+  padding-bottom:20px; border-bottom:1px solid var(--rule)}
+.mark{font-family:var(--font-instrument-serif),serif; font-size:26px; letter-spacing:.2px}
+.mark b{font-style:italic; font-weight:400}
+.nav{display:flex; gap:20px; align-items:center; font-size:13px; color:var(--ink-soft)}
+.nav a{color:var(--ink-soft); text-decoration:none}
+.nav a:hover{color:var(--ink)}
+.nav a:focus-visible{outline:2px solid var(--brand); outline-offset:3px; border-radius:4px}
+.nav .on{color:var(--ink); font-weight:600}
+@media(max-width:760px){ .nav{gap:14px} }
+
 @media (prefers-reduced-motion: reduce){ body{transition:none} }
