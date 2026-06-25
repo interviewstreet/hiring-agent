@@ -16,8 +16,10 @@ const ev: Evaluation = {
 };
 
 describe("scoring", () => {
-  it("exposes fixed category maxes", () => {
+  it("exposes all four category maxes", () => {
     expect(CATEGORY_MAX.open_source).toBe(35);
+    expect(CATEGORY_MAX.self_projects).toBe(30);
+    expect(CATEGORY_MAX.production).toBe(25);
     expect(CATEGORY_MAX.technical_skills).toBe(10);
   });
   it("caps a category score at its max", () => {
@@ -26,6 +28,17 @@ describe("scoring", () => {
   it("computes total = capped categories + bonus - deductions, clamped to 120", () => {
     // 35 + 22 + 10 + 9 = 76; +5 -3 = 78
     expect(computeTotal(ev)).toBe(78);
+  });
+  it("clamps a negative raw total to 0", () => {
+    const heavy = { ...ev, deductions: { total: 200, reasons: "" } };
+    expect(computeTotal(heavy)).toBe(0);
+  });
+  it("clamps a raw total above 120 to 120 (defensive)", () => {
+    const over = { ...ev, bonus_points: { total: 60, breakdown: "" } };
+    expect(computeTotal(over)).toBe(120);
+  });
+  it("treats a 0.7 ratio as good (inclusive boundary)", () => {
+    expect(statusFor(7, 10)).toBe("good");
   });
   it("classifies status bands by ratio", () => {
     expect(statusFor(28, 35)).toBe("good");   // 0.8
