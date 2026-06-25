@@ -2,17 +2,17 @@ import { scoreResume, type Settings } from "./pipeline";
 import { makeAI, callGeminiJSON, DEFAULT_MODEL } from "./gemini";
 import { extractTextFromPdf } from "./pdf";
 import { fetchGitHubSummary } from "./github";
-import { JSONResumeSchema, EvaluationSchema, CoachSchema } from "./schemas";
+import { JSONResumeSchema, EvaluationSchema, CoachSchema, type RunRecord } from "./schemas";
 import { buildExtractionPrompt, buildScoringPrompt, buildCoachPrompt } from "./prompts";
 
-export async function runScoreWithRealDeps(file: File, settings: Settings, onProgress?: (s: string) => void) {
+export async function runScoreWithRealDeps(file: File, settings: Settings, onProgress?: (s: string) => void): Promise<RunRecord> {
   const ai = makeAI(settings.geminiKey);
   const model = settings.model || DEFAULT_MODEL;
   return scoreResume(file, {
     settings,
     fileName: file.name,
     onProgress,
-    extractText: (pdf) => extractTextFromPdf(pdf),
+    extractText: extractTextFromPdf,
     runExtraction: async (text) => {
       const p = buildExtractionPrompt(text);
       return callGeminiJSON({ ai, model, system: p.system, user: p.user, responseSchema: p.responseSchema, validate: (v) => JSONResumeSchema.parse(v) });

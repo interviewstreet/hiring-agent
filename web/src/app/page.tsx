@@ -19,7 +19,7 @@ export default function Home() {
       setOut(JSON.stringify({ total: rec.evaluation.scores, coach: rec.coach.verdict }, null, 2));
       setStatus("done");
     } catch (err) {
-      setStatus("error: " + (err as Error).message);
+      setStatus("error: " + (err instanceof Error ? err.message : String(err)));
     }
   }
 
@@ -30,7 +30,7 @@ export default function Home() {
         <div style={{ display: "flex", gap: 20, alignItems: "center" }}><ThemeToggle /><PrivacyChip /></div>
       </div>
       <p className="eyebrow" style={{ marginTop: 24 }}>Dev harness (replaced by real screens in Part 2)</p>
-      <input className="mono" placeholder="Gemini API key" value={key} onChange={(e) => setKey(e.target.value)} style={{ display: "block", width: 360, padding: 8, marginTop: 12 }} />
+      <input type="password" className="mono" placeholder="Gemini API key" value={key} onChange={(e) => setKey(e.target.value)} style={{ display: "block", width: 360, padding: 8, marginTop: 12 }} />
       <input type="file" accept="application/pdf" onChange={onFile} style={{ marginTop: 12 }} />
       <p className="mono" style={{ marginTop: 12, color: "var(--ink-soft)" }}>{status}</p>
       <pre className="mono" style={{ whiteSpace: "pre-wrap", marginTop: 12 }}>{out}</pre>
