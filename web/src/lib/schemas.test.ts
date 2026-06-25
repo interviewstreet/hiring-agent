@@ -18,7 +18,7 @@ describe("schemas", () => {
     expect(EvaluationSchema.parse(ev).scores.open_source.score).toBe(28);
   });
 
-  it("rejects a category score above its max-allowed cap via refine", () => {
+  it("accepts a JSONResume profile with a null network field", () => {
     const bad = { network: null, url: "https://github.com/x" };
     expect(JSONResumeSchema.safeParse({ basics: { name: "A", profiles: [bad] } }).success).toBe(true);
   });
