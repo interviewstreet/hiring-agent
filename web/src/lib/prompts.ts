@@ -35,8 +35,8 @@ export const EVAL_SCHEMA: GeminiSchema = {
     },
     bonus_points: { type: "OBJECT", properties: { total: { type: "NUMBER" }, breakdown: STR }, required: ["total", "breakdown"] },
     deductions: { type: "OBJECT", properties: { total: { type: "NUMBER" }, reasons: STR }, required: ["total", "reasons"] },
-    key_strengths: STR_ARR,
-    areas_for_improvement: STR_ARR,
+    key_strengths: { type: "ARRAY", items: { type: "STRING" }, minItems: 1, maxItems: 5 },
+    areas_for_improvement: { type: "ARRAY", items: { type: "STRING" }, minItems: 1, maxItems: 5 },
   },
   required: ["scores", "bonus_points", "deductions", "key_strengths", "areas_for_improvement"],
 };
