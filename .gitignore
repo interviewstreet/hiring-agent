@@ -7,7 +7,6 @@ test_*.py
 cache/
 resume_evaluations.csv
 job_evaluations.csv
-resume.pdf
 package-lock.json
 greenhouse_resumes/*
 
@@ -228,5 +227,5 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-job_description.txt
+
 CLAUDE.md
