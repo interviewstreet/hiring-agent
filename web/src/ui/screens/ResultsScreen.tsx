@@ -27,15 +27,19 @@ export function ResultsScreen() {
       if (!id) {
         if (!cancelled) {
           setRun(null);
+          setPrev(null);
+          setRuns([]);
           setLoading(false);
         }
         return;
       }
       const [cur, all] = await Promise.all([getRun(id), listRuns()]);
       if (cancelled) return;
-      const earlier = cur ? all.filter((r) => r.createdAt < cur.createdAt) : [];
+      // listRuns() returns runs ascending by createdAt; pick the positional
+      // previous element so the scorebar delta matches RevisionRail's by construction.
+      const idx = cur ? all.findIndex((r) => r.id === cur.id) : -1;
       setRun(cur ?? null);
-      setPrev(earlier.length ? earlier[earlier.length - 1] : null);
+      setPrev(idx > 0 ? all[idx - 1] : null);
       setRuns(all);
       setLoading(false);
     }
@@ -56,10 +60,6 @@ export function ResultsScreen() {
         <Link className="empty-link" href="/">
           ← Score a resume
         </Link>
-        <style>{`
-          .empty{color:var(--ink-soft);margin-top:40px}
-          .empty-link{color:var(--brand-ink);text-decoration:underline;text-underline-offset:2px}
-        `}</style>
       </div>
     );
   }
@@ -72,7 +72,7 @@ export function ResultsScreen() {
     <div className="layout">
       <RevisionRail runs={runs} currentId={run.id} />
 
-      <main className="report">
+      <div className="report">
         <div className="report-head">
           <div className="eyebrow">Score report · {run.label || run.fileName}</div>
           <h1 className="verdict serif">{run.coach.verdict}</h1>
@@ -96,7 +96,7 @@ export function ResultsScreen() {
         </div>
 
         <CoachSection coach={run.coach} evaluation={run.evaluation} />
-      </main>
+      </div>
 
       <style>{`
         .layout{display:grid;grid-template-columns:212px 1fr;gap:30px;margin-top:26px}

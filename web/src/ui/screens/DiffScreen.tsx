@@ -47,10 +47,6 @@ export function DiffScreen() {
         <Link className="empty-link" href="/">
           ← Score a resume
         </Link>
-        <style>{`
-          .empty{color:var(--ink-soft);margin-top:40px}
-          .empty-link{color:var(--brand-ink);text-decoration:underline;text-underline-offset:2px}
-        `}</style>
       </div>
     );
   }

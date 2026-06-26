@@ -50,4 +50,8 @@ body{
 .nav .on{color:var(--ink); font-weight:600}
 @media(max-width:760px){ .nav{gap:14px} }
 
+/* shared empty/loading + not-found states (ResultsScreen, DiffScreen) */
+.empty{color:var(--ink-soft);margin-top:40px}
+.empty-link{color:var(--brand-ink);text-decoration:underline;text-underline-offset:2px}
+
 @media (prefers-reduced-motion: reduce){ body{transition:none} }

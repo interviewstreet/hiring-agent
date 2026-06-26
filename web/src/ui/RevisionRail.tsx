@@ -40,8 +40,12 @@ export function RevisionRail({ runs, currentId }: { runs: RunRecord[]; currentId
                 </span>
               </div>
               {isCur && prev && (
-                <Link className="compare mono" href={`/diff?a=${run.id}&b=${prev.id}`}>
-                  ⇄ diff
+                <Link
+                  className="compare mono"
+                  href={`/diff?a=${run.id}&b=${prev.id}`}
+                  aria-label="Compare with previous revision"
+                >
+                  <span aria-hidden="true">⇄</span> diff
                 </Link>
               )}
             </div>
