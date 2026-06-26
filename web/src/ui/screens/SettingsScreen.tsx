@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { StoredSettings } from "../../lib/schemas";
 import { DEFAULT_MODEL } from "../../lib/gemini";
 import { clearAllData } from "../../lib/settings";
@@ -10,7 +10,13 @@ export function SettingsScreen() {
   const { settings, update, reset } = useSettings();
   const [saved, setSaved] = useState(false);
   const [cleared, setCleared] = useState(false);
+  const [busy, setBusy] = useState(false);
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear the pending "Saved" timer if we unmount before it fires.
+  useEffect(() => () => {
+    if (savedTimer.current) clearTimeout(savedTimer.current);
+  }, []);
 
   const edit = useCallback(
     (patch: Partial<StoredSettings>) => {
@@ -28,9 +34,14 @@ export function SettingsScreen() {
       "Erase all saved runs, resumes, and settings from this browser? This cannot be undone."
     );
     if (!ok) return;
-    await clearAllData();
-    reset();
-    setCleared(true);
+    setBusy(true);
+    try {
+      await clearAllData();
+      reset();
+      setCleared(true);
+    } finally {
+      setBusy(false);
+    }
   }, [reset]);
 
   return (
@@ -121,7 +132,7 @@ export function SettingsScreen() {
         <div className="ha-row">
           <div className="ha-row-text">
             <span className="ha-flabel">Remember keys on this device</span>
-            <span className="ha-hint">
+            <span className="ha-hint" id="ha-remember-hint">
               {settings.rememberKeys
                 ? "Keys are saved in this browser's localStorage so you don't re-enter them."
                 : "Keys are kept only for this session (in memory) and cleared when you close the tab."}
@@ -132,6 +143,7 @@ export function SettingsScreen() {
             className="ha-check"
             role="switch"
             aria-label="Remember keys on this device"
+            aria-describedby="ha-remember-hint"
             checked={settings.rememberKeys}
             onChange={(e) => edit({ rememberKeys: e.target.checked })}
           />
@@ -154,15 +166,13 @@ export function SettingsScreen() {
               Erase every saved run, resume, and setting from this browser. Your theme is kept.
             </span>
           </div>
-          <button type="button" className="ha-btn-danger" onClick={onClear}>
-            Clear all data
+          <button type="button" className="ha-btn-danger" onClick={onClear} disabled={busy}>
+            {busy ? "Clearing…" : "Clear all data"}
           </button>
         </div>
-        {cleared && (
-          <p className="ha-cleared mono" role="status">
-            ✓ All data cleared.
-          </p>
-        )}
+        <p className="ha-cleared mono" role="status" aria-live="polite">
+          {cleared ? "✓ All data cleared." : ""}
+        </p>
       </div>
 
       <div className="ha-saved mono" aria-live="polite">
