@@ -51,7 +51,7 @@ def initialize_llm_provider(model_name: str) -> Any:
     # Default to Ollama provider
     provider = OllamaProvider()
     # If using Gemini and API key is available, use Gemini provider
-    if os.getenv("LLM_PROVIDER"):
+    if "LLM_PROVIDER" in os.environ:
         model_provider = ModelProvider(PROVIDER)
     else:
         model_provider = MODEL_PROVIDER_MAPPING.get(model_name, ModelProvider.OLLAMA)
