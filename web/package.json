@@ -4,13 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node scripts/copy-pdf-worker.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/copy-pdf-worker.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "playwright test"
+    "pree2e": "node scripts/copy-pdf-worker.mjs",
+    "e2e": "playwright test",
+    "copy:pdf-worker": "node scripts/copy-pdf-worker.mjs"
   },
   "dependencies": {
     "next": "^15.1.0",
