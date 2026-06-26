@@ -9,7 +9,7 @@ your browser (localStorage + IndexedDB).
 
 ```bash
 cd web
-npm install            # also copies the pdfjs worker into public/ via postinstall hooks
+npm install            # deps only — the pdfjs worker is copied on predev/prebuild/pree2e
 ```
 
 ## Keys are entered at runtime, not via env vars

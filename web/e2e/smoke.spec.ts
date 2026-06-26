@@ -83,6 +83,9 @@ test("scores a resume end-to-end with stubbed Gemini", async ({ page }) => {
   await page.waitForURL("**/results?run=*", { timeout: 60_000 });
 
   // Results screen renders the total and at least one category name.
-  await expect(page.getByText("OPEN_SOURCE")).toBeVisible();
-  await expect(page.getByText(/\b77\b/)).toBeVisible();
+  // Scope to specific containers: "OPEN_SOURCE" also appears in the coach fix
+  // header, and "77/120" also appears in the revision rail, so unscoped text
+  // locators would resolve to 2 elements (Playwright strict-mode violation).
+  await expect(page.locator(".cats")).toContainText("OPEN_SOURCE");
+  await expect(page.locator(".scorebar .total")).toContainText("77");
 });
