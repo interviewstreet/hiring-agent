@@ -12,24 +12,38 @@ export function AppShell({
 }) {
   return (
     <div className="wrap">
-      <div className="top">
-        <div className="mark serif">
-          Hiring <b>Agent</b>
+      <header className="top">
+        <div className="mark">
+          Hiring <i>Agent</i>
         </div>
-        <div className="nav">
-          <Link href="/" className={active === "score" ? "on" : undefined}>
-            Score
-          </Link>
-          <Link href="/history" className={active === "history" ? "on" : undefined}>
-            History &amp; Trends
-          </Link>
-          <Link href="/settings" className={active === "settings" ? "on" : undefined}>
-            Settings
-          </Link>
+        <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
+          <nav className="nav" aria-label="Primary">
+            <Link
+              href="/"
+              className={active === "score" ? "on" : undefined}
+              aria-current={active === "score" ? "page" : undefined}
+            >
+              Score
+            </Link>
+            <Link
+              href="/history"
+              className={active === "history" ? "on" : undefined}
+              aria-current={active === "history" ? "page" : undefined}
+            >
+              History &amp; Trends
+            </Link>
+            <Link
+              href="/settings"
+              className={active === "settings" ? "on" : undefined}
+              aria-current={active === "settings" ? "page" : undefined}
+            >
+              Settings
+            </Link>
+          </nav>
           <ThemeToggle />
           <PrivacyChip />
         </div>
-      </div>
+      </header>
       <main>{children}</main>
     </div>
   );

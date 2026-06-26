@@ -42,7 +42,7 @@ body{
 .top{display:flex; align-items:center; justify-content:space-between;
   padding-bottom:20px; border-bottom:1px solid var(--rule)}
 .mark{font-family:var(--font-instrument-serif),serif; font-size:26px; letter-spacing:.2px}
-.mark b{font-style:italic; font-weight:400}
+.mark i{font-style:italic; font-weight:400}
 .nav{display:flex; gap:20px; align-items:center; font-size:13px; color:var(--ink-soft)}
 .nav a{color:var(--ink-soft); text-decoration:none}
 .nav a:hover{color:var(--ink)}
