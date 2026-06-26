@@ -1,0 +1,24 @@
+Extract structured requirements from the following job description and return them as JSON.
+
+Job Description:
+{{ job_description }}
+
+Rules:
+- required_skills: Only skills explicitly stated as required, essential, or must-have
+- preferred_skills: Only skills explicitly stated as preferred, nice-to-have, or a bonus
+- years_of_experience: Minimum years required as a number (e.g. 2 for "2+ years"). Null if not specified.
+- education_requirements: The degree, field of study, or certification explicitly required. Null if not specified.
+- must_have_qualifications: Non-negotiable requirements such as work authorization, security clearance, licenses, or certifications explicitly stated as mandatory
+- industry: The primary industry or domain of the role. Null if not clear.
+
+Return ONLY this JSON structure, no other text:
+
+{
+    "job_title": "the target job title from the description",
+    "required_skills": ["skill1", "skill2"],
+    "preferred_skills": ["skill1", "skill2"],
+    "years_of_experience": null,
+    "education_requirements": null,
+    "must_have_qualifications": [],
+    "industry": null
+}
