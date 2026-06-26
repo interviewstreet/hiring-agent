@@ -17,32 +17,73 @@ function formatShort(ts: number | null): string {
   return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "2-digit" });
 }
 
+const LOAD_ERROR = "Could not load your history. Your browser may be blocking local storage.";
+
 export function HistoryScreen() {
   const [runs, setRuns] = useState<RunRecord[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    setRuns(await listRuns());
+    try {
+      setRuns(await listRuns());
+    } catch {
+      setError(LOAD_ERROR);
+      setRuns([]); // leave the loading state even on failure
+    }
   }, []);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const loaded = await listRuns();
+        if (!cancelled) setRuns(loaded);
+      } catch {
+        if (!cancelled) {
+          setError(LOAD_ERROR);
+          setRuns([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleRename = useCallback(
     async (id: string, label: string) => {
-      await renameRun(id, label);
-      await reload();
+      try {
+        await renameRun(id, label);
+        await reload();
+      } catch {
+        setError(LOAD_ERROR);
+      }
     },
     [reload],
   );
 
   const handleDelete = useCallback(
     async (id: string) => {
-      await deleteRun(id);
-      await reload();
+      try {
+        await deleteRun(id);
+        await reload();
+      } catch {
+        setError(LOAD_ERROR);
+      }
     },
     [reload],
   );
+
+  if (error) {
+    return (
+      <div className="empty">
+        <p>{error}</p>
+        <Link className="empty-link" href="/">
+          ← Score a resume
+        </Link>
+      </div>
+    );
+  }
 
   if (runs === null) return null;
 

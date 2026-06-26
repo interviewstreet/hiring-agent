@@ -27,9 +27,10 @@ export function HistoryTable({
   rows.reverse();
 
   function handleRename(run: RunRecord) {
-    const next = window.prompt("Label for this revision", run.label ?? "");
-    if (next === null) return;
-    onRename(run.id, next.trim());
+    const result = window.prompt("Label for this revision", run.label ?? "");
+    const next = result?.trim();
+    // cancel (null) = no-op; empty/whitespace = no-op; non-empty = rename.
+    if (result !== null && next) onRename(run.id, next);
   }
 
   function handleDelete(run: RunRecord) {
@@ -94,7 +95,8 @@ export function HistoryTable({
         .ha-h-name{font-family:var(--font-jetbrains-mono),monospace;font-weight:500;font-size:13.5px}
         .ha-h-label{display:inline-block;font-family:var(--font-archivo),sans-serif;font-size:11px;color:var(--brand-ink);background:var(--brand-tint);border-radius:6px;padding:1px 7px;margin-left:8px}
         .ha-h-rename{font-family:var(--font-archivo),sans-serif;color:var(--ink-soft);font-size:11px;margin-left:8px;background:transparent;border:none;border-bottom:1px dotted var(--ink-soft);padding:0;cursor:pointer;opacity:0;transition:opacity .15s}
-        .ha-htable tr:hover .ha-h-rename{opacity:1}
+        .ha-htable tr:hover .ha-h-rename,
+        .ha-h-rename:focus-visible{opacity:1}
         .ha-h-date{font-family:var(--font-jetbrains-mono),monospace;color:var(--ink-soft);font-size:12.5px}
         .ha-h-total{font-family:var(--font-jetbrains-mono),monospace;font-weight:700;font-size:15px}
         .ha-h-act{font-family:var(--font-jetbrains-mono),monospace;font-size:11.5px;color:var(--ink);text-decoration:none;background:transparent;border:1px solid var(--rule);padding:5px 10px;border-radius:7px;cursor:pointer}
