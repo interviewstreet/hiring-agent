@@ -330,11 +330,18 @@ class GeminiProvider:
         import re
         import time
         import random
-        from google.api_core.exceptions import ResourceExhausted
+        from google.api_core.exceptions import (
+            ResourceExhausted,
+            DeadlineExceeded,
+            ServiceUnavailable,
+            InternalServerError,
+        )
 
         MAX_RETRIES = 5
         BASE_DELAY = 10.0  # seconds — base for exponential backoff
         MAX_DELAY = 120.0  # cap so we never wait more than 2 minutes
+        REQUEST_TIMEOUT = 600.0  # per-request deadline; SDK default (~60s) is too
+        # short for larger sections and triggers 504 DeadlineExceeded errors
 
         # Map options to Gemini parameters
         generation_config = {}
@@ -358,10 +365,29 @@ class GeminiProvider:
         for attempt in range(MAX_RETRIES):
             try:
                 # Send the chat request
-                response = gemini_model.generate_content(gemini_messages)
+                response = gemini_model.generate_content(
+                    gemini_messages,
+                    request_options={"timeout": REQUEST_TIMEOUT},
+                )
 
                 # Convert Gemini response to Ollama-like format for compatibility
                 return {"message": {"role": "assistant", "content": response.text}}
+
+            except (DeadlineExceeded, ServiceUnavailable, InternalServerError) as e:
+                # Transient server-side errors (504/503/500). Retry with backoff
+                # rather than aborting the whole extraction on a single hiccup.
+                if attempt == MAX_RETRIES - 1:
+                    raise
+
+                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                sleep_time = round(exp_delay * random.uniform(0.8, 1.2), 2)
+
+                print(
+                    f"[GeminiProvider] Transient error {type(e).__name__} "
+                    f"(attempt {attempt + 1}/{MAX_RETRIES}). "
+                    f"Retrying in {sleep_time}s..."
+                )
+                time.sleep(sleep_time)
 
             except ResourceExhausted as e:
                 if attempt == MAX_RETRIES - 1:
