@@ -11,9 +11,11 @@ function firstPdf(list: FileList | null): File | null {
 
 export function Dropzone({
   onFile,
+  onReject,
   disabled = false,
 }: {
   onFile: (file: File) => void;
+  onReject?: (reason: string) => void;
   disabled?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -23,12 +25,20 @@ export function Dropzone({
     if (!disabled) inputRef.current?.click();
   }
 
+  function accept(list: FileList | null) {
+    const file = firstPdf(list);
+    if (file) {
+      onFile(file);
+    } else if (list && list.length > 0) {
+      onReject?.("Please choose a PDF file.");
+    }
+  }
+
   function onDrop(e: React.DragEvent) {
     e.preventDefault();
     setOver(false);
     if (disabled) return;
-    const file = firstPdf(e.dataTransfer.files);
-    if (file) onFile(file);
+    accept(e.dataTransfer.files);
   }
 
   return (
@@ -49,7 +59,9 @@ export function Dropzone({
         e.preventDefault();
         if (!disabled) setOver(true);
       }}
-      onDragLeave={() => setOver(false)}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setOver(false);
+      }}
       onDrop={onDrop}
     >
       <input
@@ -58,8 +70,7 @@ export function Dropzone({
         accept="application/pdf"
         hidden
         onChange={(e) => {
-          const file = firstPdf(e.target.files);
-          if (file) onFile(file);
+          accept(e.target.files);
           e.target.value = "";
         }}
       />

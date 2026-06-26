@@ -70,7 +70,11 @@ export function ScoreScreen() {
       <p className="eyebrow">Score a resume</p>
       <h1 className="serif ha-score-h1">Drop a resume, get an honest read</h1>
 
-      <Dropzone onFile={handleFile} disabled={busy} />
+      <Dropzone
+        onFile={handleFile}
+        onReject={(msg) => setError(msg)}
+        disabled={busy}
+      />
 
       {error && (
         <div className="ha-error mono" role="alert">
@@ -78,13 +82,21 @@ export function ScoreScreen() {
         </div>
       )}
 
+      <p role="status" aria-live="polite" className="ha-sr-only">
+        {stage ? `${stage}, step ${activeIdx + 1} of ${STAGES.length}` : ""}
+      </p>
+
       {busy && (
-        <ol className="ha-stages" aria-live="polite">
+        <ol className="ha-stages" aria-hidden="true">
           {STAGES.map((s, i) => {
             const state =
               i < activeIdx ? "done" : i === activeIdx ? "active" : "pending";
             return (
-              <li key={s} className={`ha-stage ${state}`}>
+              <li
+                key={s}
+                className={`ha-stage ${state}`}
+                aria-current={i === activeIdx ? "step" : undefined}
+              >
                 <span className="ha-stage-dot" aria-hidden="true" />
                 <span className="mono">{s}</span>
               </li>
@@ -99,6 +111,7 @@ export function ScoreScreen() {
 }
 
 const styles = `
+  .ha-sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   .ha-score{max-width:680px;margin:0 auto}
   .ha-score-h1{font-size:34px;line-height:1.1;margin:6px 0 22px;color:var(--ink)}
   .ha-notice{border:1px solid var(--rule);border-radius:12px;background:var(--panel-2);
