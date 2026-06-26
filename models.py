@@ -349,6 +349,8 @@ class AnthropicProvider:
         if options:
             if "temperature" in options:
                 request_params["temperature"] = options["temperature"]
+            if "top_p" in options:
+                request_params["top_p"] = options["top_p"]
 
         if "format" in kwargs:
             request_params["tools"] = [
