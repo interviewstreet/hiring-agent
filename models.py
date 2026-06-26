@@ -1,6 +1,7 @@
 from typing import List, Optional, Dict, Tuple, Any, Protocol, runtime_checkable
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum
+import json
 
 
 class ModelProvider(Enum):
@@ -8,6 +9,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    ANTHROPIC = "anthropic"
 
 
 @runtime_checkable
@@ -308,6 +310,75 @@ class OllamaProvider:
             chat_params["format"] = kwargs["format"]
 
         return self.client.chat(**chat_params)
+
+
+class AnthropicProvider:
+    """Anthropic Claude LLM provider implementation."""
+
+    def __init__(self, api_key: str):
+        import anthropic
+
+        self.client = anthropic.Anthropic(api_key=api_key)
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Send a chat request to Anthropic and return an Ollama-like response."""
+        system_messages = [
+            msg["content"] for msg in messages if msg.get("role") == "system"
+        ]
+        anthropic_messages = [
+            {"role": msg["role"], "content": msg["content"]}
+            for msg in messages
+            if msg.get("role") in {"user", "assistant"}
+        ]
+
+        request_params = {
+            "model": model,
+            "max_tokens": 4096,
+            "messages": anthropic_messages,
+        }
+
+        if system_messages:
+            request_params["system"] = "\n\n".join(system_messages)
+
+        if options:
+            if "temperature" in options:
+                request_params["temperature"] = options["temperature"]
+            if "top_p" in options:
+                request_params["top_p"] = options["top_p"]
+
+        if "format" in kwargs:
+            request_params["tools"] = [
+                {
+                    "name": "return_json",
+                    "description": "Return the requested response as valid JSON.",
+                    "input_schema": kwargs["format"],
+                }
+            ]
+            request_params["tool_choice"] = {"type": "tool", "name": "return_json"}
+
+        response = self.client.messages.create(**request_params)
+
+        for block in response.content:
+            if block.type == "tool_use" and block.name == "return_json":
+                return {
+                    "message": {
+                        "role": "assistant",
+                        "content": json.dumps(block.input),
+                    }
+                }
+
+        text = "".join(
+            block.text
+            for block in response.content
+            if getattr(block, "type", None) == "text"
+        )
+        return {"message": {"role": "assistant", "content": text}}
 
 
 class GeminiProvider:

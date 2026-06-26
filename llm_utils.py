@@ -3,9 +3,10 @@ Utility functions for LLM providers.
 """
 
 import logging
+import os
 from typing import Any, Dict, Optional
-from models import ModelProvider, OllamaProvider, GeminiProvider
-from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY
+from models import AnthropicProvider, ModelProvider, OllamaProvider, GeminiProvider
+from prompt import ANTHROPIC_API_KEY, GEMINI_API_KEY, MODEL_PROVIDER_MAPPING, PROVIDER
 
 logger = logging.getLogger(__name__)
 
@@ -45,18 +46,29 @@ def initialize_llm_provider(model_name: str) -> Any:
         model_name: The name of the model to use
 
     Returns:
-        An initialized LLM provider (either OllamaProvider or GeminiProvider)
+        An initialized LLM provider.
     """
     # Default to Ollama provider
     provider = OllamaProvider()
     # If using Gemini and API key is available, use Gemini provider
-    model_provider = MODEL_PROVIDER_MAPPING.get(model_name, ModelProvider.OLLAMA)
+    if "LLM_PROVIDER" in os.environ:
+        model_provider = ModelProvider(PROVIDER)
+    else:
+        model_provider = MODEL_PROVIDER_MAPPING.get(model_name, ModelProvider.OLLAMA)
+
     if model_provider == ModelProvider.GEMINI:
         if not GEMINI_API_KEY:
             logger.warning("⚠️ Gemini API key not found. Falling back to Ollama.")
         else:
             logger.info(f"🔄 Using Google Gemini API provider with model {model_name}")
             provider = GeminiProvider(api_key=GEMINI_API_KEY)
+    elif model_provider == ModelProvider.ANTHROPIC:
+        if not ANTHROPIC_API_KEY:
+            raise ValueError(
+                "ANTHROPIC_API_KEY is required when using the Anthropic/Claude provider."
+            )
+        logger.info(f"🔄 Using Anthropic Claude API provider with model {model_name}")
+        provider = AnthropicProvider(api_key=ANTHROPIC_API_KEY)
     else:
         logger.info(f"🔄 Using Ollama provider with model {model_name}")
     return provider
