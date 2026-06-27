@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { errorMessage, describeError } from "./errorMessage";
+import { describeError } from "./errorMessage";
 import {
   MissingKeyError,
   NoTextError,
@@ -8,46 +8,46 @@ import {
   ModelOutputError,
 } from "./errors";
 
-describe("errorMessage", () => {
+describe("describeError().message", () => {
   it("maps MissingKeyError to a Settings hint", () => {
-    expect(errorMessage(new MissingKeyError())).toBe(
+    expect(describeError(new MissingKeyError()).message).toBe(
       "Add your Gemini API key in Settings before scoring.",
     );
   });
 
   it("maps NoTextError to an image-only-PDF hint", () => {
-    expect(errorMessage(new NoTextError())).toBe(
+    expect(describeError(new NoTextError()).message).toBe(
       "This PDF has no selectable text. Image-only or scanned PDFs aren't supported — export a text PDF and try again.",
     );
   });
 
   it("maps RateLimitError to a slow-down hint", () => {
-    expect(errorMessage(new RateLimitError())).toBe(
+    expect(describeError(new RateLimitError()).message).toBe(
       "Gemini is rate-limiting requests. Wait a moment and try again.",
     );
   });
 
   it("maps ModelOutputError to an invalid-output hint", () => {
-    expect(errorMessage(new ModelOutputError("{bad"))).toBe(
+    expect(describeError(new ModelOutputError()).message).toBe(
       "The model returned output we couldn't read. Try again — this is usually transient.",
     );
   });
 
   it("falls back to a generic Error's message when present", () => {
-    expect(errorMessage(new Error("boom"))).toBe("boom");
+    expect(describeError(new Error("boom")).message).toBe("boom");
   });
 
   it("uses a generic fallback for an empty Error message", () => {
-    expect(errorMessage(new Error(""))).toBe("Something went wrong. Please try again.");
+    expect(describeError(new Error("")).message).toBe("Something went wrong. Please try again.");
   });
 
   it("maps ModelOverloadedError to a high-demand message", () => {
-    expect(errorMessage(new ModelOverloadedError())).toMatch(/high demand/i);
+    expect(describeError(new ModelOverloadedError()).message).toMatch(/high demand/i);
   });
 
   it("uses a generic fallback for non-Error values", () => {
-    expect(errorMessage("nope")).toBe("Something went wrong. Please try again.");
-    expect(errorMessage(undefined)).toBe("Something went wrong. Please try again.");
+    expect(describeError("nope").message).toBe("Something went wrong. Please try again.");
+    expect(describeError(undefined).message).toBe("Something went wrong. Please try again.");
   });
 });
 
@@ -62,7 +62,7 @@ describe("describeError", () => {
   it("offers a retry for transient rate-limit and model-output errors", () => {
     expect(describeError(new RateLimitError()).retryLabel).not.toBeNull();
     expect(describeError(new RateLimitError()).tone).toBe("warn");
-    expect(describeError(new ModelOutputError("{bad")).retryLabel).not.toBeNull();
+    expect(describeError(new ModelOutputError()).retryLabel).not.toBeNull();
   });
 
   it("does not offer a retry for hard failures (no key, no text, generic)", () => {

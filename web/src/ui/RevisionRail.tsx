@@ -8,8 +8,7 @@ function fmtDate(ms: number): string {
   const d = new Date(ms);
   const now = new Date();
   const time = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
-  const sameDay =
-    d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  const sameDay = d.toDateString() === now.toDateString();
   const day = sameDay ? "today" : d.toLocaleDateString(undefined, { month: "short", day: "2-digit" });
   return `${day} · ${time}`;
 }

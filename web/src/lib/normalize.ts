@@ -1,7 +1,5 @@
 import type { JSONResume } from "./schemas";
 
-const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
 const NETWORKS: Record<string, string> = {
   "github.com": "GitHub",
   "linkedin.com": "LinkedIn",
@@ -42,30 +40,6 @@ export function extractUsername(url: string, domain: string): string {
   } catch {
     return "";
   }
-}
-
-export function parseDateRange(range: string): [string | null, string | null] {
-  if (!range) return [null, null];
-  if (range.includes("onwards")) {
-    const start = range.replace("onwards", "").trim();
-    return start ? [start, "Present"] : [null, "Present"];
-  }
-  if (range.includes(" ") && MONTHS.some((m) => range.includes(m))) {
-    const parts = range.split(" ");
-    if (parts.length >= 2) {
-      const year = parts[parts.length - 1];
-      if (parts[0].includes("-") && parts[0].split("-").length === 2) {
-        const [sm, em] = parts[0].split("-");
-        return [`${sm} ${year}`, `${em} ${year}`];
-      }
-      return [`${parts[0]} ${year}`, null];
-    }
-  }
-  if (range.includes("-") && range.split("-").length === 2) {
-    const [sy, ey] = range.split("-");
-    return [`${sy}-01`, `${ey}-12`];
-  }
-  return [null, null];
 }
 
 export function normalizeResume(resume: JSONResume): JSONResume {

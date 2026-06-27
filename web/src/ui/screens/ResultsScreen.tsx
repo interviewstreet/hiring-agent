@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import type { RunRecord } from "@/lib/schemas";
 import { CATEGORY_KEYS } from "@/lib/schemas";
 import { computeTotal, MAX_TOTAL } from "@/lib/scoring";
@@ -10,6 +9,7 @@ import { getRun, listRuns } from "@/lib/store";
 import { CategoryRow } from "@/ui/CategoryRow";
 import { RevisionRail } from "@/ui/RevisionRail";
 import { CoachSection } from "@/ui/CoachSection";
+import { EmptyState } from "@/ui/EmptyState";
 import { Delta } from "@/ui/Delta";
 
 export function ResultsScreen() {
@@ -54,14 +54,7 @@ export function ResultsScreen() {
   }
 
   if (!run) {
-    return (
-      <div className="empty">
-        <p>That score report could not be found.</p>
-        <Link className="empty-link" href="/">
-          ← Score a resume
-        </Link>
-      </div>
-    );
+    return <EmptyState message="That score report could not be found." />;
   }
 
   const diff = diffRuns(run, prev);

@@ -2,6 +2,7 @@
 "use client";
 import type { SeriesPoint } from "../lib/trends";
 import { buildLinePath } from "../lib/trends";
+import { shortDate } from "../lib/format";
 
 const W = 720;
 const H = 260;
@@ -9,18 +10,9 @@ const PAD = 40;
 const MAX_Y = 120;
 const GRID_VALUES = [0, 30, 60, 90, 120];
 
-// Same vertical mapping buildLinePath uses, so gridlines align with nodes.
-function yForValue(v: number): number {
-  return H - PAD - (v / MAX_Y) * (H - 2 * PAD);
-}
-
-function formatAxisDate(ts: number): string {
-  return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "2-digit" });
-}
-
 export function TotalChart({ series }: { series: SeriesPoint[] }) {
   const values = series.map((p) => p.total);
-  const { line, area, points } = buildLinePath(values, { w: W, h: H, pad: PAD, maxY: MAX_Y });
+  const { line, area, points, yFor } = buildLinePath(values, { w: W, h: H, pad: PAD, maxY: MAX_Y });
   const first = series[0]?.total ?? 0;
   const last = series[series.length - 1]?.total ?? 0;
   const label =
@@ -31,7 +23,7 @@ export function TotalChart({ series }: { series: SeriesPoint[] }) {
   return (
     <svg className="ha-chart" viewBox={`0 0 ${W} ${H + 12}`} role="img" aria-label={label}>
       {GRID_VALUES.map((v) => {
-        const y = yForValue(v);
+        const y = yFor(v);
         return (
           <g key={v}>
             <line className="ha-gridline" x1={PAD} y1={y} x2={W - PAD} y2={y} />
@@ -50,7 +42,7 @@ export function TotalChart({ series }: { series: SeriesPoint[] }) {
             {values[i]}
           </text>
           <text className="ha-x-lbl" x={pt.x} y={H + 6} textAnchor="middle">
-            {formatAxisDate(series[i].createdAt)}
+            {shortDate(series[i].createdAt)}
           </text>
         </g>
       ))}

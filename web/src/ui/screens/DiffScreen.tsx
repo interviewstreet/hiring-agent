@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import type { RunRecord } from "@/lib/schemas";
 import { CATEGORY_KEYS } from "@/lib/schemas";
 import { computeTotal, cappedCategory, CATEGORY_MAX, MAX_TOTAL } from "@/lib/scoring";
 import { diffRuns } from "@/lib/diff";
 import { getRun } from "@/lib/store";
+import { EmptyState } from "@/ui/EmptyState";
 import { Delta } from "@/ui/Delta";
 
 export function DiffScreen() {
@@ -41,14 +41,7 @@ export function DiffScreen() {
   }
 
   if (!a || !b) {
-    return (
-      <div className="empty">
-        <p>Both runs are needed to compare. One could not be found.</p>
-        <Link className="empty-link" href="/">
-          ← Score a resume
-        </Link>
-      </div>
-    );
+    return <EmptyState message="Both runs are needed to compare. One could not be found." />;
   }
 
   const diff = diffRuns(a, b);

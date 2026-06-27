@@ -33,12 +33,5 @@ export function statusFor(score: number, max: number): Status {
 }
 
 export function statusLabel(s: Status): string {
-  switch (s) {
-    case "good":
-      return "Strong";
-    case "warn":
-      return "Needs work";
-    case "bad":
-      return "Weak";
-  }
+  return { good: "Strong", warn: "Needs work", bad: "Weak" }[s];
 }

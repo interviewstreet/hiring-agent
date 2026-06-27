@@ -4,14 +4,8 @@ import Link from "next/link";
 import type { RunRecord } from "../lib/schemas";
 import { computeTotal } from "../lib/scoring";
 import { diffRuns } from "../lib/diff";
+import { dateTime } from "../lib/format";
 import { Delta } from "./Delta";
-
-function formatDateTime(ts: number): string {
-  const d = new Date(ts);
-  const date = d.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
-  const time = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
-  return `${date} · ${time}`;
-}
 
 export function HistoryTable({
   runs,
@@ -62,7 +56,7 @@ export function HistoryTable({
                   rename
                 </button>
               </td>
-              <td className="ha-h-date hide">{formatDateTime(run.createdAt)}</td>
+              <td className="ha-h-date hide">{dateTime(run.createdAt)}</td>
               <td className="r ha-h-total">{computeTotal(run.evaluation)}</td>
               <td className="r">
                 <Delta value={d.total} />

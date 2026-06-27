@@ -145,6 +145,7 @@ describe("buildLinePath", () => {
       line: "",
       area: "",
       points: [],
+      yFor: expect.any(Function),
     });
   });
 });

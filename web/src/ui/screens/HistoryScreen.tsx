@@ -7,14 +7,15 @@ import { CATEGORY_KEYS } from "../../lib/schemas";
 import { listRuns, renameRun, deleteRun } from "../../lib/store";
 import { totalSeries, categorySeries, summaryStats } from "../../lib/trends";
 import { CATEGORY_MAX, statusFor } from "../../lib/scoring";
+import { shortDate } from "../../lib/format";
 import { TotalChart } from "../TotalChart";
 import { Sparkline } from "../Sparkline";
 import { HistoryTable } from "../HistoryTable";
+import { EmptyState } from "../EmptyState";
 import { Delta } from "../Delta";
 
 function formatShort(ts: number | null): string {
-  if (ts === null) return "—";
-  return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "2-digit" });
+  return ts === null ? "—" : shortDate(ts);
 }
 
 const LOAD_ERROR = "Could not load your history. Your browser may be blocking local storage.";
@@ -33,22 +34,8 @@ export function HistoryScreen() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const loaded = await listRuns();
-        if (!cancelled) setRuns(loaded);
-      } catch {
-        if (!cancelled) {
-          setError(LOAD_ERROR);
-          setRuns([]);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void reload();
+  }, [reload]);
 
   const handleRename = useCallback(
     async (id: string, label: string) => {
@@ -75,14 +62,7 @@ export function HistoryScreen() {
   );
 
   if (error) {
-    return (
-      <div className="empty">
-        <p>{error}</p>
-        <Link className="empty-link" href="/">
-          ← Score a resume
-        </Link>
-      </div>
-    );
+    return <EmptyState message={error} />;
   }
 
   if (runs === null) return null;

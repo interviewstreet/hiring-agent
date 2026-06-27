@@ -73,14 +73,14 @@ export function summaryStats(runs: RunRecord[]): TrendSummary {
 export function buildLinePath(
   values: number[],
   opts: { w: number; h: number; pad: number; maxY: number }
-): { line: string; area: string; points: { x: number; y: number }[] } {
+): { line: string; area: string; points: { x: number; y: number }[]; yFor: (v: number) => number } {
   const { w, h, pad, maxY } = opts;
-  if (values.length === 0) return { line: "", area: "", points: [] };
-
   const innerH = h - 2 * pad;
+  const yFor = (v: number): number => h - pad - (maxY > 0 ? v / maxY : 0) * innerH;
+  if (values.length === 0) return { line: "", area: "", points: [], yFor };
+
   const n = values.length;
   const xFor = (i: number): number => (n === 1 ? w / 2 : pad + (i * (w - 2 * pad)) / (n - 1));
-  const yFor = (v: number): number => h - pad - (maxY > 0 ? v / maxY : 0) * innerH;
 
   const points = values.map((v, i) => ({ x: xFor(i), y: yFor(v) }));
   const line = points
@@ -92,7 +92,7 @@ export function buildLinePath(
   const last = points[points.length - 1];
   const area = `${line} L${fmt(last.x)} ${fmt(baseY)} L${fmt(first.x)} ${fmt(baseY)} Z`;
 
-  return { line, area, points };
+  return { line, area, points, yFor };
 }
 
 export function buildSparkPath(

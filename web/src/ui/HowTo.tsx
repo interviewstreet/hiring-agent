@@ -2,22 +2,22 @@
 import { useEffect, useId, useState, type ReactNode } from "react";
 
 /**
- * A small "how?" link that opens a modal with numbered, step-by-step
- * instructions. Reuses the shared .ha-overlay/.ha-modal/.ha-plist styles
- * (globals.css) so it matches the PrivacyChip dialog exactly.
+ * A modal with numbered, step-by-step instructions, opened by a trigger. The
+ * default trigger is a small "how?" link; pass `trigger` to supply your own
+ * (e.g. PrivacyChip's chip button) and reuse the whole dialog.
  */
 export function HowTo({
   eyebrow,
   title,
   steps,
   foot,
-  label = "how?",
+  trigger,
 }: {
   eyebrow: string;
   title: string;
   steps: ReactNode[];
   foot?: string;
-  label?: string;
+  trigger?: (open: () => void) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const titleId = useId();
@@ -33,14 +33,18 @@ export function HowTo({
 
   return (
     <>
-      <button
-        type="button"
-        className="ha-how"
-        aria-haspopup="dialog"
-        onClick={() => setOpen(true)}
-      >
-        {label}
-      </button>
+      {trigger ? (
+        trigger(() => setOpen(true))
+      ) : (
+        <button
+          type="button"
+          className="ha-how"
+          aria-haspopup="dialog"
+          onClick={() => setOpen(true)}
+        >
+          how?
+        </button>
+      )}
       {open && (
         <div
           className="ha-overlay"

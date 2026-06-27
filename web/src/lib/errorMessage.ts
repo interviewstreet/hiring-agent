@@ -62,8 +62,3 @@ export function describeError(err: unknown): ErrorInfo {
   }
   return { message: GENERIC, retryLabel: null, tone: "bad" };
 }
-
-/** Convenience: the user-facing message only. PURE. */
-export function errorMessage(err: unknown): string {
-  return describeError(err).message;
-}

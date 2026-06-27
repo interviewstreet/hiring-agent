@@ -45,7 +45,6 @@ const ProjectSchema = z.object({
   url: z.string().nullable().optional(),
   highlights: z.array(z.string()).nullable().optional(),
   technologies: z.array(z.string()).nullable().optional(),
-  skills: z.array(z.string()).nullable().optional(),
 });
 const AwardSchema = z.object({
   title: z.string().nullable().optional(),
@@ -106,7 +105,7 @@ export type Coach = z.infer<typeof CoachSchema>;
 
 // ── GitHub summary (subset persisted for display) ──
 export type GitHubSummary = {
-  profile: { username: string; public_repos?: number; followers?: number } | null;
+  profile: { username: string } | null;
   projects: Array<{ name: string; project_type: string; stars: number }>;
 };
 

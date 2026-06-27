@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractDomain, networkName, extractUsername, parseDateRange, normalizeResume } from "./normalize";
+import { extractDomain, networkName, extractUsername, normalizeResume } from "./normalize";
 
 describe("url helpers", () => {
   it("extracts domain and strips www", () => {
@@ -18,21 +18,6 @@ describe("url helpers", () => {
   });
   it("returns empty string for an empty domain input", () => {
     expect(extractDomain("")).toBe("");
-  });
-});
-
-describe("parseDateRange", () => {
-  it("handles 'Jan-Mar 2021'", () => {
-    expect(parseDateRange("Jan-Mar 2021")).toEqual(["Jan 2021", "Mar 2021"]);
-  });
-  it("handles 'onwards'", () => {
-    expect(parseDateRange("Jan 2021 onwards")).toEqual(["Jan 2021", "Present"]);
-  });
-  it("handles year range '2020-2021'", () => {
-    expect(parseDateRange("2020-2021")).toEqual(["2020-01", "2021-12"]);
-  });
-  it("returns [null, null] for an empty date range", () => {
-    expect(parseDateRange("")).toEqual([null, null]);
   });
 });
 

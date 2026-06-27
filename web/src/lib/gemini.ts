@@ -40,8 +40,6 @@ export async function callGeminiJSON<T>(opts: {
   user: string;
   responseSchema: GeminiSchema;
   validate: (value: unknown) => T;
-  temperature?: number;
-  topP?: number;
   maxRetries?: number;
   sleep?: (ms: number) => Promise<void>;
 }): Promise<T> {
@@ -64,8 +62,8 @@ export async function callGeminiJSON<T>(opts: {
           systemInstruction: system,
           responseMimeType: "application/json",
           responseSchema,
-          temperature: opts.temperature ?? 0.1,
-          topP: opts.topP ?? 0.9,
+          temperature: 0.1,
+          topP: 0.9,
         },
       });
       const text = (res.text ?? "").trim();
@@ -73,12 +71,12 @@ export async function callGeminiJSON<T>(opts: {
       try {
         parsed = JSON.parse(text);
       } catch {
-        throw new ModelOutputError(text);
+        throw new ModelOutputError();
       }
       try {
         return validate(parsed);
       } catch {
-        throw new ModelOutputError(text, "Model output failed schema validation.");
+        throw new ModelOutputError("Model output failed schema validation.");
       }
     } catch (e) {
       lastErr = e;

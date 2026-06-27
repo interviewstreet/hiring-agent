@@ -54,7 +54,7 @@ export async function fetchGitHubSummary(profileUrl: string, opts: FetchOpts): P
   projects.sort((a, b) => b.stars - a.stars);
 
   return {
-    profile: { username, public_repos: profile.public_repos, followers: profile.followers },
+    profile: { username },
     projects,
   };
 }
