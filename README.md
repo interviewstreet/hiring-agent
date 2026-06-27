@@ -4,13 +4,13 @@
 Upload a resume PDF and get an explainable, fairness-constrained score, a plain-language coach, and trend tracking over time — running entirely in your browser.</p>
 
 <p align="center">
-  <a href="https://hiring-agent-web.vercel.app"><img alt="Live demo" src="https://img.shields.io/badge/live%20demo-hiring--agent--web.vercel.app-3A2DD0"></a>
+  <a href="https://fixmyresume.dev"><img alt="Live demo" src="https://img.shields.io/badge/live%20demo-fixmyresume.dev-3A2DD0"></a>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-yellow.svg"></a>
   <img alt="Next.js 15" src="https://img.shields.io/badge/Next.js-15-black">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178c6">
 </p>
 
-> **🔗 Try it now: https://hiring-agent-web.vercel.app** — no install, no sign-up. Bring your own Google Gemini API key.
+> **🔗 Try it now: https://fixmyresume.dev** — no install, no sign-up. Bring your own Google Gemini API key.
 >
 > 🔒 Your resume and your API key never leave your browser — there's no backend of ours for them to pass through.
 
@@ -90,7 +90,7 @@ You bring your own Gemini key, so **you choose the model** from the dropdown in 
 
 ## Quick start
 
-**Just use it:** open **https://hiring-agent-web.vercel.app**, go to **Settings**, paste your [Gemini API key](https://aistudio.google.com/apikey), then drop a resume PDF on the **Score** screen.
+**Just use it:** open **https://fixmyresume.dev**, go to **Settings**, paste your [Gemini API key](https://aistudio.google.com/apikey), then drop a resume PDF on the **Score** screen.
 
 **Run it locally:**
 
