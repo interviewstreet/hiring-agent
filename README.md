@@ -12,7 +12,7 @@ Upload a resume PDF and get an explainable, fairness-constrained score, a plain-
 
 > **🔗 Try it now: https://hiring-agent-web.vercel.app** — no install, no sign-up. Bring your own Google Gemini API key.
 >
-> 💡 **Fix My Resume** is the web app. It's a browser port of the original **Hiring Agent** Python CLI (local models via Ollama, section-by-section extraction, CSV export), which lives at [**interviewstreet/hiring-agent**](https://github.com/interviewstreet/hiring-agent).
+> 🔒 Your resume and your API key never leave your browser — there's no backend of ours for them to pass through.
 
 ---
 
@@ -22,7 +22,7 @@ Upload a resume PDF and get an explainable, fairness-constrained score, a plain-
 
 ## Why this exists
 
-The original Hiring Agent is a powerful command-line tool — but using it means installing Python, pulling models, and reading CSVs. This project wraps that same scoring brain in a **friendly web app anyone can use**, and adds the things a browser makes possible: **visual trends**, a **conversational coach**, and **run-to-run comparison** — without giving up privacy.
+Most resume scorers ask you to upload your career history to their servers, or they're command-line tools you have to install and babysit. **Fix My Resume** is neither — a polished web app anyone can open and use that runs the whole pipeline **in your browser**: it parses your PDF, produces an explainable score, coaches you on what to fix, and charts your progress over time. Visual trends, a conversational coach, and run-to-run comparison, with privacy built into the architecture rather than promised in a policy.
 
 The guiding constraint is **privacy by architecture**. The app is a **static site with no backend of ours**. Your PDF is parsed in the browser; scoring goes **straight from your browser to Google Gemini using a key you supply**. Your resume, your key, and your entire history never touch a server we control — there's nothing to leak, log, or breach.
 
@@ -72,7 +72,7 @@ You bring your own Gemini key, so **you choose the model** from the dropdown in 
 
 **Rule of thumb:** start with **Flash** (the default). Switch to **Pro** when you want the most trustworthy score and the deepest feedback; drop to **Flash-Lite** when you're iterating fast or watching cost. Pick whichever fits from the **Settings → *Model*** dropdown.
 
-> **A note on scores:** scores are **indicative**. This app is a TypeScript port of the Python pipeline using a single combined extraction call, so a number here may differ from the CLI's output. Use it for relative guidance and trend tracking, not as an absolute hiring signal.
+> **A note on scores:** scores are **indicative**. Fix My Resume runs its scoring pipeline in TypeScript with a single combined extraction step, so a number here may differ from a reference run. Use it for relative guidance and trend tracking, not as an absolute hiring signal.
 
 ---
 
@@ -95,7 +95,8 @@ You bring your own Gemini key, so **you choose the model** from the dropdown in 
 **Run it locally:**
 
 ```bash
-cd web
+git clone https://github.com/1akashkalita/fix-my-resume.git
+cd fix-my-resume/web
 npm install
 npm run dev          # http://localhost:3000
 ```
@@ -113,9 +114,9 @@ Results are saved to IndexedDB so trends and diffs can be computed across runs.
 
 ---
 
-## The original CLI tool
+## Credits
 
-Fix My Resume is the web app. The original **Python command-line tool** it's based on — with **local models via Ollama** or Google Gemini, six-section extraction, GitHub classification, and CSV export — lives at [**interviewstreet/hiring-agent**](https://github.com/interviewstreet/hiring-agent).
+The scoring methodology — the weighted category rubric and its fairness constraints — is adapted from the open-source [**Hiring Agent**](https://github.com/interviewstreet/hiring-agent) project and reimplemented in TypeScript for the browser. Everything else here — the web app, its UI, trends, coach, run-to-run diffs, and fully client-side architecture — is original to Fix My Resume.
 
 ---
 
