@@ -738,6 +738,25 @@ def transform_evaluation_response(
     else:
         csv_row["areas_for_improvement"] = ""
 
+        # Extract publications summary
+    if (
+        resume_data
+        and hasattr(resume_data, "publications")
+        and resume_data.publications
+    ):
+        publications = resume_data.publications
+        csv_row["publications_count"] = len(publications)
+        csv_row["publications_titles"] = "; ".join(
+            p.name for p in publications if p.name
+        )
+        csv_row["publications_venues"] = "; ".join(
+            p.publisher for p in publications if p.publisher
+        )
+    else:
+        csv_row["publications_count"] = 0
+        csv_row["publications_titles"] = ""
+        csv_row["publications_venues"] = ""
+
     return csv_row
 
 

@@ -19,6 +19,7 @@ from models import (
     SkillsSection,
     ProjectsSection,
     AwardsSection,
+    PublicationsSection,
 )
 from llm_utils import initialize_llm_provider, extract_json_from_response
 from pymupdf_rag import to_markdown
@@ -189,6 +190,17 @@ class PDFHandler:
             return None
         return self._call_llm_for_section("awards", resume_text, prompt, AwardsSection)
 
+    def extract_publications_section(self, resume_text: str) -> Optional[Dict]:
+        prompt = self.template_manager.render_template(
+            "publications", text_content=resume_text
+        )
+        if not prompt:
+            logger.error("❌ Failed to render publications template")
+            return None
+        return self._call_llm_for_section(
+            "publications", resume_text, prompt, PublicationsSection
+        )
+
     def extract_json_from_text(self, resume_text: str) -> Optional[JSONResume]:
         try:
             return self._extract_all_sections_separately(resume_text)
@@ -226,6 +238,7 @@ class PDFHandler:
             "skills": self.extract_skills_section,
             "projects": self.extract_projects_section,
             "awards": self.extract_awards_section,
+            "publications": self.extract_publications_section,
         }
 
         if section_name not in section_extractors:
@@ -268,7 +281,15 @@ class PDFHandler:
     ) -> Optional[JSONResume]:
         start_time = time.time()
 
-        sections = ["basics", "work", "education", "skills", "projects", "awards"]
+        sections = [
+            "basics",
+            "work",
+            "education",
+            "skills",
+            "projects",
+            "awards",
+            "publications",
+        ]
 
         complete_resume = {
             "basics": None,
