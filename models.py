@@ -199,7 +199,7 @@ class AwardsSection(BaseModel):
 
 
 class PublicationsSection(BaseModel):
-    """Awards section containing a list of awards."""
+    """Publications section containing a list of publications."""
 
     publications: Optional[List[Publication]] = None
 

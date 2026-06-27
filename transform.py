@@ -746,8 +746,6 @@ def transform_evaluation_response(
     ):
         publications = resume_data.publications
         csv_row["publications_count"] = len(publications)
-        print("*" * 50)
-        print(len(publications))
         csv_row["publications_titles"] = "; ".join(
             p.name for p in publications if p.name
         )
