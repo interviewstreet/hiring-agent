@@ -293,7 +293,7 @@ def main():
     resume_data = None
     cache_loaded = False
 
-    if DEVELOPMENT_MODE and os.path.exists(cache_filename):
+    if DEVELOPMENT_MODE and os.path.exists(cache_filename) and os.path.getmtime(cache_filename) >= os.path.getmtime(pdf_path):
         print(f"Loading cached data from {cache_filename}")
         try:
             cached_data = json.loads(Path(cache_filename).read_text(encoding="utf-8"))
