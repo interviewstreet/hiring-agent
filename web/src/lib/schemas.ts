@@ -120,7 +120,6 @@ export type RunRecord = {
   evaluation: Evaluation;
   coach: Coach;
   githubSummary?: GitHubSummary | null;
-  pdfBlob?: Blob | null;
 };
 
 // ── Persisted settings (UI-facing superset of pipeline Settings) ──

@@ -37,8 +37,15 @@ export function ScoreScreen() {
         toPipelineSettings(settings),
         setStage,
       );
-      run.pdfBlob = file;
-      await saveRun(run);
+      // Persist for history, but never let a storage failure throw away a run
+      // we already spent three LLM calls computing. saveRun mirrors the run in
+      // memory before writing, so results still render this session even if the
+      // persistent write is rejected (e.g. private-window storage limits).
+      try {
+        await saveRun(run);
+      } catch (storageErr) {
+        console.warn("Run scored but not saved to history:", storageErr);
+      }
       router.push("/results?run=" + run.id);
     } catch (err) {
       setError(describeError(err));

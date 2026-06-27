@@ -79,4 +79,27 @@ describe("store", () => {
     await clearAllRuns();
     expect(await listRuns()).toEqual([]);
   });
+
+  it("keeps a run retrievable in memory even if the DB write is rejected", async () => {
+    const run = makeRun("r1", 100);
+    // A function field can't be structured-cloned, so the IndexedDB write
+    // rejects — standing in for the real failure (e.g. a Blob in a private
+    // window, or an exceeded quota) where db.put cannot persist the record.
+    (run as unknown as { unclonable: () => void }).unclonable = () => {};
+
+    await expect(saveRun(run)).rejects.toThrow();
+
+    // The run was mirrored in memory before the failed write, so a completed
+    // run is never discarded — it still loads for the rest of this session.
+    expect((await getRun("r1"))?.id).toBe("r1");
+  });
+
+  it("deleteRun also drops the in-memory mirror", async () => {
+    const run = makeRun("r1", 100);
+    (run as unknown as { unclonable: () => void }).unclonable = () => {};
+    await expect(saveRun(run)).rejects.toThrow();
+
+    await deleteRun("r1");
+    expect(await getRun("r1")).toBeUndefined();
+  });
 });
