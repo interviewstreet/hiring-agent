@@ -5,7 +5,7 @@ explainable, fairness-constrained score, a plain-language coach, and trend
 tracking over time — all running entirely in your browser. Your resume and your
 API key never touch a server we control.
 
-> **Live demo:** **https://web-eight-black-28.vercel.app**
+> **Live demo:** **https://hiring-agent-web.vercel.app**
 
 ---
 
@@ -147,7 +147,8 @@ npm run e2e                                     # Playwright smoke (stubbed Gemi
 
 ## Deploy to Vercel
 
-A production build is **live at https://web-eight-black-28.vercel.app**.
+A production build is **live at https://hiring-agent-web.vercel.app**, deployed
+from this repo via Vercel's GitHub integration (Root Directory `web/`).
 
 This app is the `web/` subdirectory of the repo. The settings are pinned in
 [`web/vercel.json`](vercel.json):

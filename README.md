@@ -20,7 +20,7 @@
 
 This fork adds a **browser front-end** for the scorer — no Python, no install — under [`web/`](web/). It's a **static site with no backend of ours**: PDFs are parsed in your browser and scored via **Google Gemini using your own API key**, so your resume and key never touch a server we control. It also adds **trend tracking** (watch your score improve over time) and a **resume coach** (plain-language, prioritized fixes).
 
-> **Live demo:** **https://web-eight-black-28.vercel.app** · **Details:** [web/README.md](web/README.md)
+> **Live demo:** **https://hiring-agent-web.vercel.app** · **Details:** [web/README.md](web/README.md)
 
 <p align="center">
   <img src="web/docs/screenshots/02-results.png" alt="Results screen — verdict, scorecard, and coach" width="800">
