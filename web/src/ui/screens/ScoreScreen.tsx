@@ -7,7 +7,7 @@ import { useSettings } from "@/ui/SettingsProvider";
 import { toPipelineSettings } from "@/lib/settings";
 import { runScoreWithRealDeps } from "@/lib/runScore";
 import { saveRun } from "@/lib/store";
-import { errorMessage } from "@/lib/errorMessage";
+import { describeError, type ErrorInfo } from "@/lib/errorMessage";
 
 const STAGES = [
   "Reading PDF",
@@ -22,9 +22,12 @@ export function ScoreScreen() {
   const { settings, hasKey } = useSettings();
   const [stage, setStage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ErrorInfo | null>(null);
+  // Remembered so the retry button can re-run scoring on the same file.
+  const [lastFile, setLastFile] = useState<File | null>(null);
 
   async function handleFile(file: File) {
+    setLastFile(file);
     setError(null);
     setBusy(true);
     setStage(STAGES[0]);
@@ -38,7 +41,7 @@ export function ScoreScreen() {
       await saveRun(run);
       router.push("/results?run=" + run.id);
     } catch (err) {
-      setError(errorMessage(err));
+      setError(describeError(err));
       setStage(null);
       setBusy(false);
     }
@@ -72,13 +75,23 @@ export function ScoreScreen() {
 
       <Dropzone
         onFile={handleFile}
-        onReject={(msg) => setError(msg)}
+        onReject={(msg) => setError({ message: msg, retryLabel: null, tone: "bad" })}
         disabled={busy}
       />
 
       {error && (
-        <div className="ha-error mono" role="alert">
-          {error}
+        <div className={`ha-error ${error.tone}`} role="alert">
+          <span className="ha-error-msg mono">{error.message}</span>
+          {error.retryLabel && lastFile && (
+            <button
+              type="button"
+              className="ha-retry mono"
+              onClick={() => handleFile(lastFile)}
+              disabled={busy}
+            >
+              {error.retryLabel}
+            </button>
+          )}
         </div>
       )}
 
@@ -121,7 +134,17 @@ const styles = `
     text-decoration:none;border-bottom:1px solid var(--brand);padding-bottom:1px}
   .ha-notice-link:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
   .ha-error{margin-top:18px;border:1px solid var(--bad);border-radius:10px;
-    background:var(--bad-tint);color:var(--ink);padding:12px 14px;font-size:13px}
+    background:var(--bad-tint);color:var(--ink);padding:12px 14px;font-size:13px;
+    display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .ha-error.warn{border-color:var(--warn);background:var(--warn-tint)}
+  .ha-error-msg{flex:1 1 240px;line-height:1.5}
+  .ha-retry{flex:none;border:1px solid var(--bad);background:transparent;color:var(--bad);
+    border-radius:8px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .ha-retry:hover{background:var(--bad);color:var(--paper)}
+  .ha-error.warn .ha-retry{border-color:var(--warn);color:var(--warn)}
+  .ha-error.warn .ha-retry:hover{background:var(--warn);color:var(--paper)}
+  .ha-retry:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+  .ha-retry:disabled{opacity:.5;cursor:default}
   .ha-stages{list-style:none;margin:24px 0 0;padding:0;display:flex;flex-direction:column;gap:2px}
   .ha-stage{display:flex;align-items:center;gap:12px;padding:9px 4px;font-size:13px;color:var(--ink-soft)}
   .ha-stage-dot{width:10px;height:10px;border-radius:50%;flex:none;

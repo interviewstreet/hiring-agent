@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import type { GeminiSchema } from "./prompts";
-import { RateLimitError, ModelOutputError } from "./errors";
+import { RateLimitError, ModelOverloadedError, ModelOutputError } from "./errors";
 
 export const DEFAULT_MODEL = "gemini-2.5-flash";
 
@@ -23,6 +23,14 @@ type AILike = { models: { generateContent: (args: any) => Promise<{ text?: strin
 function isRateLimit(e: unknown): boolean {
   const any = e as { status?: number; message?: string };
   return any?.status === 429 || /resource_exhausted|rate limit|429/i.test(any?.message ?? "");
+}
+
+// Gemini returns 503 UNAVAILABLE ("The model is overloaded") when the model is
+// in high demand. Transient like a rate limit, but it's Google's capacity, not
+// the user's quota — so it gets its own error type and "wait a few minutes" copy.
+function isOverloaded(e: unknown): boolean {
+  const any = e as { status?: number; message?: string };
+  return any?.status === 503 || /unavailable|overloaded|high demand/i.test(any?.message ?? "");
 }
 
 export async function callGeminiJSON<T>(opts: {
@@ -75,12 +83,15 @@ export async function callGeminiJSON<T>(opts: {
     } catch (e) {
       lastErr = e;
       if (e instanceof ModelOutputError) throw e;
-      if (isRateLimit(e) && attempt < maxRetries - 1) {
+      // Both rate limits and overload are transient — back off and retry.
+      const transient = isRateLimit(e) || isOverloaded(e);
+      if (transient && attempt < maxRetries - 1) {
         const expo = Math.min(BASE * 2 ** attempt, CAP);
         const jitter = 0.8 + Math.random() * 0.4;
         await sleep(Math.round(expo * jitter));
         continue;
       }
+      if (isOverloaded(e)) throw new ModelOverloadedError();
       if (isRateLimit(e)) throw new RateLimitError();
       throw e;
     }
