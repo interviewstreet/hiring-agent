@@ -16,8 +16,35 @@
 
 ---
 
+## 🖥️ Privacy-first Web UI (new in this fork)
+
+This fork adds a **browser front-end** for the scorer — no Python, no install — under [`web/`](web/). It's a **static site with no backend of ours**: PDFs are parsed in your browser and scored via **Google Gemini using your own API key**, so your resume and key never touch a server we control. It also adds **trend tracking** (watch your score improve over time) and a **resume coach** (plain-language, prioritized fixes).
+
+> **Live demo:** **https://web-eight-black-28.vercel.app** · **Details:** [web/README.md](web/README.md)
+
+<p align="center">
+  <img src="web/docs/screenshots/02-results.png" alt="Results screen — verdict, scorecard, and coach" width="800">
+</p>
+
+<p align="center">
+  <img src="web/docs/screenshots/03-history.png" alt="History & Trends — score over time, sparklines, changelog" width="800">
+</p>
+
+**What it adds, at a glance**
+
+- Friendly web UI for the existing pipeline (PDF → structured resume → optional GitHub enrichment → scored evaluation).
+- Browser-only storage of run history (IndexedDB) — fully private, no account.
+- Score-over-time trends, per-category sparklines, and run-to-run diffing.
+- A resume coach that explains what's strong, what's weak, and what to fix next.
+- Light/dark themes; everything is additive — **no existing Python files are changed.**
+
+The Python CLI below is unchanged. See [`web/README.md`](web/README.md) for setup, development, and deployment.
+
+---
+
 ## Contents
 
+- [Privacy-first Web UI](#️-privacy-first-web-ui-new-in-this-fork)
 - [Overview](#overview)
 - [Architecture](#architecture)
 - [Installation and Setup](#installation-and-setup)
