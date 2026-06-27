@@ -1,4 +1,4 @@
-# Hiring Agent — Web UI
+# Fix My Resume
 
 <p align="center"><strong>A privacy-first, in-browser resume scorer.</strong><br>
 Upload a resume PDF and get an explainable, fairness-constrained score, a plain-language coach, and trend tracking over time — running entirely in your browser.</p>
@@ -12,7 +12,7 @@ Upload a resume PDF and get an explainable, fairness-constrained score, a plain-
 
 > **🔗 Try it now: https://hiring-agent-web.vercel.app** — no install, no sign-up. Bring your own Google Gemini API key.
 >
-> 💡 Looking for the original **Python CLI** (local models via Ollama, section-by-section extraction, CSV export)? That lives on the [**`main` branch**](https://github.com/interviewstreet/hiring-agent/tree/main). This branch is the **web UI** only.
+> 💡 **Fix My Resume** is the web app. It's a browser port of the original **Hiring Agent** Python CLI (local models via Ollama, section-by-section extraction, CSV export), which lives at [**interviewstreet/hiring-agent**](https://github.com/interviewstreet/hiring-agent).
 
 ---
 
@@ -61,7 +61,7 @@ Light and dark themes, a typographic "human document measured by a precise machi
 
 ## Choosing a Gemini model
 
-You bring your own Gemini key, so **you choose the model** from the dropdown in **Settings → *Model*** (it defaults to Flash). A run makes ~3–4 calls — extraction → scoring → coaching (+ optional GitHub selection) — all using structured JSON output, which every model below supports.
+You bring your own Gemini key, so **you choose the model** from the dropdown in **Settings → *Model*** (it defaults to Flash). A run makes **2 Gemini calls** — scoring → coaching — plus a third **extraction** call only when GitHub enrichment is enabled. All use structured JSON output, which every model below supports.
 
 | Model | Best for in this app | Speed | Relative cost | Why pick it |
 |---|---|:---:|:---:|---|
@@ -105,10 +105,9 @@ Full development, testing, and deployment docs are in **[`web/README.md`](web/RE
 ### How it works (per run, all in your browser)
 
 1. **PDF → text** — `pdf.js` extracts selectable text locally.
-2. **Text → structured resume** — one Gemini call returns JSON Resume data.
-3. **GitHub enrichment** *(optional)* — fetches and classifies your public repos.
-4. **Scoring** — one Gemini call returns the fairness-constrained `/120` evaluation.
-5. **Coaching** — a final Gemini call produces the prioritized fixes and boosts.
+2. **Scoring** — one Gemini call returns the fairness-constrained `/120` evaluation.
+3. **Coaching** — a final Gemini call produces the prioritized fixes and boosts.
+4. **GitHub enrichment** *(optional)* — when enabled, an extra Gemini call extracts your profile links, then your public repos are fetched and classified to enrich the score.
 
 Results are saved to IndexedDB so trends and diffs can be computed across runs.
 
@@ -116,7 +115,7 @@ Results are saved to IndexedDB so trends and diffs can be computed across runs.
 
 ## The original CLI tool
 
-This branch is the web UI. The original **Python command-line tool** — with **local models via Ollama** or Google Gemini, six-section extraction, GitHub classification, and CSV export — is documented on the [**`main` branch**](https://github.com/interviewstreet/hiring-agent/tree/main).
+Fix My Resume is the web app. The original **Python command-line tool** it's based on — with **local models via Ollama** or Google Gemini, six-section extraction, GitHub classification, and CSV export — lives at [**interviewstreet/hiring-agent**](https://github.com/interviewstreet/hiring-agent).
 
 ---
 
