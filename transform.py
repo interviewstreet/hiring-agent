@@ -1,5 +1,4 @@
 from typing import Dict, List, Optional
-import pdb
 from models import JSONResume
 
 
@@ -736,6 +735,69 @@ def transform_evaluation_response(
     if evaluation and hasattr(evaluation, "areas_for_improvement"):
         csv_row["areas_for_improvement"] = "; ".join(evaluation.areas_for_improvement)
     else:
+        csv_row["areas_for_improvement"] = ""
+
+    return csv_row
+
+
+def transform_job_evaluation_response(file_name=None, resume_data=None, evaluation=None):
+    csv_row = {}
+    csv_row["file_name"] = file_name
+
+    if resume_data and hasattr(resume_data, "basics") and resume_data.basics:
+        basics = resume_data.basics
+        csv_row["name"] = basics.name or ""
+        csv_row["email"] = basics.email or ""
+        csv_row["phone"] = basics.phone or ""
+        csv_row["location"] = (
+            f"{basics.location.city}, {basics.location.region}"
+            if basics.location and basics.location.city and basics.location.region
+            else ""
+        )
+
+        if basics.profiles:
+            github_profile = fetch_profile(basics.profiles, ["github"], "github")
+            linkedin_profile = fetch_profile(basics.profiles, ["linkedin"], "linkedin")
+            csv_row["github_url"] = github_profile.url if github_profile else ""
+            csv_row["linkedin_url"] = linkedin_profile.url if linkedin_profile else ""
+        else:
+            csv_row["github_url"] = ""
+            csv_row["linkedin_url"] = ""
+    else:
+        csv_row["name"] = ""
+        csv_row["email"] = ""
+        csv_row["phone"] = ""
+        csv_row["location"] = ""
+        csv_row["github_url"] = ""
+        csv_row["linkedin_url"] = ""
+
+    if evaluation:
+        csv_row["job_title"] = evaluation.job_title
+        csv_row["weighted_total"] = evaluation.weighted_total
+        csv_row["semantic_match_score"] = evaluation.semantic_match_score
+
+        if evaluation.scores:
+            csv_row["skills_match_score"] = evaluation.scores.skills_match.score
+            csv_row["experience_match_score"] = evaluation.scores.experience_match.score
+            csv_row["job_title_alignment_score"] = evaluation.scores.job_title_alignment.score
+            csv_row["education_score"] = evaluation.scores.education.score
+            csv_row["resume_quality_score"] = evaluation.scores.resume_quality.score
+            csv_row["missing_critical_score"] = evaluation.scores.missing_critical_requirements.score
+        else:
+            for field in ["skills_match_score", "experience_match_score", "job_title_alignment_score",
+                          "education_score", "resume_quality_score", "missing_critical_score"]:
+                csv_row[field] = "N/A"
+
+        csv_row["key_strengths"] = "; ".join(evaluation.key_strengths) if evaluation.key_strengths else ""
+        csv_row["areas_for_improvement"] = "; ".join(evaluation.areas_for_improvement) if evaluation.areas_for_improvement else ""
+    else:
+        csv_row["job_title"] = ""
+        csv_row["weighted_total"] = "N/A"
+        csv_row["semantic_match_score"] = "N/A"
+        for field in ["skills_match_score", "experience_match_score", "job_title_alignment_score",
+                      "education_score", "resume_quality_score", "missing_critical_score"]:
+            csv_row[field] = "N/A"
+        csv_row["key_strengths"] = ""
         csv_row["areas_for_improvement"] = ""
 
     return csv_row

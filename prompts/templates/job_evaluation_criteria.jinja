@@ -1,0 +1,130 @@
+You are evaluating how well a candidate's resume matches a job description. Score each category from 0 to 100.
+
+## FULL JOB DESCRIPTION
+
+{{ job_description }}
+
+---
+
+## EXTRACTED JOB REQUIREMENTS
+
+Job Title: {{ job_title }}
+
+Required Skills: {{ required_skills | join(", ") if required_skills else "None specified" }}
+
+Preferred Skills: {{ preferred_skills | join(", ") if preferred_skills else "None specified" }}
+
+Years of Experience Required: {{ years_of_experience if years_of_experience is not none else "Not specified" }}
+
+Education Requirements: {{ education_requirements if education_requirements else "Not specified" }}
+
+Must-Have Qualifications: {{ must_have_qualifications | join(", ") if must_have_qualifications else "None specified" }}
+
+---
+
+## SCORING CRITERIA
+
+### Skills Match (score 0-100)
+Compare the candidate's skills, work experience, and projects against the required and preferred skills.
+
+Required skills carry 80% of the weight, preferred skills carry 20%.
+
+Score bands:
+- 90-100: All required skills present, most preferred skills also present
+- 70-89: Most required skills present, minor gaps
+- 50-69: Around half of required skills present
+- 0-49: Few or no required skills present
+
+### Experience Match (score 0-100)
+Evaluate the relevance of work history and projects to the target role.
+
+Consider:
+- How closely past roles and responsibilities match the target role
+- Whether technologies used in work experience match the job requirements
+- Years of relevant experience vs years required (if years_of_experience is specified: score 100% if met, scale down proportionally if not)
+- Industry or domain similarity
+
+Score bands:
+- 90-100: Highly relevant experience that meets or exceeds all requirements
+- 70-89: Mostly relevant experience with minor gaps
+- 50-69: Somewhat relevant experience with notable gaps
+- 0-49: Little relevant experience or significant shortfall in years
+
+### Job Title Alignment (score 0-100)
+Compare the candidate's previous job titles to the target job title.
+
+Score bands:
+- 90-100: Previous titles directly match or are very similar (e.g. "Software Engineer" → "Software Engineer")
+- 70-89: Previous titles are closely related (e.g. "Software Engineer Intern" → "Software Engineer")
+- 50-69: Previous titles are somewhat related (e.g. "Backend Developer" → "Full Stack Engineer")
+- 20-49: Tangentially related titles
+- 0-19: No previous titles or completely unrelated titles
+
+### Education (score 0-100)
+Compare the candidate's education against the education requirements.
+
+Consider degree level, field of study, and any required certifications or licenses.
+
+Score bands:
+- 90-100: Education fully meets or exceeds requirements
+- 70-89: Education mostly meets requirements with minor gaps
+- 50-69: Education partially meets requirements (e.g. relevant field but wrong level)
+- 0-49: Education does not meet requirements or is absent
+
+If no education requirements are specified, score based on relevance of the candidate's education to the role.
+
+### Resume Quality (score 0-100)
+Evaluate the quality of the resume's writing and presentation.
+
+Assess:
+- Bullet points use strong action verbs: Built, Designed, Implemented, Optimized, Reduced, Automated, Architected, Led, Deployed, Improved
+- Achievements are quantified with numbers (e.g. "Reduced latency by 35%", "Processed 1M requests/day", "Served 20k users")
+- No vague filler statements (e.g. "Worked on APIs", "Helped with development", "Was responsible for")
+- All major sections present: work experience, skills, projects or education
+- Descriptions are clear and concise
+
+Score bands:
+- 90-100: Strong action verbs throughout, most achievements quantified, no vague statements
+- 70-89: Good action verbs, some quantified achievements, minor vague statements
+- 50-69: Mixed quality, noticeable vague statements, few quantified achievements
+- 0-49: Mostly vague, no quantified achievements, weak structure
+
+### Missing Critical Requirements (score 0-100)
+Start at 100 and penalize for missing must-have qualifications and required skills.
+
+Deductions:
+- -40 points for each missing must-have qualification (work authorization, clearance, license, etc.)
+- -15 points for each required skill completely absent from the resume
+
+If no must-have qualifications are specified, base this score only on required skill presence.
+Minimum score is 0.
+
+---
+
+## CANDIDATE RESUME
+
+{{ resume_text }}
+
+---
+
+## INSTRUCTIONS
+
+Score each category from 0 to 100 using only evidence from the resume above.
+Provide specific evidence for each score — reference actual content from the resume, not generic statements.
+Identify 1-5 key strengths relevant to this specific role.
+For areas_for_improvement, identify 1-5 SPECIFIC GAPS between the candidate's resume and the job requirements listed above. Each item must reference something the job requires that the candidate is missing or weak on. Do NOT give generic resume advice (e.g. "add more detail", "include links"). Every improvement must name a specific requirement from the job description that is absent or underdeveloped in the resume.
+
+Return ONLY this JSON structure, no other text:
+
+{
+    "scores": {
+        "skills_match": {"score": 0, "evidence": "string"},
+        "experience_match": {"score": 0, "evidence": "string"},
+        "job_title_alignment": {"score": 0, "evidence": "string"},
+        "education": {"score": 0, "evidence": "string"},
+        "resume_quality": {"score": 0, "evidence": "string"},
+        "missing_critical_requirements": {"score": 0, "evidence": "string"}
+    },
+    "key_strengths": ["strength1", "strength2"],
+    "areas_for_improvement": ["area1", "area2"]
+}

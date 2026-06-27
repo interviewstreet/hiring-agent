@@ -5,13 +5,14 @@ import logging
 import csv
 from pdf import PDFHandler
 from github import fetch_and_display_github_info
-from models import JSONResume, EvaluationData
-from typing import List, Optional, Dict
-from evaluator import ResumeEvaluator
+from models import JSONResume, EvaluationData, JobEvaluationData
+from typing import Optional
+from evaluator import ResumeEvaluator, JobDescriptionEvaluator
 from pathlib import Path
 from prompt import DEFAULT_MODEL, MODEL_PARAMETERS
 from transform import (
     transform_evaluation_response,
+    transform_job_evaluation_response,
     convert_json_resume_to_text,
     convert_github_data_to_text,
     convert_blog_data_to_text,
@@ -25,11 +26,38 @@ logging.basicConfig(
     format="%(asctime)s - %(name)5s - %(lineno)5d - %(funcName)33s - %(levelname)5s - %(message)s",
 )
 
+RESUME_PATH = "resume.pdf"
+JOB_DESCRIPTION_PATH = "job_description.txt"
+
+
+def select_mode() -> int:
+    print("\nChoose scoring mode:")
+    print("  1. HackerRank Intern (original)")
+    print("  2. Custom Job Description")
+    while True:
+        choice = input("Enter choice (1 or 2): ").strip()
+        if choice in ("1", "2"):
+            return int(choice)
+        print("Invalid choice. Please enter 1 or 2.")
+
+
+def load_job_description() -> str:
+    if not os.path.exists(JOB_DESCRIPTION_PATH):
+        print(f"Error: '{JOB_DESCRIPTION_PATH}' not found in the project root.")
+        sys.exit(1)
+    content = Path(JOB_DESCRIPTION_PATH).read_text(encoding="utf-8").strip()
+    if not content:
+        print(
+            f"Error: '{JOB_DESCRIPTION_PATH}' is empty. "
+            "Paste a job description into it before running in Custom Job Description mode."
+        )
+        sys.exit(1)
+    return content
+
 
 def print_evaluation_results(
     evaluation: EvaluationData, candidate_name: str = "Candidate"
 ):
-    """Print evaluation results in a readable format."""
     print("\n" + "=" * 80)
     print(f"📊 RESUME EVALUATION RESULTS FOR: {candidate_name}")
     print("=" * 80)
@@ -38,7 +66,6 @@ def print_evaluation_results(
         print("❌ No evaluation data available")
         return
 
-    # Calculate overall score
     total_score = 0
     max_score = 0
 
@@ -48,35 +75,28 @@ def print_evaluation_results(
             total_score += category_score
             max_score += category_data["max"]
 
-            # Log warning if score was capped
             if category_score < category_data["score"]:
                 print(
                     f"⚠️  Warning: {category_name} score capped from {category_data['score']} to {category_score} (max: {category_data['max']})"
                 )
 
-    # Add bonus points
     if hasattr(evaluation, "bonus_points") and evaluation.bonus_points:
         total_score += evaluation.bonus_points.total
 
-    # Subtract deductions
     if hasattr(evaluation, "deductions") and evaluation.deductions:
         total_score -= evaluation.deductions.total
 
-    # Ensure total score doesn't exceed maximum possible score
-    max_possible_score = max_score + 20  # 120 (100 categories + 20 bonus)
+    max_possible_score = max_score + 20
     if total_score > max_possible_score:
         total_score = max_possible_score
         print(f"⚠️  Warning: Total score capped at maximum possible value")
 
-    # Overall Score
     print(f"\n🎯 OVERALL SCORE: {total_score:.1f}/{max_score}")
 
-    # Detailed Scores
     print("\n📈 DETAILED SCORES:")
     print("-" * 60)
 
     if hasattr(evaluation, "scores") and evaluation.scores:
-        # Define category maximums
         category_maxes = {
             "open_source": 35,
             "self_projects": 30,
@@ -84,7 +104,6 @@ def print_evaluation_results(
             "technical_skills": 10,
         }
 
-        # Open Source
         if hasattr(evaluation.scores, "open_source") and evaluation.scores.open_source:
             os_score = evaluation.scores.open_source
             capped_score = min(os_score.score, category_maxes["open_source"])
@@ -92,7 +111,6 @@ def print_evaluation_results(
             print(f"   Evidence: {os_score.evidence}")
             print()
 
-        # Self Projects
         if (
             hasattr(evaluation.scores, "self_projects")
             and evaluation.scores.self_projects
@@ -103,7 +121,6 @@ def print_evaluation_results(
             print(f"   Evidence: {sp_score.evidence}")
             print()
 
-        # Production Experience
         if hasattr(evaluation.scores, "production") and evaluation.scores.production:
             prod_score = evaluation.scores.production
             capped_score = min(prod_score.score, category_maxes["production"])
@@ -111,7 +128,6 @@ def print_evaluation_results(
             print(f"   Evidence: {prod_score.evidence}")
             print()
 
-        # Technical Skills
         if (
             hasattr(evaluation.scores, "technical_skills")
             and evaluation.scores.technical_skills
@@ -122,13 +138,11 @@ def print_evaluation_results(
             print(f"   Evidence: {tech_score.evidence}")
             print()
 
-    # Bonus Points
     if hasattr(evaluation, "bonus_points") and evaluation.bonus_points:
         print(f"\n⭐ BONUS POINTS: {evaluation.bonus_points.total}")
         print("-" * 30)
         print(f"   {evaluation.bonus_points.breakdown}")
 
-    # Deductions
     if (
         hasattr(evaluation, "deductions")
         and evaluation.deductions
@@ -139,14 +153,12 @@ def print_evaluation_results(
         if evaluation.deductions.reasons:
             print(f"   {evaluation.deductions.reasons}")
 
-    # Key Strengths
     if hasattr(evaluation, "key_strengths") and evaluation.key_strengths:
         print(f"\n✅ KEY STRENGTHS:")
         print("-" * 30)
         for i, strength in enumerate(evaluation.key_strengths, 1):
             print(f"  {i}. {strength}")
 
-    # Areas for Improvement
     if (
         hasattr(evaluation, "areas_for_improvement")
         and evaluation.areas_for_improvement
@@ -159,37 +171,84 @@ def print_evaluation_results(
     print("\n" + "=" * 80)
 
 
+def print_job_evaluation_results(
+    evaluation: JobEvaluationData, candidate_name: str = "Candidate"
+):
+    print("\n" + "=" * 80)
+    print(f"📊 JOB MATCH EVALUATION FOR: {candidate_name}")
+    print(f"   Target Role: {evaluation.job_title}")
+    print("=" * 80)
+
+    print(f"\n🎯 OVERALL MATCH: {evaluation.weighted_total}/100")
+
+    print("\n📈 CATEGORY BREAKDOWN:")
+    print("-" * 60)
+
+    categories = [
+        ("💻 Skills Match       (30%)", evaluation.scores.skills_match),
+        ("🏢 Experience Match   (20%)", evaluation.scores.experience_match),
+        ("📋 Title Alignment    (10%)", evaluation.scores.job_title_alignment),
+        ("🎓 Education          (10%)", evaluation.scores.education),
+        ("📝 Resume Quality     (10%)", evaluation.scores.resume_quality),
+        ("⚠️  Missing Critical   (5%)", evaluation.scores.missing_critical_requirements),
+    ]
+
+    for label, category in categories:
+        print(f"{label}: {category.score:.0f}/100")
+        print(f"   Evidence: {category.evidence}")
+        print()
+
+    print(f"🔍 Semantic Match     (15%): {evaluation.semantic_match_score:.1f}/100")
+    print("   Computed via Sentence Transformers (all-MiniLM-L6-v2).")
+    print()
+
+    if evaluation.key_strengths:
+        print("✅ KEY STRENGTHS:")
+        print("-" * 30)
+        for i, strength in enumerate(evaluation.key_strengths, 1):
+            print(f"  {i}. {strength}")
+
+    if evaluation.areas_for_improvement:
+        print(f"\n🔧 AREAS FOR IMPROVEMENT:")
+        print("-" * 30)
+        for i, area in enumerate(evaluation.areas_for_improvement, 1):
+            print(f"  {i}. {area}")
+
+    print("\n" + "=" * 80)
+
+
 def _evaluate_resume(
     resume_data: JSONResume, github_data: dict = None, blog_data: dict = None
 ) -> Optional[EvaluationData]:
-    """Evaluate the resume using AI and display results."""
-
     model_params = MODEL_PARAMETERS.get(DEFAULT_MODEL)
     evaluator = ResumeEvaluator(model_name=DEFAULT_MODEL, model_params=model_params)
 
-    # Convert JSON resume data to text
     resume_text = convert_json_resume_to_text(resume_data)
 
-    # Add GitHub data if available
     if github_data:
         github_text = convert_github_data_to_text(github_data)
         resume_text += github_text
 
-    # Add blog data if available
     if blog_data:
         blog_text = convert_blog_data_to_text(blog_data)
         resume_text += blog_text
 
-    # Evaluate the enhanced resume
-    evaluation_result = evaluator.evaluate_resume(resume_text)
+    return evaluator.evaluate_resume(resume_text)
 
-    # print(evaluation_result)
 
-    return evaluation_result
+def _evaluate_with_job_description(
+    resume_text: str, job_description: str
+) -> Optional[JobEvaluationData]:
+    model_params = MODEL_PARAMETERS.get(DEFAULT_MODEL)
+    evaluator = JobDescriptionEvaluator(
+        job_description=job_description,
+        model_name=DEFAULT_MODEL,
+        model_params=model_params,
+    )
+    return evaluator.evaluate(resume_text)
 
 
 def is_valid_resume_data(resume_data: JSONResume) -> bool:
-    """Check if the resume data has at least some extracted core content."""
     if not resume_data:
         return False
     core_sections = [
@@ -211,8 +270,19 @@ def find_profile(profiles, network):
     )
 
 
-def main(pdf_path):
-    # Create cache filename based on PDF path
+def main():
+    pdf_path = RESUME_PATH
+
+    if not os.path.exists(pdf_path):
+        print(f"Error: '{RESUME_PATH}' not found. Place your resume PDF in the project root.")
+        sys.exit(1)
+
+    mode = select_mode()
+
+    job_description = None
+    if mode == 2:
+        job_description = load_job_description()
+
     cache_filename = (
         f"cache/resumecache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
     )
@@ -223,8 +293,7 @@ def main(pdf_path):
     resume_data = None
     cache_loaded = False
 
-    # Check if cache exists and we're in development mode
-    if DEVELOPMENT_MODE and os.path.exists(cache_filename):
+    if DEVELOPMENT_MODE and os.path.exists(cache_filename) and os.path.getmtime(cache_filename) >= os.path.getmtime(pdf_path):
         print(f"Loading cached data from {cache_filename}")
         try:
             cached_data = json.loads(Path(cache_filename).read_text(encoding="utf-8"))
@@ -239,9 +308,7 @@ def main(pdf_path):
             try:
                 os.remove(cache_filename)
             except Exception as delete_err:
-                print(
-                    f"Failed to delete invalid cache file {cache_filename}: {delete_err}"
-                )
+                print(f"Failed to delete invalid cache file {cache_filename}: {delete_err}")
 
     if not cache_loaded:
         logger.debug(
@@ -251,7 +318,7 @@ def main(pdf_path):
         pdf_handler = PDFHandler()
         resume_data = pdf_handler.extract_json_from_pdf(pdf_path)
 
-        if resume_data == None:
+        if resume_data is None:
             return None
 
         if DEVELOPMENT_MODE:
@@ -266,7 +333,6 @@ def main(pdf_path):
                     "Newly extracted resume data is empty/invalid. Skipping cache write."
                 )
 
-    # Check if cache exists and we're in development mode
     github_data = {}
     github_cache_loaded = False
     if DEVELOPMENT_MODE and os.path.exists(github_cache_filename):
@@ -289,12 +355,9 @@ def main(pdf_path):
             try:
                 os.remove(github_cache_filename)
             except Exception as delete_err:
-                print(
-                    f"Failed to delete invalid GitHub cache file {github_cache_filename}: {delete_err}"
-                )
+                print(f"Failed to delete invalid GitHub cache file {github_cache_filename}: {delete_err}")
 
     if not github_cache_loaded:
-        # Add validation to handle None values
         profiles = []
         if resume_data and hasattr(resume_data, "basics") and resume_data.basics:
             profiles = resume_data.basics.profiles or []
@@ -323,9 +386,6 @@ def main(pdf_path):
                     encoding="utf-8",
                 )
 
-    score = _evaluate_resume(resume_data, github_data)
-
-    # Get candidate name for display
     candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
     if (
         resume_data
@@ -335,43 +395,53 @@ def main(pdf_path):
     ):
         candidate_name = resume_data.basics.name
 
-    # Print evaluation results in readable format
-    print_evaluation_results(score, candidate_name)
+    if mode == 1:
+        score = _evaluate_resume(resume_data, github_data)
+        print_evaluation_results(score, candidate_name)
 
-    if DEVELOPMENT_MODE:
-        csv_row = transform_evaluation_response(
-            file_name=os.path.basename(pdf_path),
-            evaluation=score,
-            resume_data=resume_data,
-            github_data=github_data,
-        )
+        if DEVELOPMENT_MODE:
+            csv_row = transform_evaluation_response(
+                file_name=os.path.basename(pdf_path),
+                evaluation=score,
+                resume_data=resume_data,
+                github_data=github_data,
+            )
+            csv_path = "resume_evaluations.csv"
+            file_exists = os.path.exists(csv_path)
+            with open(csv_path, "a", newline="", encoding="utf-8") as csvfile:
+                fieldnames = list(csv_row.keys())
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                if not file_exists:
+                    writer.writeheader()
+                writer.writerow(csv_row)
 
-        # Write CSV row to file
-        csv_path = "resume_evaluations.csv"
-        file_exists = os.path.exists(csv_path)
+        return score
 
-        with open(csv_path, "a", newline="", encoding="utf-8") as csvfile:
-            fieldnames = list(csv_row.keys())
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    else:
+        resume_text = convert_json_resume_to_text(resume_data)
+        if github_data:
+            resume_text += convert_github_data_to_text(github_data)
 
-            # Write headers if file doesn't exist
-            if not file_exists:
-                writer.writeheader()
+        job_evaluation = _evaluate_with_job_description(resume_text, job_description)
+        print_job_evaluation_results(job_evaluation, candidate_name)
 
-            # Write the row
-            writer.writerow(csv_row)
+        if DEVELOPMENT_MODE:
+            csv_row = transform_job_evaluation_response(
+                file_name=os.path.basename(pdf_path),
+                evaluation=job_evaluation,
+                resume_data=resume_data,
+            )
+            csv_path = "job_evaluations.csv"
+            file_exists = os.path.exists(csv_path)
+            with open(csv_path, "a", newline="", encoding="utf-8") as csvfile:
+                fieldnames = list(csv_row.keys())
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                if not file_exists:
+                    writer.writeheader()
+                writer.writerow(csv_row)
 
-    return score
+        return job_evaluation
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python score.py <pdf_path>")
-        exit(1)
-    pdf_path = sys.argv[1]
-
-    if not os.path.exists(pdf_path):
-        print(f"Error: File '{pdf_path}' does not exist.")
-        exit(1)
-
-    main(pdf_path)
+    main()

@@ -6,6 +6,8 @@ run/*.pdf
 test_*.py
 cache/
 resume_evaluations.csv
+job_evaluations.csv
+package-lock.json
 greenhouse_resumes/*
 
 # Byte-compiled / optimized / DLL files
@@ -224,3 +226,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+CLAUDE.md

@@ -249,6 +249,45 @@ class EvaluationData(BaseModel):
     areas_for_improvement: List[str] = Field(min_items=1, max_items=5)
 
 
+class JobDescriptionData(BaseModel):
+    job_title: str
+    required_skills: List[str]
+    preferred_skills: List[str] = []
+    years_of_experience: Optional[float] = None
+    education_requirements: Optional[str] = None
+    must_have_qualifications: List[str] = []
+    industry: Optional[str] = None
+
+
+class JobCategoryScore(BaseModel):
+    score: float = Field(ge=0, le=100, description="Score for this category out of 100")
+    evidence: str = Field(min_length=1, description="Evidence from the resume supporting this score")
+
+
+class JobScores(BaseModel):
+    skills_match: JobCategoryScore
+    experience_match: JobCategoryScore
+    job_title_alignment: JobCategoryScore
+    education: JobCategoryScore
+    resume_quality: JobCategoryScore
+    missing_critical_requirements: JobCategoryScore
+
+
+class LLMJobEvaluationResponse(BaseModel):
+    scores: JobScores
+    key_strengths: List[str] = Field(min_items=1, max_items=5)
+    areas_for_improvement: List[str] = Field(min_items=1, max_items=5)
+
+
+class JobEvaluationData(BaseModel):
+    scores: JobScores
+    semantic_match_score: float = Field(ge=0, le=100)
+    weighted_total: float = Field(ge=0, le=100)
+    key_strengths: List[str]
+    areas_for_improvement: List[str]
+    job_title: str
+
+
 class GitHubProfile(BaseModel):
     """Pydantic model for GitHub profile data."""
 
