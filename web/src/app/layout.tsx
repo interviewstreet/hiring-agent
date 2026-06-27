@@ -1,5 +1,6 @@
 import "./globals.css";
 import { Instrument_Serif, Archivo, JetBrains_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@/ui/ThemeProvider";
 import { SettingsProvider } from "@/ui/SettingsProvider";
 
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <SettingsProvider>{children}</SettingsProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
