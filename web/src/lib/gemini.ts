@@ -4,6 +4,16 @@ import { RateLimitError, ModelOutputError } from "./errors";
 
 export const DEFAULT_MODEL = "gemini-2.5-flash";
 
+// Models offered in the Settings dropdown. Single source of truth — the
+// <select> options, the default, and any validation all read from here.
+// `label` is what the user sees; `id` is the model string sent to Gemini.
+export const GEMINI_MODELS: ReadonlyArray<{ id: string; label: string }> = [
+  { id: "gemini-2.5-pro", label: "gemini-2.5-pro — most accurate" },
+  { id: "gemini-2.5-flash", label: "gemini-2.5-flash — balanced (default)" },
+  { id: "gemini-2.5-flash-lite", label: "gemini-2.5-flash-lite — fastest & cheapest" },
+  { id: "gemini-2.0-flash", label: "gemini-2.0-flash — legacy fallback" },
+];
+
 export function makeAI(apiKey: string) {
   return new GoogleGenAI({ apiKey });
 }

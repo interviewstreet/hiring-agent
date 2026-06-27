@@ -61,16 +61,16 @@ Light and dark themes, a typographic "human document measured by a precise machi
 
 ## Choosing a Gemini model
 
-You bring your own Gemini key, so **you choose the model** (Settings → *Model*; leave blank for the default). A run makes ~3–4 calls — extraction → scoring → coaching (+ optional GitHub selection) — all using structured JSON output, which every model below supports.
+You bring your own Gemini key, so **you choose the model** from the dropdown in **Settings → *Model*** (it defaults to Flash). A run makes ~3–4 calls — extraction → scoring → coaching (+ optional GitHub selection) — all using structured JSON output, which every model below supports.
 
 | Model | Best for in this app | Speed | Relative cost | Why pick it |
 |---|---|:---:|:---:|---|
-| **`gemini-2.5-pro`** | The most accurate scoring & richest coaching | 🐢 Slower | 💰💰💰 | Strongest reasoning. Choose it when you want the most careful, defensible evaluation and the most insightful coach notes — e.g. a final pass before applying. |
-| **`gemini-2.5-flash`** ⭐ *default* | Everyday use — the balanced choice | ⚡ Fast | 💰💰 | Near-Pro quality on this structured task at a fraction of the latency and cost. The right pick for almost everyone. |
-| **`gemini-2.5-flash-lite`** | Fast, high-volume, or cost-sensitive runs | ⚡⚡ Fastest | 💰 | Cheapest and snappiest — great while you're rapidly editing and re-scoring. Coaching nuance is a touch lighter than Flash/Pro. |
-| **`gemini-2.0-flash`** | Fallback / older keys | ⚡ Fast | 💰 | Previous generation. Use it if your key doesn't yet have access to the 2.5 family. |
+| **`gemini-2.5-pro`** | The most accurate scoring & richest coaching | 🐢 Slower | $$$ | Strongest reasoning. Choose it when you want the most careful, defensible evaluation and the most insightful coach notes — e.g. a final pass before applying. |
+| **`gemini-2.5-flash`** ⭐ *default* | Everyday use — the balanced choice | ⚡ Fast | $$ | Near-Pro quality on this structured task at a fraction of the latency and cost. The right pick for almost everyone. |
+| **`gemini-2.5-flash-lite`** | Fast, high-volume, or cost-sensitive runs | ⚡⚡ Fastest | $ | Cheapest and snappiest — great while you're rapidly editing and re-scoring. Coaching nuance is a touch lighter than Flash/Pro. |
+| **`gemini-2.0-flash`** | Fallback / older keys | ⚡ Fast | $ | Previous generation. Use it if your key doesn't yet have access to the 2.5 family. |
 
-**Rule of thumb:** start with **Flash** (the default). Switch to **Pro** when you want the most trustworthy score and the deepest feedback; drop to **Flash-Lite** when you're iterating fast or watching cost. You can enter **any** Gemini model string your API key supports.
+**Rule of thumb:** start with **Flash** (the default). Switch to **Pro** when you want the most trustworthy score and the deepest feedback; drop to **Flash-Lite** when you're iterating fast or watching cost. Pick whichever fits from the **Settings → *Model*** dropdown.
 
 > **A note on scores:** scores are **indicative**. This app is a TypeScript port of the Python pipeline using a single combined extraction call, so a number here may differ from the CLI's output. Use it for relative guidance and trend tracking, not as an absolute hiring signal.
 

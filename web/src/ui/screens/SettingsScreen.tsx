@@ -1,10 +1,11 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { StoredSettings } from "../../lib/schemas";
-import { DEFAULT_MODEL } from "../../lib/gemini";
+import { DEFAULT_MODEL, GEMINI_MODELS } from "../../lib/gemini";
 import { clearAllData } from "../../lib/settings";
 import { useSettings } from "../SettingsProvider";
 import { ThemeToggle } from "../ThemeToggle";
+import { HowTo } from "../HowTo";
 
 export function SettingsScreen() {
   const { settings, update, reset } = useSettings();
@@ -58,6 +59,23 @@ export function SettingsScreen() {
         <label className="ha-field" htmlFor="ha-gemini-key">
           <span className="ha-flabel">
             Gemini API key <span className="ha-req">required</span>
+            <HowTo
+              eyebrow="Gemini API key"
+              title="Get a Gemini API key in about a minute."
+              steps={[
+                <>
+                  Open{" "}
+                  <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">
+                    aistudio.google.com/apikey
+                  </a>{" "}
+                  and sign in with your Google account.
+                </>,
+                <>Click <b>Create API key</b>, then pick (or let it create) a Google Cloud project.</>,
+                <>Copy the generated key — it begins with <code>AIza…</code>.</>,
+                <>Paste it into the field here. It is stored only in this browser.</>,
+              ]}
+              foot="Free tier available · the key is sent only to Google, never to us"
+            />
           </span>
           <input
             id="ha-gemini-key"
@@ -78,6 +96,36 @@ export function SettingsScreen() {
         <label className="ha-field" htmlFor="ha-github-token">
           <span className="ha-flabel">
             GitHub token <span className="ha-opt">optional</span>
+            <HowTo
+              eyebrow="GitHub token · permissions"
+              title="Create a read-only GitHub token."
+              steps={[
+                <>
+                  Go to{" "}
+                  <a
+                    href="https://github.com/settings/tokens?type=beta"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Settings → Developer settings → Personal access tokens
+                  </a>
+                  .
+                </>,
+                <>
+                  This app reads only <b>public</b> profile and repository data, so it needs no
+                  private scopes. For a fine-grained token, set <b>Repository access</b> to
+                  {" "}
+                  <b>Public repositories (read-only)</b> and add no account permissions.
+                </>,
+                <>
+                  A classic token works too — leave every scope <b>unchecked</b> (or tick only{" "}
+                  <code>public_repo</code>). The token just lifts the rate limit from 60 to 5,000
+                  requests/hour.
+                </>,
+                <>Generate it, copy the value (classic tokens start with <code>ghp_…</code>), and paste it here.</>,
+              ]}
+              foot="Optional · used only when GitHub enrichment is on"
+            />
           </span>
           <input
             id="ha-github-token"
@@ -114,17 +162,23 @@ export function SettingsScreen() {
           <span className="ha-flabel">
             Model <span className="ha-opt">optional</span>
           </span>
-          <input
+          <select
             id="ha-model"
-            type="text"
-            className="ha-input mono"
-            placeholder={DEFAULT_MODEL}
-            autoComplete="off"
-            spellCheck={false}
+            className="ha-select mono"
             value={settings.model}
             onChange={(e) => edit({ model: e.target.value })}
-          />
-          <span className="ha-hint">Defaults to {DEFAULT_MODEL}.</span>
+          >
+            {/* Round-trip a previously-saved model that isn't on the list. */}
+            {!GEMINI_MODELS.some((m) => m.id === settings.model) && (
+              <option value={settings.model}>{settings.model}</option>
+            )}
+            {GEMINI_MODELS.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+          <span className="ha-hint">Defaults to {DEFAULT_MODEL}. All options support JSON output.</span>
         </label>
       </div>
 
@@ -192,6 +246,8 @@ export function SettingsScreen() {
         .ha-input{width:100%;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--rule);border-radius:10px;padding:11px 13px;font-size:14px;color:var(--ink)}
         .ha-input::placeholder{color:var(--ink-soft);opacity:.7}
         .ha-input:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-color:var(--brand)}
+        .ha-select{width:100%;box-sizing:border-box;background:var(--panel-2);border:1px solid var(--rule);border-radius:10px;padding:11px 36px 11px 13px;font-size:14px;color:var(--ink);cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' fill='none' stroke='%238A93A3' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 13px center;background-size:12px}
+        .ha-select:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-color:var(--brand)}
         .ha-hint{font-size:12.5px;color:var(--ink-soft);line-height:1.5}
         .ha-row{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
         .ha-row-text{display:flex;flex-direction:column;gap:5px;flex:1}

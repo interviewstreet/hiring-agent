@@ -29,16 +29,6 @@ export function PrivacyChip() {
             </ul>
             <p className="ha-modal-foot mono">No tracking · No sign-in · Works offline once loaded</p>
           </div>
-          <style>{`
-            .ha-overlay{position:fixed;inset:0;background:rgba(10,12,18,.55);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:24px;z-index:50}
-            .ha-modal{background:var(--panel);border:1px solid var(--rule);border-radius:16px;max-width:460px;width:100%;padding:26px 26px 22px;box-shadow:0 24px 60px rgba(0,0,0,.35);position:relative}
-            .ha-modal-x{position:absolute;top:14px;right:14px;border:none;background:transparent;color:var(--ink-soft);font-size:22px;line-height:1;cursor:pointer;padding:4px}
-            .ha-modal-title{font-weight:400;font-size:27px;line-height:1.12;margin:8px 0 14px}
-            .ha-plist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
-            .ha-plist li{display:grid;grid-template-columns:18px 1fr;gap:11px;font-size:14px;color:var(--ink);line-height:1.5}
-            .ha-pk{color:var(--good);font-weight:700}
-            .ha-modal-foot{margin:16px 0 0;padding-top:14px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--ink-soft);letter-spacing:.02em}
-          `}</style>
         </div>
       )}
     </>
