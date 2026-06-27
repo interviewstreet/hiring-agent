@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    OPENAI = "openai"
 
 
 @runtime_checkable
@@ -386,6 +387,92 @@ class GeminiProvider:
                 print(
                     f"[GeminiProvider] Rate limit hit "
                     f"(attempt {attempt + 1}/{MAX_RETRIES}). "
+                    f"Retrying in {sleep_time}s..."
+                )
+                time.sleep(sleep_time)
+
+
+class OpenAIProvider:
+    """OpenAI API provider implementation."""
+
+    def __init__(self, api_key: str, base_url: str = None):
+        from openai import OpenAI
+
+        client_kwargs = {"api_key": api_key}
+        if base_url:
+            client_kwargs["base_url"] = base_url
+        self.client = OpenAI(**client_kwargs)
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Send a chat request to the OpenAI API."""
+        import time
+        import random
+        from openai import RateLimitError, APIConnectionError
+
+        MAX_RETRIES = 5
+        BASE_DELAY = 10.0  # seconds — base for exponential backoff
+        MAX_DELAY = 120.0  # cap so we never wait more than 2 minutes
+
+        # Map options to OpenAI chat completion parameters
+        completion_params = {
+            "model": model,
+            "messages": messages,
+        }
+        if options:
+            if "temperature" in options:
+                completion_params["temperature"] = options["temperature"]
+            if "top_p" in options:
+                completion_params["top_p"] = options["top_p"]
+
+        # The callers pass `format=<pydantic json schema>` to request structured
+        # JSON output. OpenAI expects this via `response_format`. We use JSON mode
+        # (`json_object`) which reliably accepts arbitrary schemas, while the
+        # prompt templates instruct the model on the exact shape. `extract_json_
+        # from_response` downstream strips any stray markdown fences.
+        if "format" in kwargs and kwargs["format"]:
+            completion_params["response_format"] = {"type": "json_object"}
+            # JSON mode requires the word "json" to appear in the conversation.
+            if not any("json" in m.get("content", "").lower() for m in messages):
+                completion_params["messages"] = messages + [
+                    {
+                        "role": "system",
+                        "content": "Respond with a single valid JSON object.",
+                    }
+                ]
+
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = self.client.chat.completions.create(**completion_params)
+                content = response.choices[0].message.content
+
+                # Convert OpenAI response to Ollama-like format for compatibility
+                return {"message": {"role": "assistant", "content": content}}
+
+            except (RateLimitError, APIConnectionError) as e:
+                if attempt == MAX_RETRIES - 1:
+                    # All retries exhausted — re-raise so the caller sees the
+                    # unrecoverable error instead of silently failing.
+                    raise
+
+                # Exponential backoff: BASE_DELAY * 2^attempt, capped at MAX_DELAY
+                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+
+                # Prefer the API-suggested delay when shorter than our backoff
+                api_hint = getattr(e, "retry_after", None)
+                delay = api_hint if (api_hint and api_hint < exp_delay) else exp_delay
+
+                # Add ±20% randomized jitter to avoid thundering herd
+                sleep_time = round(delay * random.uniform(0.8, 1.2), 2)
+
+                print(
+                    f"[OpenAIProvider] Request failed "
+                    f"(attempt {attempt + 1}/{MAX_RETRIES}): {e}. "
                     f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)
