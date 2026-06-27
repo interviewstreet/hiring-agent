@@ -3,8 +3,10 @@ export type PromptSpec = { system: string; user: string; responseSchema: GeminiS
 
 // ── Gemini response schemas (OpenAPI subset) ──
 const STR = { type: "STRING" } as const;
-const STR_ARR = { type: "ARRAY", items: { type: "STRING" } } as const;
 
+// Only basics (specifically basics.profiles) is consumed — to find the GitHub
+// profile URL for enrichment. The scorer reads raw resume text, so we don't
+// extract work/education/projects/etc.
 export const RESUME_SCHEMA: GeminiSchema = {
   type: "OBJECT",
   properties: {
@@ -15,12 +17,6 @@ export const RESUME_SCHEMA: GeminiSchema = {
         profiles: { type: "ARRAY", items: { type: "OBJECT", properties: { network: STR, username: STR, url: STR } } },
       },
     },
-    work: { type: "ARRAY", items: { type: "OBJECT", properties: { name: STR, position: STR, url: STR, startDate: STR, endDate: STR, summary: STR, highlights: STR_ARR } } },
-    volunteer: { type: "ARRAY", items: { type: "OBJECT", properties: { name: STR, position: STR, url: STR, startDate: STR, endDate: STR, summary: STR, highlights: STR_ARR } } },
-    education: { type: "ARRAY", items: { type: "OBJECT", properties: { institution: STR, area: STR, studyType: STR, startDate: STR, endDate: STR, score: STR } } },
-    skills: { type: "ARRAY", items: { type: "OBJECT", properties: { name: STR, level: STR, keywords: STR_ARR } } },
-    projects: { type: "ARRAY", items: { type: "OBJECT", properties: { name: STR, description: STR, url: STR, highlights: STR_ARR, technologies: STR_ARR } } },
-    awards: { type: "ARRAY", items: { type: "OBJECT", properties: { title: STR, date: STR, awarder: STR, summary: STR } } },
   },
 };
 
@@ -57,7 +53,7 @@ const EXTRACTION_SYSTEM = "You extract structured data from resumes. Return ONLY
 export function buildExtractionPrompt(resumeText: string): PromptSpec {
   return {
     system: EXTRACTION_SYSTEM,
-    user: `Extract this resume into the JSON Resume structure defined by the schema.\n\nResume:\n${resumeText}`,
+    user: `Extract the candidate's basics — name, contact details, and profile links (GitHub, LinkedIn, etc.) — into the JSON structure defined by the schema.\n\nResume:\n${resumeText}`,
     responseSchema: RESUME_SCHEMA,
   };
 }

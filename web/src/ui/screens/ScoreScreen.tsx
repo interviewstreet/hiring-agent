@@ -9,17 +9,21 @@ import { runScoreWithRealDeps } from "@/lib/runScore";
 import { saveRun } from "@/lib/store";
 import { describeError, type ErrorInfo } from "@/lib/errorMessage";
 
-const STAGES = [
+// "Extracting resume" and "Enriching from GitHub" only run when GitHub
+// enrichment is on, so the progress steps shown depend on that setting.
+const STAGES_WITH_GITHUB = [
   "Reading PDF",
   "Extracting resume",
   "Enriching from GitHub",
   "Scoring",
   "Coaching",
-] as const;
+];
+const STAGES_WITHOUT_GITHUB = ["Reading PDF", "Scoring", "Coaching"];
 
 export function ScoreScreen() {
   const router = useRouter();
   const { settings, hasKey } = useSettings();
+  const STAGES = settings.enableGitHub ? STAGES_WITH_GITHUB : STAGES_WITHOUT_GITHUB;
   const [stage, setStage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ErrorInfo | null>(null);
@@ -38,7 +42,7 @@ export function ScoreScreen() {
         setStage,
       );
       // Persist for history, but never let a storage failure throw away a run
-      // we already spent three LLM calls computing. saveRun mirrors the run in
+      // we already spent multiple LLM calls computing. saveRun mirrors the run in
       // memory before writing, so results still render this session even if the
       // persistent write is rejected (e.g. private-window storage limits).
       try {
@@ -73,7 +77,7 @@ export function ScoreScreen() {
     );
   }
 
-  const activeIdx = stage ? STAGES.indexOf(stage as (typeof STAGES)[number]) : -1;
+  const activeIdx = stage ? STAGES.indexOf(stage) : -1;
 
   return (
     <section className="ha-score">

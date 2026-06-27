@@ -17,50 +17,10 @@ const BasicsSchema = z.object({
   summary: z.string().nullable().optional(),
   profiles: z.array(ProfileSchema).nullable().optional(),
 });
-const WorkSchema = z.object({
-  name: z.string().nullable().optional(),
-  position: z.string().nullable().optional(),
-  url: z.string().nullable().optional(),
-  startDate: z.string().nullable().optional(),
-  endDate: z.string().nullable().optional(),
-  summary: z.string().nullable().optional(),
-  highlights: z.array(z.string()).nullable().optional(),
-});
-const EducationSchema = z.object({
-  institution: z.string().nullable().optional(),
-  area: z.string().nullable().optional(),
-  studyType: z.string().nullable().optional(),
-  startDate: z.string().nullable().optional(),
-  endDate: z.string().nullable().optional(),
-  score: z.string().nullable().optional(),
-});
-const SkillSchema = z.object({
-  name: z.string().nullable().optional(),
-  level: z.string().nullable().optional(),
-  keywords: z.array(z.string()).nullable().optional(),
-});
-const ProjectSchema = z.object({
-  name: z.string().nullable().optional(),
-  description: z.string().nullable().optional(),
-  url: z.string().nullable().optional(),
-  highlights: z.array(z.string()).nullable().optional(),
-  technologies: z.array(z.string()).nullable().optional(),
-});
-const AwardSchema = z.object({
-  title: z.string().nullable().optional(),
-  date: z.string().nullable().optional(),
-  awarder: z.string().nullable().optional(),
-  summary: z.string().nullable().optional(),
-});
-
+// Only `basics` is consumed (basics.profiles → the GitHub URL). The scorer reads
+// raw resume text, not this structure, so the rest of JSON Resume isn't extracted.
 export const JSONResumeSchema = z.object({
   basics: BasicsSchema.nullable().optional(),
-  work: z.array(WorkSchema).nullable().optional(),
-  volunteer: z.array(WorkSchema).nullable().optional(),
-  education: z.array(EducationSchema).nullable().optional(),
-  skills: z.array(SkillSchema).nullable().optional(),
-  projects: z.array(ProjectSchema).nullable().optional(),
-  awards: z.array(AwardSchema).nullable().optional(),
 });
 export type JSONResume = z.infer<typeof JSONResumeSchema>;
 

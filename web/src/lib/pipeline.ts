@@ -29,11 +29,14 @@ export async function scoreResume(pdf: File | ArrayBuffer, deps: PipelineDeps): 
   deps.onProgress?.("Reading PDF");
   const resumeText = await deps.extractText(pdf);
 
-  deps.onProgress?.("Extracting resume");
-  const parsedResume = normalizeResume(await deps.runExtraction(resumeText));
-
+  // Resume extraction exists only to find the GitHub profile URL, so it runs
+  // only when GitHub enrichment is on. With it off (the default) we skip a whole
+  // LLM call — the scorer and coach read the raw resume text, not parsedResume.
+  let parsedResume: JSONResume = {};
   let githubSummary: GitHubSummary | null = null;
   if (deps.settings.enableGitHub) {
+    deps.onProgress?.("Extracting resume");
+    parsedResume = normalizeResume(await deps.runExtraction(resumeText));
     const url = findGitHubProfileUrl(parsedResume);
     if (url) {
       deps.onProgress?.("Enriching from GitHub");

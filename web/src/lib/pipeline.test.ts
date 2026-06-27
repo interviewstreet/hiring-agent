@@ -35,18 +35,21 @@ describe("scoreResume", () => {
     await expect(scoreResume(new ArrayBuffer(0), { ...deps(), settings: { geminiKey: "", githubToken: null, model: "m", enableGitHub: false } })).rejects.toBeInstanceOf(MissingKeyError);
   });
 
-  it("produces a RunRecord and skips github when disabled", async () => {
+  it("skips extraction and github when github enrichment is disabled", async () => {
     const d = deps();
     const rec = await scoreResume(new ArrayBuffer(0), d as any);
     expect(rec.id).toBe("id-1");
     expect(rec.evaluation.scores.open_source.score).toBe(28);
     expect(rec.githubSummary).toBeNull();
+    // Extraction exists only to find the GitHub URL, so it's skipped too.
+    expect(d.runExtraction).not.toHaveBeenCalled();
     expect(d.fetchGitHub).not.toHaveBeenCalled();
   });
 
   it("runs github enrichment when enabled and a profile exists", async () => {
     const d = deps({ settings: { geminiKey: "k", githubToken: "t", model: "m", enableGitHub: true }, fetchGitHub: vi.fn(async () => ({ profile: { username: "octocat" }, projects: [] })) });
     const rec = await scoreResume(new ArrayBuffer(0), d as any);
+    expect(d.runExtraction).toHaveBeenCalledOnce();
     expect(d.fetchGitHub).toHaveBeenCalledOnce();
     expect(rec.githubSummary?.profile?.username).toBe("octocat");
     expect((d.runScoring as any).mock.calls[0][0]).toContain("=== GITHUB DATA ===");
