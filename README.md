@@ -111,7 +111,7 @@ $ pip install -r requirements.txt
 Pull the model you want to use. For example:
 
 ```bash
-$ ollama pull gemma3:4b
+ollama pull gemma3:4b
 ```
 
 If you want different results, you can pull other models such as:
@@ -131,17 +131,18 @@ $ ollama pull gemma3:1b
 Copy the template and set your environment variables.
 
 ```bash
-$ cp .env.example .env
+cp .env.example .env
 ```
 
 **Environment variables**
 
 | Variable         | Values                                      | Description                                                            |
 | ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `LLM_PROVIDER`   | `ollama` or `gemini`                        | Chooses provider. Defaults to Ollama.                                  |
-| `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
-| `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
-| `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
+| `LLM_PROVIDER`   | `ollama`, `gemini`, or `zai`                           | Chooses provider. Defaults to Ollama.                                  |
+| `DEFAULT_MODEL`  | for example `gemma3:4b`, `gemini-2.5-pro`, or `glm-5.2` | Model name passed to the provider.                                     |
+| `GEMINI_API_KEY` | string                                                 | Required when `LLM_PROVIDER=gemini`.                                   |
+| `Z_AI_API_KEY`   | string                                                 | Required when `LLM_PROVIDER=zai`.                                      |
+| `GITHUB_TOKEN`   | optional                                               | Inherits from your shell environment, improves GitHub API rate limits. |
 
 Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
 
@@ -206,7 +207,7 @@ You can leave it on during iteration. See the next section for details.
 Provide a path to a resume PDF.
 
 ```bash
-$ python score.py /path/to/resume.pdf
+python score.py /path/to/resume.pdf
 ```
 
 What happens:
@@ -266,6 +267,13 @@ What happens:
 - Provide `GEMINI_API_KEY`
 - The wrapper in `models.GeminiProvider` adapts responses to a unified format
 
+### Z.ai
+
+- Set `LLM_PROVIDER=zai`
+- Set `DEFAULT_MODEL` to a supported GLM model, for example `glm-5.2` (default) or `glm-4.6`
+- Provide `Z_AI_API_KEY`
+- The wrapper in `models.ZaiProvider` calls the OpenAI-compatible endpoint `https://api.z.ai/api/coding/paas/v4/chat/completions` and adapts responses to the unified format. `glm-5.2` is a reasoning model, so `reasoning_content` is ignored and only `content` is surfaced.
+
 ---
 
 ## Contributing
@@ -277,7 +285,6 @@ Please read the [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines on 
 - Add or adjust unit-free smoke tests that call each stage with minimal inputs.
 
 ---
-
 
 ## License
 

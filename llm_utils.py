@@ -4,8 +4,8 @@ Utility functions for LLM providers.
 
 import logging
 from typing import Any, Dict, Optional
-from models import ModelProvider, OllamaProvider, GeminiProvider
-from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY
+from models import ModelProvider, OllamaProvider, GeminiProvider, ZaiProvider
+from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY, ZAI_API_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +57,12 @@ def initialize_llm_provider(model_name: str) -> Any:
         else:
             logger.info(f"🔄 Using Google Gemini API provider with model {model_name}")
             provider = GeminiProvider(api_key=GEMINI_API_KEY)
+    elif model_provider == ModelProvider.ZAI:
+        if not ZAI_API_KEY:
+            logger.warning("⚠️ Z.ai API key not found. Falling back to Ollama.")
+        else:
+            logger.info(f"🔄 Using Z.ai GLM API provider with model {model_name}")
+            provider = ZaiProvider(api_key=ZAI_API_KEY)
     else:
         logger.info(f"🔄 Using Ollama provider with model {model_name}")
     return provider
