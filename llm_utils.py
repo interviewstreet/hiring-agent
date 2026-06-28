@@ -3,7 +3,7 @@ Utility functions for LLM providers.
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 from models import ModelProvider, OllamaProvider, GeminiProvider, ZaiProvider
 from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY, ZAI_API_KEY
 
@@ -45,7 +45,7 @@ def initialize_llm_provider(model_name: str) -> Any:
         model_name: The name of the model to use
 
     Returns:
-        An initialized LLM provider (either OllamaProvider or GeminiProvider)
+        An initialized LLM provider (OllamaProvider, GeminiProvider, or ZaiProvider)
     """
     # Default to Ollama provider
     provider = OllamaProvider()
