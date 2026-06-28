@@ -425,8 +425,6 @@ class ZaiProvider:
     ) -> Dict[str, Any]:
         """Send a chat request to the Z.ai GLM API."""
         import requests
-        import time
-        import random
 
         options = options or {}
         payload = {
