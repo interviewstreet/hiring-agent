@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    ZAI = "zai"
 
 
 @runtime_checkable
@@ -19,7 +20,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -281,7 +282,7 @@ class OllamaProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
 
@@ -324,7 +325,7 @@ class GeminiProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Google Gemini API."""
         import re
@@ -375,7 +376,7 @@ class GeminiProvider:
                 api_hint = float(match.group(1)) if match else None
 
                 # Exponential backoff: BASE_DELAY * 2^attempt, capped at MAX_DELAY
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
 
                 # Prefer the API hint when it is shorter than our computed delay
                 delay = api_hint if (api_hint and api_hint < exp_delay) else exp_delay
@@ -389,3 +390,100 @@ class GeminiProvider:
                     f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)
+
+
+class ZaiProvider:
+    """Z.ai GLM API provider implementation (OpenAI-compatible endpoint).
+
+    Uses POST https://api.z.ai/api/coding/paas/v4/chat/completions with a
+    Bearer token (``Z_AI_API_KEY``). The default model ``glm-5.2`` is a
+    reasoning model: responses carry both ``reasoning_content`` and
+    ``content``; only ``content`` is surfaced to the pipeline.
+    """
+
+    BASE_URL = "https://api.z.ai/api/coding/paas/v4/chat/completions"
+    # Reasoning models spend tokens on chain-of-thought before the answer;
+    # default to a generous cap so thinking does not starve the output.
+    DEFAULT_MAX_TOKENS = 8192
+    MAX_RETRIES = 5
+    BASE_DELAY = 10.0  # seconds — base for exponential backoff
+    MAX_DELAY = 120.0  # cap so we never wait more than 2 minutes
+
+    def __init__(self, api_key: str):
+        if not api_key:
+            raise ValueError(
+                "Z_AI_API_KEY is required for the Z.ai provider. Set it in .env."
+            )
+        self.api_key = api_key
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Send a chat request to the Z.ai GLM API."""
+        import requests
+
+        options = options or {}
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": options.get("temperature", 0.1),
+            "top_p": options.get("top_p", 0.9),
+            "max_tokens": options.get("max_tokens", self.DEFAULT_MAX_TOKENS),
+            "stream": False,
+        }
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                response = requests.post(
+                    self.BASE_URL, headers=headers, json=payload, timeout=300
+                )
+                # Retry rate limits and transient server errors; fail fast on 4xx.
+                if (
+                    response.status_code == 429 or response.status_code >= 500
+                ) and attempt + 1 < self.MAX_RETRIES:
+                    self._sleep_for_retry(response, attempt)
+                    continue
+                response.raise_for_status()
+                data = response.json()
+                # glm-5.2 also returns ``reasoning_content``; we surface only
+                # ``content`` to keep the unified chat shape.
+                content = data["choices"][0]["message"]["content"]
+                return {"message": {"role": "assistant", "content": content}}
+            except (requests.Timeout, requests.ConnectionError):
+                if attempt + 1 >= self.MAX_RETRIES:
+                    raise
+                self._sleep_for_retry(None, attempt)
+
+        raise RuntimeError("ZaiProvider.chat exited without a response")
+
+    def _sleep_for_retry(self, response, attempt: int) -> None:
+        """Back off before retrying, honoring any Retry-After header."""
+        import time
+        import random
+
+        delay = self.BASE_DELAY * (2**attempt)
+        if response is not None:
+            retry_after = response.headers.get("Retry-After")
+            if retry_after:
+                try:
+                    delay = float(retry_after)
+                except ValueError:
+                    pass
+        delay = min(delay, self.MAX_DELAY)
+        # ±20% randomized jitter to avoid thundering herd
+        sleep_time = round(delay * random.uniform(0.8, 1.2), 2)
+        status = response.status_code if response is not None else "network error"
+        print(
+            f"[ZaiProvider] Retriable error {status} "
+            f"(attempt {attempt + 1}/{self.MAX_RETRIES}). "
+            f"Retrying in {sleep_time}s..."
+        )
+        time.sleep(sleep_time)
