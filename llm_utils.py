@@ -4,8 +4,8 @@ Utility functions for LLM providers.
 
 import logging
 from typing import Any, Dict, Optional
-from models import ModelProvider, OllamaProvider, GeminiProvider
-from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY
+from models import ModelProvider, OllamaProvider, GeminiProvider, OpenCodeProvider
+from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY, OPENCODE_API_KEY, PROVIDER
 
 logger = logging.getLogger(__name__)
 
@@ -45,11 +45,19 @@ def initialize_llm_provider(model_name: str) -> Any:
         model_name: The name of the model to use
 
     Returns:
-        An initialized LLM provider (either OllamaProvider or GeminiProvider)
+        An initialized LLM provider (either OllamaProvider, GeminiProvider, or OpenCodeProvider)
     """
-    # Default to Ollama provider
+    # Check explicitly set provider first
+    if PROVIDER == ModelProvider.OPENCODE.value or PROVIDER == "opencode":
+        if not OPENCODE_API_KEY:
+            logger.warning("⚠️ OpenCode API key not found. Falling back to Ollama.")
+            return OllamaProvider()
+        else:
+            logger.info(f"🔄 Using OpenCode API provider with model {model_name}")
+            return OpenCodeProvider(api_key=OPENCODE_API_KEY)
+
+    # Otherwise fallback to mapping
     provider = OllamaProvider()
-    # If using Gemini and API key is available, use Gemini provider
     model_provider = MODEL_PROVIDER_MAPPING.get(model_name, ModelProvider.OLLAMA)
     if model_provider == ModelProvider.GEMINI:
         if not GEMINI_API_KEY:
@@ -57,6 +65,12 @@ def initialize_llm_provider(model_name: str) -> Any:
         else:
             logger.info(f"🔄 Using Google Gemini API provider with model {model_name}")
             provider = GeminiProvider(api_key=GEMINI_API_KEY)
+    elif model_provider == ModelProvider.OPENCODE:
+        if not OPENCODE_API_KEY:
+            logger.warning("⚠️ OpenCode API key not found. Falling back to Ollama.")
+        else:
+            logger.info(f"🔄 Using OpenCode API provider with model {model_name}")
+            provider = OpenCodeProvider(api_key=OPENCODE_API_KEY)
     else:
         logger.info(f"🔄 Using Ollama provider with model {model_name}")
     return provider
