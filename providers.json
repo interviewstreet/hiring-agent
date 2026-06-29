@@ -5,6 +5,7 @@
       "base_url": "http://localhost:11434/v1",
       "api_key_env": null,
       "structured_output": "json_schema",
+      "extra_body": { "num_ctx": 32768 },
       "models": {
         "qwen3:1.7b":  { "temperature": 0.0, "top_p": 0.9 },
         "gemma3:1b":   { "temperature": 0.0, "top_p": 0.9 },
