@@ -389,3 +389,84 @@ class GeminiProvider:
                     f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)
+
+
+class OpenAICompatibleProvider:
+    """Generic OpenAI-chat-compatible LLM provider.
+
+    Works for Ollama (/v1), Gemini (/v1beta/openai), OpenAI, Groq, OpenRouter,
+    DeepSeek, LM Studio, vLLM, etc. via a configurable base_url. Adapts the
+    response to the {"message": {"content": ...}} shape the evaluator expects.
+    """
+
+    def __init__(
+        self,
+        base_url: str,
+        api_key: Optional[str] = None,
+        structured_output: str = "json_schema",
+        extra_body: Optional[Dict[str, Any]] = None,
+    ):
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.structured_output = structured_output
+        self.extra_body = extra_body or {}
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        import requests
+        import time
+        import random
+
+        options = options or {}
+        body: Dict[str, Any] = {"model": model, "messages": messages, "stream": False}
+        if "temperature" in options:
+            body["temperature"] = options["temperature"]
+        if "top_p" in options:
+            body["top_p"] = options["top_p"]
+
+        # Structured-output translation: evaluator passes format=<json schema>.
+        if "format" in kwargs and self.structured_output != "none":
+            schema = kwargs["format"]
+            if self.structured_output == "json_schema":
+                body["response_format"] = {
+                    "type": "json_schema",
+                    "json_schema": {"name": "response", "schema": schema},
+                }
+            elif self.structured_output == "json_object":
+                body["response_format"] = {"type": "json_object"}
+
+        body.update(self.extra_body)
+
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        url = f"{self.base_url}/chat/completions"
+
+        MAX_RETRIES = 5
+        BASE_DELAY = 10.0  # seconds — base for exponential backoff
+        MAX_DELAY = 120.0  # cap so we never wait more than 2 minutes
+        for attempt in range(MAX_RETRIES):
+            response = requests.post(url, json=body, headers=headers, timeout=300)
+
+            if response.status_code == 429 and attempt < MAX_RETRIES - 1:
+                retry_after = response.headers.get("Retry-After")
+                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                delay = float(retry_after) if retry_after else exp_delay
+                sleep_time = round(delay * random.uniform(0.8, 1.2), 2)
+                print(
+                    f"[OpenAICompatibleProvider] Rate limit hit "
+                    f"(attempt {attempt + 1}/{MAX_RETRIES}). Retrying in {sleep_time}s..."
+                )
+                time.sleep(sleep_time)
+                continue
+
+            response.raise_for_status()
+            data = response.json()
+            content = data["choices"][0]["message"]["content"]
+            return {"message": {"role": "assistant", "content": content}}
