@@ -1,4 +1,5 @@
 from typing import Dict, List, Optional
+import copy
 import pdb
 from models import JSONResume
 
@@ -739,6 +740,57 @@ def transform_evaluation_response(
         csv_row["areas_for_improvement"] = ""
 
     return csv_row
+
+
+# Factors the evaluation rubric declares off-limits (see
+# prompts/templates/resume_evaluation_criteria.jinja). We strip them
+# structurally before the resume text ever reaches the evaluator LLM, rather
+# than relying on the prompt to ask the model to ignore data it can still see.
+# Professional links (basics.url, profiles) are intentionally preserved: they
+# are not demographic, they drive the portfolio/LinkedIn bonus points, and the
+# GitHub username is required for repository enrichment.
+
+
+def redact_resume_for_evaluation(resume_data: JSONResume) -> JSONResume:
+    """Return a deep copy of ``resume_data`` with bias-inducing PII removed.
+
+    Blanks name, contact details, and location from ``basics``, and the
+    institution name and GPA/score from every education entry. The caller's
+    original object is never mutated, so the CSV export and recruiter-facing
+    output still see the candidate's identity intact.
+    """
+    redacted = copy.deepcopy(resume_data)
+
+    if redacted.basics:
+        redacted.basics.name = None
+        redacted.basics.email = None
+        redacted.basics.phone = None
+        redacted.basics.location = None
+
+    if redacted.education:
+        for edu in redacted.education:
+            edu.institution = None
+            edu.score = None
+
+    return redacted
+
+
+def redact_github_data_for_evaluation(github_data: dict) -> dict:
+    """Return a deep copy of the GitHub data dict with profile PII removed.
+
+    Blanks the display name, location, and company from the profile while
+    keeping the username (the lookup key, not demographic) and all repository
+    signal that the open-source/self-project scoring depends on.
+    """
+    redacted = copy.deepcopy(github_data)
+
+    profile = redacted.get("profile")
+    if isinstance(profile, dict):
+        for field in ("name", "location", "company"):
+            if field in profile:
+                profile[field] = None
+
+    return redacted
 
 
 def convert_json_resume_to_text(resume_data: JSONResume) -> str:

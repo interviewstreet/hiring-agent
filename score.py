@@ -15,8 +15,21 @@ from transform import (
     convert_json_resume_to_text,
     convert_github_data_to_text,
     convert_blog_data_to_text,
+    redact_resume_for_evaluation,
+    redact_github_data_for_evaluation,
 )
-from config import DEVELOPMENT_MODE
+from config import DEVELOPMENT_MODE, REDACT_PII_FOR_EVALUATION
+
+# The readable report (and many debug prints) use emoji. On Windows the
+# console / a redirected pipe defaults to a legacy code page (e.g. cp1252)
+# that can't encode them, which otherwise crashes the run after a successful
+# evaluation. Force UTF-8 output where the streams support it.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        try:
+            _stream.reconfigure(encoding="utf-8")
+        except (ValueError, OSError):
+            pass
 
 logger = logging.getLogger(__name__)
 
@@ -167,12 +180,22 @@ def _evaluate_resume(
     model_params = MODEL_PARAMETERS.get(DEFAULT_MODEL)
     evaluator = ResumeEvaluator(model_name=DEFAULT_MODEL, model_params=model_params)
 
+    # Strip bias-inducing PII before the resume ever reaches the scorer, so the
+    # evaluation cannot depend on name, location, school, or GPA. The original
+    # resume_data/github_data are left untouched for the CSV and display paths.
+    eval_resume = resume_data
+    eval_github_data = github_data
+    if REDACT_PII_FOR_EVALUATION:
+        eval_resume = redact_resume_for_evaluation(resume_data)
+        if github_data:
+            eval_github_data = redact_github_data_for_evaluation(github_data)
+
     # Convert JSON resume data to text
-    resume_text = convert_json_resume_to_text(resume_data)
+    resume_text = convert_json_resume_to_text(eval_resume)
 
     # Add GitHub data if available
-    if github_data:
-        github_text = convert_github_data_to_text(github_data)
+    if eval_github_data:
+        github_text = convert_github_data_to_text(eval_github_data)
         resume_text += github_text
 
     # Add blog data if available

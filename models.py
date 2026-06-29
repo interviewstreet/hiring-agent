@@ -1,3 +1,6 @@
+import re
+import time
+import random
 from typing import List, Optional, Dict, Tuple, Any, Protocol, runtime_checkable
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum
@@ -19,7 +22,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -217,7 +220,10 @@ class JSONResume(BaseModel):
 
 class CategoryScore(BaseModel):
     score: float = Field(ge=0, description="Score achieved in this category")
-    max: int = Field(gt=0, description="Maximum possible score")
+    # ge=1 (not gt=0) so the JSON schema emits the inclusive `minimum`
+    # keyword; Gemini's Schema type rejects `exclusiveMinimum`. Equivalent for
+    # integers. See tests/test_schema_gemini_compat.py.
+    max: int = Field(ge=1, description="Maximum possible score")
     evidence: str = Field(min_length=1, description="Evidence supporting the score")
 
 
@@ -281,7 +287,7 @@ class OllamaProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
 
@@ -304,88 +310,133 @@ class OllamaProvider:
         if "stream" in kwargs:
             chat_params["stream"] = kwargs["stream"]
 
-        if "format" in kwargs:
-            chat_params["format"] = kwargs["format"]
+        if "format" in kwargs and kwargs["format"] is not None:
+            fmt = kwargs["format"]
+            # The canonical format is a pydantic model class; Ollama wants a
+            # JSON-schema dict. A dict (or "json") is passed through untouched.
+            if isinstance(fmt, type) and issubclass(fmt, BaseModel):
+                fmt = fmt.model_json_schema()
+            chat_params["format"] = fmt
 
         return self.client.chat(**chat_params)
 
 
+def build_gemini_request(
+    messages: List[Dict[str, str]],
+    options: Optional[Dict[str, Any]] = None,
+    kwargs: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Translate the unified chat call into google-genai request pieces.
+
+    Returns a dict with three keys:
+      - ``system_instruction``: the concatenated system message(s), or None.
+        Gemini takes the system prompt as a dedicated field rather than a
+        conversation turn -- the legacy code mislabeled it as a "model" turn,
+        which degraded instruction-following.
+      - ``contents``: the non-system turns, with role "assistant" mapped to
+        Gemini's "model".
+      - ``generation_config``: temperature/top_p plus, when a ``format`` schema
+        is supplied, ``response_mime_type``/``response_schema`` so structured
+        output is enforced the same way Ollama enforces ``format``.
+    """
+    options = options or {}
+    kwargs = kwargs or {}
+
+    system_parts = [
+        m["content"] for m in messages if m.get("role") == "system" and m.get("content")
+    ]
+    system_instruction = "\n\n".join(system_parts) if system_parts else None
+
+    contents = []
+    for msg in messages:
+        role = msg.get("role")
+        if role == "system":
+            continue
+        gemini_role = "model" if role == "assistant" else "user"
+        contents.append({"role": gemini_role, "parts": [{"text": msg["content"]}]})
+
+    generation_config: Dict[str, Any] = {}
+    if "temperature" in options:
+        generation_config["temperature"] = options["temperature"]
+    if "top_p" in options:
+        generation_config["top_p"] = options["top_p"]
+    if kwargs.get("format"):
+        generation_config["response_mime_type"] = "application/json"
+        generation_config["response_schema"] = kwargs["format"]
+
+    return {
+        "system_instruction": system_instruction,
+        "contents": contents,
+        "generation_config": generation_config,
+    }
+
+
 class GeminiProvider:
-    """Google Gemini API provider implementation."""
+    """Google Gemini provider built on the google-genai SDK."""
 
-    def __init__(self, api_key: str):
-        import google.generativeai as genai
+    MAX_RETRIES = 5
+    BASE_DELAY = 10.0  # seconds — base for exponential backoff
+    MAX_DELAY = 120.0  # cap so we never wait more than 2 minutes
 
-        genai.configure(api_key=api_key)
-        self.client = genai
+    def __init__(self, api_key: str, client: Any = None):
+        # ``client`` is injectable for testing; in production we build the real
+        # google-genai client from the API key.
+        if client is not None:
+            self.client = client
+        else:
+            from google import genai
+
+            self.client = genai.Client(api_key=api_key)
 
     def chat(
         self,
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
-        """Send a chat request to Google Gemini API."""
-        import re
-        import time
-        import random
-        from google.api_core.exceptions import ResourceExhausted
+        """Send a chat request to Gemini, returning an Ollama-compatible dict."""
+        from google.genai import types
+        from google.genai import errors
 
-        MAX_RETRIES = 5
-        BASE_DELAY = 10.0  # seconds — base for exponential backoff
-        MAX_DELAY = 120.0  # cap so we never wait more than 2 minutes
-
-        # Map options to Gemini parameters
-        generation_config = {}
-        if options:
-            if "temperature" in options:
-                generation_config["temperature"] = options["temperature"]
-            if "top_p" in options:
-                generation_config["top_p"] = options["top_p"]
-
-        # Create a Gemini model
-        gemini_model = self.client.GenerativeModel(
-            model_name=model, generation_config=generation_config
+        req = build_gemini_request(messages, options, kwargs)
+        config = types.GenerateContentConfig(
+            system_instruction=req["system_instruction"],
+            **req["generation_config"],
         )
 
-        # Convert messages to Gemini format
-        gemini_messages = []
-        for msg in messages:
-            role = "user" if msg["role"] == "user" else "model"
-            gemini_messages.append({"role": role, "parts": [msg["content"]]})
-
-        for attempt in range(MAX_RETRIES):
+        for attempt in range(self.MAX_RETRIES):
             try:
-                # Send the chat request
-                response = gemini_model.generate_content(gemini_messages)
-
-                # Convert Gemini response to Ollama-like format for compatibility
+                response = self.client.models.generate_content(
+                    model=model,
+                    contents=req["contents"],
+                    config=config,
+                )
+                # Normalize to the Ollama-like shape the rest of the code expects.
                 return {"message": {"role": "assistant", "content": response.text}}
 
-            except ResourceExhausted as e:
-                if attempt == MAX_RETRIES - 1:
-                    # All retries exhausted — re-raise the original exception.
-                    # This surfaces unrecoverable quota errors (RPD, TPM, etc.)
-                    # instead of silently failing or returning bad data.
+            except errors.APIError as e:
+                # Only 429 (rate limit / resource exhausted) is retriable; let
+                # everything else surface immediately.
+                if getattr(e, "code", None) != 429 or attempt == self.MAX_RETRIES - 1:
                     raise
 
-                # Parse the API-suggested retry delay from the error message
+                # Parse the API-suggested retry delay from the error message.
                 match = re.search(r"retry[_ ]in\s+([\d.]+)s", str(e), re.IGNORECASE)
                 api_hint = float(match.group(1)) if match else None
 
-                # Exponential backoff: BASE_DELAY * 2^attempt, capped at MAX_DELAY
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                # Exponential backoff: BASE_DELAY * 2^attempt, capped at MAX_DELAY.
+                exp_delay = min(self.BASE_DELAY * (2**attempt), self.MAX_DELAY)
 
-                # Prefer the API hint when it is shorter than our computed delay
+                # Prefer the API hint when it is shorter than our computed delay.
                 delay = api_hint if (api_hint and api_hint < exp_delay) else exp_delay
 
-                # Add ±20% randomized jitter to avoid thundering herd
+                # Add ±20% randomized jitter to avoid thundering herd.
                 sleep_time = round(delay * random.uniform(0.8, 1.2), 2)
 
                 print(
                     f"[GeminiProvider] Rate limit hit "
-                    f"(attempt {attempt + 1}/{MAX_RETRIES}). "
+                    f"(attempt {attempt + 1}/{self.MAX_RETRIES}). "
                     f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)

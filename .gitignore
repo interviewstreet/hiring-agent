@@ -4,6 +4,8 @@
 resume/*.pdf
 run/*.pdf
 test_*.py
+# ...but keep the project's actual test suite under tests/ tracked.
+!tests/test_*.py
 cache/
 resume_evaluations.csv
 greenhouse_resumes/*
