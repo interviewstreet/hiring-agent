@@ -468,5 +468,8 @@ class OpenAICompatibleProvider:
 
             response.raise_for_status()
             data = response.json()
-            content = data["choices"][0]["message"]["content"]
+            try:
+                content = data["choices"][0]["message"]["content"]
+            except (KeyError, IndexError, TypeError):
+                raise ValueError(f"Unexpected response shape from {url}: {data}")
             return {"message": {"role": "assistant", "content": content}}
