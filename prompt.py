@@ -41,6 +41,13 @@ MODEL_PARAMETERS = {
     "gemini-2.5-flash-lite": {"temperature": 0.1, "top_p": 0.9},
     "gemini-3.5-flash": {"temperature": 0.1, "top_p": 0.9},
     "gemini-3.1-flash-lite": {"temperature": 0.1, "top_p": 0.9},
+    # OpenCode models
+    "deepseek-v4-flash": {"temperature": 0.1, "top_p": 0.9},
+    "deepseek-v4-pro": {"temperature": 0.1, "top_p": 0.9},
+    "qwen3.7-max": {"temperature": 0.1, "top_p": 0.9},
+    "qwen3.7-plus": {"temperature": 0.1, "top_p": 0.9},
+    "kimi-k2.7-code": {"temperature": 0.1, "top_p": 0.9},
+    "gpt-5.5": {"temperature": 0.1, "top_p": 0.9},
 }
 
 # Model provider mapping
@@ -61,7 +68,15 @@ MODEL_PROVIDER_MAPPING = {
     "gemini-2.5-pro": ModelProvider.GEMINI,
     "gemini-3.5-flash": ModelProvider.GEMINI,
     "gemini-3.1-flash-lite": ModelProvider.GEMINI,
+    # OpenCode models
+    "deepseek-v4-flash": ModelProvider.OPENCODE,
+    "deepseek-v4-pro": ModelProvider.OPENCODE,
+    "qwen3.7-max": ModelProvider.OPENCODE,
+    "qwen3.7-plus": ModelProvider.OPENCODE,
+    "kimi-k2.7-code": ModelProvider.OPENCODE,
+    "gpt-5.5": ModelProvider.OPENCODE,
 }
 
 # Get API keys from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+OPENCODE_API_KEY = os.getenv("OPENCODE_API_KEY", "")

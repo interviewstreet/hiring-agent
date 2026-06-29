@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    OPENCODE = "opencode"
 
 
 @runtime_checkable
@@ -19,7 +20,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -281,7 +282,7 @@ class OllamaProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
 
@@ -324,7 +325,7 @@ class GeminiProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Google Gemini API."""
         import re
@@ -375,7 +376,7 @@ class GeminiProvider:
                 api_hint = float(match.group(1)) if match else None
 
                 # Exponential backoff: BASE_DELAY * 2^attempt, capped at MAX_DELAY
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
 
                 # Prefer the API hint when it is shorter than our computed delay
                 delay = api_hint if (api_hint and api_hint < exp_delay) else exp_delay
@@ -389,3 +390,57 @@ class GeminiProvider:
                     f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)
+
+
+class OpenCodeProvider:
+    """OpenCode API provider implementation."""
+
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.base_url = "https://opencode.ai/zen/go/v1"
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Send a chat request to OpenCode API (OpenAI-compatible)."""
+        import requests
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+
+        # Convert roles if needed, though most OpenAI compat APIs accept standard user/assistant/system roles
+        formatted_messages = []
+        for msg in messages:
+            role = msg["role"]
+            # Map standard system/user/assistant roles
+            if role == "model":
+                role = "assistant"
+            formatted_messages.append({"role": role, "content": msg["content"]})
+
+        payload = {
+            "model": model,
+            "messages": formatted_messages,
+        }
+
+        if options:
+            if "temperature" in options:
+                payload["temperature"] = options["temperature"]
+            if "top_p" in options:
+                payload["top_p"] = options["top_p"]
+
+        response = requests.post(
+            f"{self.base_url}/chat/completions",
+            json=payload,
+            headers=headers,
+            timeout=60,
+        )
+        response.raise_for_status()
+        data = response.json()
+        content = data["choices"][0]["message"]["content"]
+        return {"message": {"role": "assistant", "content": content}}
