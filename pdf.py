@@ -100,7 +100,8 @@ class PDFHandler:
 
             kwargs = {}
             if return_model:
-                kwargs["format"] = return_model.model_json_schema()
+                # Pass the pydantic class; the provider adapts it for its SDK.
+                kwargs["format"] = return_model
 
             # Use the appropriate provider to make the API call
             response = self.provider.chat(**chat_params, **kwargs)
@@ -286,17 +287,33 @@ class PDFHandler:
             "meta": None,
         }
 
+        succeeded = []
+        failed = []
         for section_name in sections:
             section_data = self._extract_section_data(text_content, section_name)
 
             if section_data:
                 complete_resume.update(section_data)
+                succeeded.append(section_name)
                 logger.debug(f"✅ Successfully extracted {section_name} section")
             else:
-                logger.error(
-                    f"⚠️ Failed to extract {section_name} section. Aborting extraction to prevent partial/invalid resume data."
+                # A single section failing (flaky JSON from a small model, a
+                # section the resume simply doesn't have, etc.) must not throw
+                # away the sections that did parse. Keep going and record it.
+                failed.append(section_name)
+                logger.warning(
+                    f"⚠️ Failed to extract {section_name} section; continuing with the remaining sections."
                 )
-                return None
+
+        if failed:
+            logger.warning(
+                f"Extraction completed with {len(failed)} failed section(s): "
+                f"{', '.join(failed)}. Succeeded: {', '.join(succeeded) or 'none'}."
+            )
+
+        if not succeeded:
+            logger.error("❌ No sections could be extracted from the resume. Aborting.")
+            return None
 
         try:
             if complete_resume.get("basics") and isinstance(

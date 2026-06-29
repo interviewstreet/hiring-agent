@@ -72,8 +72,10 @@ class ResumeEvaluator:
                 },
             }
 
-            # Add format parameter for structured output
-            kwargs = {"format": EvaluationData.model_json_schema()}
+            # Add format parameter for structured output. Pass the pydantic
+            # class; each provider adapts it (Ollama -> JSON schema dict,
+            # Gemini -> native schema conversion).
+            kwargs = {"format": EvaluationData}
             # Use the appropriate provider to make the API call
             response = self.provider.chat(**chat_params, **kwargs)
 

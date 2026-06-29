@@ -143,14 +143,17 @@ $ cp .env.example .env
 | `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
 
-Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
+Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has two flags:
 
 ```python
 # config.py
-DEVELOPMENT_MODE = True  # enables caching and CSV export
+DEVELOPMENT_MODE = True            # enables caching and CSV export
+REDACT_PII_FOR_EVALUATION = True   # strip bias-inducing PII before scoring
 ```
 
-You can leave it on during iteration. See the next section for details.
+`DEVELOPMENT_MODE` you can leave on during iteration (see the next section).
+
+`REDACT_PII_FOR_EVALUATION` strips the factors the rubric declares off-limits — name, contact details, location, school name, and GPA — from the text sent to the evaluation LLM, so the score cannot depend on them. The original data is preserved for the CSV export and the recruiter-facing report; only the scorer's input is redacted. Set it to `False` to send the resume unredacted.
 
 ---
 
@@ -262,9 +265,13 @@ What happens:
 ### Gemini
 
 - Set `LLM_PROVIDER=gemini`
-- Set `DEFAULT_MODEL` to a supported Gemini model, for example `gemini-2.0-flash`
+- Set `DEFAULT_MODEL` to a supported Gemini model, for example `gemini-2.5-flash`
+  (also recognized: `gemini-2.5-pro`, `gemini-2.5-flash-lite`, `gemini-2.0-flash`, `gemini-2.0-flash-lite`)
 - Provide `GEMINI_API_KEY`
-- The wrapper in `models.GeminiProvider` adapts responses to a unified format
+- `models.GeminiProvider` is built on the `google-genai` SDK. It sends the
+  system prompt as Gemini's `system_instruction`, enforces structured output
+  via `response_schema`, retries on rate limits, and adapts the response back
+  to the unified Ollama-style shape the rest of the pipeline expects.
 
 ---
 
