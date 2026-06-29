@@ -4,8 +4,8 @@ Utility functions for LLM providers.
 
 import logging
 from typing import Any, Dict, Optional
-from models import ModelProvider, OllamaProvider, GeminiProvider
-from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY
+from config import provider_for
+from models import OpenAICompatibleProvider
 
 logger = logging.getLogger(__name__)
 
@@ -39,24 +39,14 @@ def extract_json_from_response(response_text: str) -> str:
 
 def initialize_llm_provider(model_name: str) -> Any:
     """
-    Initialize the appropriate LLM provider based on the model name.
-
-    Args:
-        model_name: The name of the model to use
-
-    Returns:
-        An initialized LLM provider (either OllamaProvider or GeminiProvider)
+    Initialize an OpenAI-compatible LLM provider for the given model,
+    resolving base_url / api_key / structured-output mode from providers.json.
     """
-    # Default to Ollama provider
-    provider = OllamaProvider()
-    # If using Gemini and API key is available, use Gemini provider
-    model_provider = MODEL_PROVIDER_MAPPING.get(model_name, ModelProvider.OLLAMA)
-    if model_provider == ModelProvider.GEMINI:
-        if not GEMINI_API_KEY:
-            logger.warning("⚠️ Gemini API key not found. Falling back to Ollama.")
-        else:
-            logger.info(f"🔄 Using Google Gemini API provider with model {model_name}")
-            provider = GeminiProvider(api_key=GEMINI_API_KEY)
-    else:
-        logger.info(f"🔄 Using Ollama provider with model {model_name}")
-    return provider
+    cfg = provider_for(model_name)
+    logger.info(f"🔄 Using model {model_name} via {cfg['base_url']}")
+    return OpenAICompatibleProvider(
+        base_url=cfg["base_url"],
+        api_key=cfg["api_key"],
+        structured_output=cfg["structured_output"],
+        extra_body=cfg["extra_body"],
+    )
