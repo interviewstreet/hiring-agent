@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    OPENAI = "openai"
 
 
 @runtime_checkable
@@ -389,3 +390,42 @@ class GeminiProvider:
                     f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)
+
+
+class OpenAIProvider:
+    """OpenAI API provider implementation."""
+
+    def __init__(self, api_key: str, base_url: str = None):
+        from openai import OpenAI
+
+        client_kwargs = {"api_key": api_key}
+        if base_url:
+            client_kwargs["base_url"] = base_url
+        self.client = OpenAI(**client_kwargs)
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Send a chat request to OpenAI."""
+
+        chat_kwargs = {
+            "model": model,
+            "messages": messages,
+        }
+
+        if options:
+            if "temperature" in options:
+                chat_kwargs["temperature"] = options["temperature"]
+            if "top_p" in options:
+                chat_kwargs["top_p"] = options["top_p"]
+
+        if "format" in kwargs:
+            chat_kwargs["response_format"] = {"type": "json_object"}
+
+        response = self.client.chat.completions.create(**chat_kwargs)
+        content = response.choices[0].message.content or ""
+        return {"message": {"role": "assistant", "content": content}}
