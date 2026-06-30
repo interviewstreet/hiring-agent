@@ -51,18 +51,22 @@ def initialize_llm_provider(model_name: str) -> Any:
         model_name: The name of the model to use
 
     Returns:
-        An initialized LLM provider (either OllamaProvider or GeminiProvider)
+        An initialized LLM provider (OllamaProvider, GeminiProvider, or OpenAIProvider)
     """
     # Default to Ollama provider
     provider = OllamaProvider()
 
     provider_name = PROVIDER if PROVIDER in {p.value for p in ModelProvider} else None
     model_provider = MODEL_PROVIDER_MAPPING.get(model_name, ModelProvider.OLLAMA)
-    resolved_provider = (
-        ModelProvider(provider_name)
-        if provider_name
-        else model_provider
-    )
+
+    # When an OpenAI-compatible base URL is configured, allow arbitrary model names
+    # to pass through unchanged instead of requiring a repository-local whitelist.
+    if provider_name:
+        resolved_provider = ModelProvider(provider_name)
+    elif OPENAI_BASE_URL:
+        resolved_provider = ModelProvider.OPENAI
+    else:
+        resolved_provider = model_provider
 
     if resolved_provider == ModelProvider.OPENAI:
         if not OPENAI_API_KEY:

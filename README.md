@@ -143,7 +143,7 @@ $ cp .env.example .env
 | `DEFAULT_MODEL`  | for example `gemma3:4b`, `gemini-2.5-pro`, or `gpt-4o-mini` | Model name passed to the provider.                                     |
 | `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
 | `OPENAI_API_KEY` | string                                      | Required when `LLM_PROVIDER=openai`.                                   |
-| `OPENAI_BASE_URL` | optional                                   | Optional OpenAI-compatible base URL for proxies or gateways.          |
+| `OPENAI_BASE_URL` | optional                                   | Optional OpenAI-compatible base URL for proxies, gateways, or OpenRouter. |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
 
 Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
@@ -272,9 +272,9 @@ What happens:
 ### OpenAI
 
 - Set `LLM_PROVIDER=openai`
-- Set `DEFAULT_MODEL` to a supported OpenAI model, for example `gpt-4o-mini`
+- Set `DEFAULT_MODEL` to a model name supported by your OpenAI-compatible endpoint, for example `gpt-4o-mini`
 - Provide `OPENAI_API_KEY`
-- Optionally set `OPENAI_BASE_URL` if you use an OpenAI-compatible proxy
+- Optionally set `OPENAI_BASE_URL` if you use an OpenAI-compatible proxy, gateway, or OpenRouter
 - The wrapper in `models.OpenAIProvider` adapts responses to a unified format
 
 ---

@@ -73,6 +73,7 @@ MODEL_PROVIDER_MAPPING = {
     "gpt-4.1": ModelProvider.OPENAI,
     "gpt-4.1-mini": ModelProvider.OPENAI,
     "o3-mini": ModelProvider.OPENAI,
+    
 }
 
 # Get API keys from environment
