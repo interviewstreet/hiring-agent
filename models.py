@@ -419,12 +419,15 @@ class AnthropicProvider:
         # Anthropic requires an explicit max_tokens; allow override via options.
         max_tokens = 16384
 
-        # Map options to Anthropic generation parameters.
+        # Map options to Anthropic generation parameters. Note: Anthropic
+        # models reject `temperature` and `top_p` together ("Please use only
+        # one"), so prefer temperature and only fall back to top_p when
+        # temperature is not provided.
         params = {}
         if options:
             if "temperature" in options:
                 params["temperature"] = options["temperature"]
-            if "top_p" in options:
+            elif "top_p" in options:
                 params["top_p"] = options["top_p"]
             if "max_tokens" in options:
                 max_tokens = options["max_tokens"]
