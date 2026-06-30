@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    ANTHROPIC = "anthropic"
 
 
 @runtime_checkable
@@ -19,7 +20,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -281,7 +282,7 @@ class OllamaProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
 
@@ -324,7 +325,7 @@ class GeminiProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Google Gemini API."""
         import re
@@ -375,7 +376,7 @@ class GeminiProvider:
                 api_hint = float(match.group(1)) if match else None
 
                 # Exponential backoff: BASE_DELAY * 2^attempt, capped at MAX_DELAY
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
 
                 # Prefer the API hint when it is shorter than our computed delay
                 delay = api_hint if (api_hint and api_hint < exp_delay) else exp_delay
@@ -385,6 +386,105 @@ class GeminiProvider:
 
                 print(
                     f"[GeminiProvider] Rate limit hit "
+                    f"(attempt {attempt + 1}/{MAX_RETRIES}). "
+                    f"Retrying in {sleep_time}s..."
+                )
+                time.sleep(sleep_time)
+
+
+class AnthropicProvider:
+    """Anthropic Claude API provider implementation."""
+
+    def __init__(self, api_key: str):
+        import anthropic
+
+        self.client = anthropic.Anthropic(api_key=api_key)
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Send a chat request to the Anthropic Messages API."""
+        import time
+        import random
+        import anthropic
+
+        MAX_RETRIES = 5
+        BASE_DELAY = 5.0  # seconds — base for exponential backoff
+        MAX_DELAY = 60.0  # cap so we never wait more than a minute
+
+        # Anthropic requires an explicit max_tokens; allow override via options.
+        max_tokens = 16384
+
+        # Map options to Anthropic generation parameters. Note: Anthropic
+        # models reject `temperature` and `top_p` together ("Please use only
+        # one"), so prefer temperature and only fall back to top_p when
+        # temperature is not provided.
+        params = {}
+        if options:
+            if "temperature" in options:
+                params["temperature"] = options["temperature"]
+            elif "top_p" in options:
+                params["top_p"] = options["top_p"]
+            if "max_tokens" in options:
+                max_tokens = options["max_tokens"]
+
+        # Anthropic takes the system prompt as a top-level argument rather than
+        # as a message, and only accepts "user"/"assistant" roles. Pull any
+        # system-role messages out and concatenate them.
+        system_parts = []
+        chat_messages = []
+        for msg in messages:
+            role = msg.get("role")
+            content = msg.get("content", "")
+            if role == "system":
+                system_parts.append(content)
+            else:
+                anthropic_role = "user" if role == "user" else "assistant"
+                chat_messages.append({"role": anthropic_role, "content": content})
+
+        # The messages list must be non-empty.
+        if not chat_messages:
+            chat_messages = [{"role": "user", "content": ""}]
+
+        if system_parts:
+            params["system"] = "\n\n".join(system_parts)
+
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = self.client.messages.create(
+                    model=model,
+                    max_tokens=max_tokens,
+                    messages=chat_messages,
+                    **params,
+                )
+
+                # Concatenate all text blocks and adapt to the Ollama-like
+                # response shape the rest of the codebase expects.
+                text = "".join(
+                    block.text
+                    for block in response.content
+                    if getattr(block, "type", None) == "text"
+                )
+                return {"message": {"role": "assistant", "content": text}}
+
+            except anthropic.APIStatusError as e:
+                status = getattr(e, "status_code", None)
+                retryable = status in (429, 500, 502, 503, 529)
+                if not retryable or attempt == MAX_RETRIES - 1:
+                    # Non-retryable error or retries exhausted — surface it.
+                    raise
+
+                # Exponential backoff: BASE_DELAY * 2^attempt, capped at MAX_DELAY,
+                # with ±20% randomized jitter to avoid thundering herd.
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
+                sleep_time = round(exp_delay * random.uniform(0.8, 1.2), 2)
+
+                print(
+                    f"[AnthropicProvider] {type(e).__name__} (status {status}) "
                     f"(attempt {attempt + 1}/{MAX_RETRIES}). "
                     f"Retrying in {sleep_time}s..."
                 )
