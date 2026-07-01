@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    ZAI = "zai"
 
 
 @runtime_checkable
@@ -389,3 +390,27 @@ class GeminiProvider:
                     f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)
+
+# In ModelProvider enum, add:
+ZAI = "zai"
+
+# New provider class:
+class ZAIProvider:
+    """Z.AI provider (OpenAI-compatible)."""
+
+    def __init__(self, api_key: str):
+        from openai import OpenAI
+        self.client = OpenAI(
+            api_key=api_key,
+            base_url="https://api.z.ai/api/paas/v4/"
+        )
+
+    def chat(self, model, messages, options=None, **kwargs):
+        params = {"model": model, "messages": messages}
+        if options:
+            if "temperature" in options:
+                params["temperature"] = options["temperature"]
+            if "top_p" in options:
+                params["top_p"] = options["top_p"]
+        response = self.client.chat.completions.create(**params)
+        return {"message": {"role": "assistant", "content": response.choices[0].message.content}}

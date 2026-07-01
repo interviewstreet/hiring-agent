@@ -41,6 +41,9 @@ MODEL_PARAMETERS = {
     "gemini-2.5-flash-lite": {"temperature": 0.1, "top_p": 0.9},
     "gemini-3.5-flash": {"temperature": 0.1, "top_p": 0.9},
     "gemini-3.1-flash-lite": {"temperature": 0.1, "top_p": 0.9},
+    # ZAI Models
+    "glm-4.5-flash": {"temperature": 0.1, "top_p": 0.9},
+    "glm-4.7-flash": {"temperature": 0.1, "top_p": 0.9},
 }
 
 # Model provider mapping
@@ -61,7 +64,12 @@ MODEL_PROVIDER_MAPPING = {
     "gemini-2.5-pro": ModelProvider.GEMINI,
     "gemini-3.5-flash": ModelProvider.GEMINI,
     "gemini-3.1-flash-lite": ModelProvider.GEMINI,
+    # ZAI GLM Models 
+    "glm-4.5-flash": ModelProvider.ZAI,
+    "glm-4.7-flash": ModelProvider.ZAI,
 }
 
 # Get API keys from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+ZAI_API_KEY = os.environ.get("ZAI_API_KEY", "")
