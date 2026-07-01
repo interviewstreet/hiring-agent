@@ -36,7 +36,7 @@
 
 ## Overview
 
-Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama or use Google Gemini.
+Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama, use Google Gemini, or use Z.AI (GLM) for a free hosted option.
 
 ---
 
@@ -90,6 +90,7 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
   - **Ollama** for local models
     Install from the [official site](https://ollama.com/), then run `ollama serve`.
   - **Google Gemini** if you have an API key, get it from [here](https://aistudio.google.com/api-keys).
+  - **Z.AI (GLM)** for free hosted models (no GPU needed), get an API key from [here](https://z.ai/chat).
 
 ### Quick setup with pip
 
@@ -136,12 +137,13 @@ $ cp .env.example .env
 
 **Environment variables**
 
-| Variable         | Values                                      | Description                                                            |
-| ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `LLM_PROVIDER`   | `ollama` or `gemini`                        | Chooses provider. Defaults to Ollama.                                  |
-| `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
-| `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
-| `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
+| Variable         | Values                                                | Description                                                            |
+| ---------------- | ----------------------------------------------------- | ---------------------------------------------------------------------- |
+| `LLM_PROVIDER`   | `ollama`, `gemini`, or `zai`                          | Chooses provider. Defaults to Ollama.                                  |
+| `DEFAULT_MODEL`  | e.g. `gemma3:4b`, `gemini-2.5-pro`, `glm-4.5-flash`  | Model name passed to the provider.                                     |
+| `GEMINI_API_KEY` | string                                                | Required when `LLM_PROVIDER=gemini`.                                   |
+| `ZAI_API_KEY`    | string                                                | Required when `LLM_PROVIDER=zai`.                                      |
+| `GITHUB_TOKEN`   | optional                                              | Inherits from your shell environment, improves GitHub API rate limits. |
 
 Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
 
@@ -266,6 +268,14 @@ What happens:
 - Provide `GEMINI_API_KEY`
 - The wrapper in `models.GeminiProvider` adapts responses to a unified format
 
+### Z.AI (GLM)
+
+- Set `LLM_PROVIDER=zai`
+- Set `DEFAULT_MODEL` to a supported GLM model, for example `glm-4.5-flash` or `glm-4.7-flash`
+- Provide `ZAI_API_KEY` — get one free (no credit card) at [z.ai](https://z.ai/chat)
+- The wrapper in `models.ZAIProvider` uses the OpenAI-compatible endpoint at `https://api.z.ai/api/paas/v4/`
+- Free tier models: `glm-4.5-flash`, `glm-4.7-flash` (rate limited, 1 concurrent request)
+
 ---
 
 ## Contributing
@@ -277,7 +287,6 @@ Please read the [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines on 
 - Add or adjust unit-free smoke tests that call each stage with minimal inputs.
 
 ---
-
 
 ## License
 
