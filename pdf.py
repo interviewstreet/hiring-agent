@@ -286,7 +286,9 @@ class PDFHandler:
             "meta": None,
         }
 
-        for section_name in sections:
+        for i, section_name in enumerate(sections):
+            if i > 0:
+                time.sleep(6)
             section_data = self._extract_section_data(text_content, section_name)
 
             if section_data:

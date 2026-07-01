@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    GROQ = "groq"
 
 
 @runtime_checkable
@@ -308,6 +309,33 @@ class OllamaProvider:
             chat_params["format"] = kwargs["format"]
 
         return self.client.chat(**chat_params)
+
+
+class GroqProvider:
+    """Groq API provider implementation."""
+
+    def __init__(self, api_key: str):
+        from groq import Groq
+
+        self.client = Groq(api_key=api_key)
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Send a chat request to Groq API."""
+        params = {"model": model, "messages": messages}
+        if options:
+            if "temperature" in options:
+                params["temperature"] = options["temperature"]
+            if "top_p" in options:
+                params["top_p"] = options["top_p"]
+
+        response = self.client.chat.completions.create(**params)
+        return {"message": {"role": "assistant", "content": response.choices[0].message.content}}
 
 
 class GeminiProvider:
