@@ -20,7 +20,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -282,7 +282,7 @@ class OllamaProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
 
@@ -325,7 +325,7 @@ class GeminiProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Google Gemini API."""
         import re
@@ -376,7 +376,7 @@ class GeminiProvider:
                 api_hint = float(match.group(1)) if match else None
 
                 # Exponential backoff: BASE_DELAY * 2^attempt, capped at MAX_DELAY
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
 
                 # Prefer the API hint when it is shorter than our computed delay
                 delay = api_hint if (api_hint and api_hint < exp_delay) else exp_delay
@@ -391,8 +391,10 @@ class GeminiProvider:
                 )
                 time.sleep(sleep_time)
 
+
 # In ModelProvider enum, add:
 ZAI = "zai"
+
 
 # New provider class:
 class ZAIProvider:
@@ -400,10 +402,8 @@ class ZAIProvider:
 
     def __init__(self, api_key: str):
         from openai import OpenAI
-        self.client = OpenAI(
-            api_key=api_key,
-            base_url="https://api.z.ai/api/paas/v4/"
-        )
+
+        self.client = OpenAI(api_key=api_key, base_url="https://api.z.ai/api/paas/v4/")
 
     def chat(self, model, messages, options=None, **kwargs):
         params = {"model": model, "messages": messages}
@@ -413,4 +413,9 @@ class ZAIProvider:
             if "top_p" in options:
                 params["top_p"] = options["top_p"]
         response = self.client.chat.completions.create(**params)
-        return {"message": {"role": "assistant", "content": response.choices[0].message.content}}
+        return {
+            "message": {
+                "role": "assistant",
+                "content": response.choices[0].message.content,
+            }
+        }

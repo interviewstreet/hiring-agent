@@ -64,7 +64,7 @@ MODEL_PROVIDER_MAPPING = {
     "gemini-2.5-pro": ModelProvider.GEMINI,
     "gemini-3.5-flash": ModelProvider.GEMINI,
     "gemini-3.1-flash-lite": ModelProvider.GEMINI,
-    # ZAI GLM Models 
+    # ZAI GLM Models
     "glm-4.5-flash": ModelProvider.ZAI,
     "glm-4.7-flash": ModelProvider.ZAI,
 }
