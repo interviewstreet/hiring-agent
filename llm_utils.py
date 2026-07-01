@@ -3,11 +3,14 @@ Utility functions for LLM providers.
 """
 
 import logging
+import re
 from typing import Any, Dict, Optional
 from models import ModelProvider, OllamaProvider, GeminiProvider
 from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY
 
 logger = logging.getLogger(__name__)
+
+_CODE_FENCE_PATTERN = re.compile(r"^```(?:json)?\s*\n?(.*?)\n?```$", re.DOTALL)
 
 
 def extract_json_from_response(response_text: str) -> str:
@@ -27,14 +30,14 @@ def extract_json_from_response(response_text: str) -> str:
         think_end = response_text.find("</think>")
         if think_start != -1 and think_end != -1:
             response_text = response_text[:think_start] + response_text[think_end + 8 :]
+        response_text = response_text.strip()
 
-    # Remove leading ```json if present
-    if response_text.startswith("```json"):
-        response_text = response_text[7:]
-    # Remove trailing ``` if present
-    if response_text.endswith("```"):
-        response_text = response_text[:-3]
-    return response_text
+    # Strip a wrapping ```json ... ``` or bare ``` ... ``` fence, if present.
+    match = _CODE_FENCE_PATTERN.match(response_text)
+    if match:
+        response_text = match.group(1)
+
+    return response_text.strip()
 
 
 def initialize_llm_provider(model_name: str) -> Any:
