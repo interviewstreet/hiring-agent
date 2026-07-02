@@ -215,10 +215,33 @@ class JSONResume(BaseModel):
     projects: Optional[List[Project]] = None
 
 
+def _clamp_number(value, low=None, high=None):
+    """Clamp a numeric value into [low, high].
+
+    Non-numeric inputs are returned unchanged so pydantic still raises its
+    normal type error. Used to keep out-of-range LLM outputs (e.g. a negative
+    deduction total) from failing validation and crashing the evaluation.
+    """
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return value
+    if low is not None and num < low:
+        num = low
+    if high is not None and num > high:
+        num = high
+    return num
+
+
 class CategoryScore(BaseModel):
     score: float = Field(ge=0, description="Score achieved in this category")
     max: int = Field(gt=0, description="Maximum possible score")
     evidence: str = Field(min_length=1, description="Evidence supporting the score")
+
+    @field_validator("score", mode="before")
+    @classmethod
+    def _clamp_score(cls, v):
+        return _clamp_number(v, low=0)
 
 
 class Scores(BaseModel):
@@ -232,6 +255,11 @@ class BonusPoints(BaseModel):
     total: float = Field(ge=0, le=20, description="Total bonus points")
     breakdown: str = Field(description="Breakdown of bonus points")
 
+    @field_validator("total", mode="before")
+    @classmethod
+    def _clamp_total(cls, v):
+        return _clamp_number(v, low=0, high=20)
+
 
 class Deductions(BaseModel):
     total: float = Field(
@@ -239,6 +267,11 @@ class Deductions(BaseModel):
         description="Total deduction points (stored as positive, applied as negative)",
     )
     reasons: str = Field(description="Reasons for deductions")
+
+    @field_validator("total", mode="before")
+    @classmethod
+    def _clamp_total(cls, v):
+        return _clamp_number(v, low=0)
 
 
 class EvaluationData(BaseModel):
