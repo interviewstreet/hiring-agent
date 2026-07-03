@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    CUSTOM = "custom"
 
 
 @runtime_checkable
@@ -19,7 +20,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -281,7 +282,7 @@ class OllamaProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
 
@@ -324,7 +325,7 @@ class GeminiProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Google Gemini API."""
         import re
@@ -375,7 +376,7 @@ class GeminiProvider:
                 api_hint = float(match.group(1)) if match else None
 
                 # Exponential backoff: BASE_DELAY * 2^attempt, capped at MAX_DELAY
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
 
                 # Prefer the API hint when it is shorter than our computed delay
                 delay = api_hint if (api_hint and api_hint < exp_delay) else exp_delay
@@ -389,3 +390,59 @@ class GeminiProvider:
                     f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)
+
+
+class CustomProvider:
+    """Generic OpenAI-compatible API provider (OpenRouter, Together, vLLM, etc.)."""
+
+    def __init__(self, api_key: str, base_url: str, model_prefix: str = "custom-"):
+        from openai import OpenAI
+
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        self.model_prefix = model_prefix
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        opts = options.copy() if options else {}
+        opts.pop("stream", None)
+
+        if model.startswith(self.model_prefix):
+            model = model[len(self.model_prefix) :]
+
+        chat_params = {
+            "model": model,
+            "messages": messages,
+            "temperature": opts.pop("temperature", 0.5),
+            "top_p": opts.pop("top_p", 0.9),
+        }
+
+        if "format" in kwargs:
+            schema = kwargs["format"]
+            chat_params["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "response",
+                    "strict": False,
+                    "schema": schema,
+                },
+            }
+
+        if "stream" in kwargs:
+            chat_params["stream"] = kwargs["stream"]
+
+        try:
+            response = self.client.chat.completions.create(**chat_params)
+        except Exception as e:
+            raise RuntimeError(f"Custom provider API call failed: {e}") from e
+
+        return {
+            "message": {
+                "role": "assistant",
+                "content": response.choices[0].message.content,
+            }
+        }

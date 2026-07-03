@@ -43,6 +43,11 @@ MODEL_PARAMETERS = {
     "gemini-3.1-flash-lite": {"temperature": 0.1, "top_p": 0.9},
 }
 
+# Custom provider configuration
+CUSTOM_API_KEY = os.getenv("CUSTOM_API_KEY", "")
+CUSTOM_API_BASE_URL = os.getenv("CUSTOM_API_BASE_URL", "")
+CUSTOM_MODEL_PREFIX = os.getenv("CUSTOM_MODEL_PREFIX", "custom-")
+
 # Model provider mapping
 # Maps model names to their provider
 MODEL_PROVIDER_MAPPING = {
@@ -65,3 +70,12 @@ MODEL_PROVIDER_MAPPING = {
 
 # Get API keys from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+
+def resolve_model_provider(model_name: str) -> ModelProvider:
+    """Resolve provider for a model, checking env-based overrides first."""
+    if PROVIDER == ModelProvider.CUSTOM.value:
+        return ModelProvider.CUSTOM
+    if model_name and model_name.startswith(CUSTOM_MODEL_PREFIX):
+        return ModelProvider.CUSTOM
+    return MODEL_PROVIDER_MAPPING.get(model_name, DEFAULT_PROVIDER)

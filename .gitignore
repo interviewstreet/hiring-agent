@@ -224,3 +224,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+Shaswat_Singh_resume.pdf
+uv.lock
+pyproject.toml

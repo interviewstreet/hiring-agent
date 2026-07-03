@@ -36,7 +36,7 @@
 
 ## Overview
 
-Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama or use Google Gemini.
+Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama, use Google Gemini, or any OpenAI-compatible provider (OpenRouter, Together AI, vLLM, etc.).
 
 ---
 
@@ -90,6 +90,7 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
   - **Ollama** for local models
     Install from the [official site](https://ollama.com/), then run `ollama serve`.
   - **Google Gemini** if you have an API key, get it from [here](https://aistudio.google.com/api-keys).
+- **Custom OpenAI-compatible provider** (OpenRouter, Together AI, vLLM, etc.) — see the [Custom Provider](#custom-provider) section.
 
 ### Quick setup with pip
 
@@ -138,9 +139,12 @@ $ cp .env.example .env
 
 | Variable         | Values                                      | Description                                                            |
 | ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `LLM_PROVIDER`   | `ollama` or `gemini`                        | Chooses provider. Defaults to Ollama.                                  |
+| `LLM_PROVIDER`   | `ollama`, `gemini`, or `custom`             | Chooses provider. Defaults to Ollama.                                  |
 | `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
 | `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
+| `CUSTOM_API_KEY` | string                                      | Required when `LLM_PROVIDER=custom`.                                   |
+| `CUSTOM_API_BASE_URL` | string                                 | Base URL for OpenAI-compatible API (e.g. `https://openrouter.ai/api/v1`). |
+| `CUSTOM_MODEL_PREFIX` | string (default `custom-`)             | Models starting with this prefix auto-route to custom provider.        |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
 
 Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
@@ -265,6 +269,25 @@ What happens:
 - Set `DEFAULT_MODEL` to a supported Gemini model, for example `gemini-2.0-flash`
 - Provide `GEMINI_API_KEY`
 - The wrapper in `models.GeminiProvider` adapts responses to a unified format
+
+### Custom Provider (OpenAI-compatible)
+
+Use any OpenAI-compatible API — OpenRouter, Together AI, vLLM, LM Studio, etc.
+
+**Setup:**
+
+1. Set `LLM_PROVIDER=custom`
+2. Set `CUSTOM_API_BASE_URL` to the provider's base URL (e.g. `https://openrouter.ai/api/v1`)
+3. Set `CUSTOM_API_KEY` to your API key
+4. Set `DEFAULT_MODEL` to `custom-<model-name>` (the `custom-` prefix auto-routes to this provider)
+
+Alternatively, set `CUSTOM_MODEL_PREFIX` to a different prefix if needed.
+
+**How it works:**
+
+- The `CustomProvider` class uses the `openai` Python SDK under the hood
+- Set `DEFAULT_MODEL=custom-gpt-4o-mini` and the `custom-` prefix routes it to the custom provider
+- Supports structured JSON output via `response_format` for evaluation scoring
 
 ---
 
