@@ -65,3 +65,10 @@ MODEL_PROVIDER_MAPPING = {
 
 # Get API keys from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+# OpenRouter configuration (OpenAI-compatible gateway).
+# Routing to OpenRouter is driven by LLM_PROVIDER=openrouter rather than the
+# static model map above, because OpenRouter model IDs are open-ended
+# (e.g. "openai/gpt-4o-mini", "deepseek/deepseek-chat").
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")

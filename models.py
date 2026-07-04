@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    OPENROUTER = "openrouter"
 
 
 @runtime_checkable
@@ -19,7 +20,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -281,7 +282,7 @@ class OllamaProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
 
@@ -324,7 +325,7 @@ class GeminiProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to Google Gemini API."""
         import re
@@ -375,7 +376,7 @@ class GeminiProvider:
                 api_hint = float(match.group(1)) if match else None
 
                 # Exponential backoff: BASE_DELAY * 2^attempt, capped at MAX_DELAY
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
 
                 # Prefer the API hint when it is shorter than our computed delay
                 delay = api_hint if (api_hint and api_hint < exp_delay) else exp_delay
@@ -389,3 +390,100 @@ class GeminiProvider:
                     f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)
+
+
+class OpenRouterProvider:
+    """OpenRouter (OpenAI-compatible) LLM provider implementation.
+
+    OpenRouter exposes an OpenAI-compatible ``/chat/completions`` endpoint that
+    proxies many hosted models (OpenAI, Anthropic, Google, Meta, DeepSeek, ...).
+    Because the wire format matches what the rest of this codebase already uses
+    (``system``/``user`` message roles), no message remapping is required.
+    """
+
+    def __init__(self, api_key: str, base_url: str = "https://openrouter.ai/api/v1"):
+        self.api_key = api_key
+        self.base_url = base_url.rstrip("/")
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Send a chat request to OpenRouter and adapt the response.
+
+        Returns an Ollama-shaped dict — ``{"message": {"content": ...}}`` — so
+        callers stay provider-agnostic.
+        """
+        import time
+        import random
+        import requests
+
+        options = options or {}
+
+        payload: Dict[str, Any] = {"model": model, "messages": messages}
+        if "temperature" in options:
+            payload["temperature"] = options["temperature"]
+        if "top_p" in options:
+            payload["top_p"] = options["top_p"]
+
+        # The rest of the codebase requests structured output via an Ollama-style
+        # ``format`` kwarg (a JSON schema). OpenRouter's equivalent is
+        # ``response_format``; JSON-object mode is the most broadly supported
+        # option across the many models OpenRouter proxies.
+        want_json = bool(kwargs.get("format"))
+        if want_json:
+            payload["response_format"] = {"type": "json_object"}
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            # Optional attribution headers recommended by OpenRouter.
+            "X-Title": "hiring-agent",
+        }
+
+        url = f"{self.base_url}/chat/completions"
+
+        MAX_RETRIES = 5
+        BASE_DELAY = 5.0  # seconds — base for exponential backoff
+        MAX_DELAY = 60.0  # cap so we never wait more than a minute
+
+        for attempt in range(MAX_RETRIES):
+            response = requests.post(url, headers=headers, json=payload, timeout=120)
+
+            # Some models proxied by OpenRouter reject ``response_format``.
+            # Fall back once by retrying the request without it.
+            if response.status_code == 400 and "response_format" in payload:
+                payload.pop("response_format", None)
+                continue
+
+            # Retry on rate limits (429) with exponential backoff + jitter.
+            if response.status_code == 429 and attempt < MAX_RETRIES - 1:
+                delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
+                sleep_time = round(delay * random.uniform(0.8, 1.2), 2)
+                print(
+                    f"[OpenRouterProvider] Rate limit hit "
+                    f"(attempt {attempt + 1}/{MAX_RETRIES}). "
+                    f"Retrying in {sleep_time}s..."
+                )
+                time.sleep(sleep_time)
+                continue
+
+            response.raise_for_status()
+            data = response.json()
+
+            try:
+                content = data["choices"][0]["message"]["content"]
+            except (KeyError, IndexError, TypeError) as exc:
+                raise RuntimeError(
+                    f"Unexpected OpenRouter response shape: {data}"
+                ) from exc
+
+            return {"message": {"role": "assistant", "content": content}}
+
+        # Retries exhausted (all attempts were 429s).
+        raise RuntimeError(
+            f"OpenRouter request failed after {MAX_RETRIES} attempts (rate limited)."
+        )

@@ -36,7 +36,7 @@
 
 ## Overview
 
-Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama or use Google Gemini.
+Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama, or use a hosted provider such as Google Gemini or OpenRouter.
 
 ---
 
@@ -136,12 +136,14 @@ $ cp .env.example .env
 
 **Environment variables**
 
-| Variable         | Values                                      | Description                                                            |
-| ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `LLM_PROVIDER`   | `ollama` or `gemini`                        | Chooses provider. Defaults to Ollama.                                  |
-| `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
-| `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
-| `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
+| Variable             | Values                                      | Description                                                            |
+| -------------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
+| `LLM_PROVIDER`       | `ollama`, `gemini`, or `openrouter`         | Chooses provider. Defaults to Ollama.                                  |
+| `DEFAULT_MODEL`      | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
+| `GEMINI_API_KEY`     | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
+| `OPENROUTER_API_KEY` | string                                      | Required when `LLM_PROVIDER=openrouter`.                              |
+| `OPENROUTER_BASE_URL`| optional                                    | Overrides the OpenRouter endpoint. Defaults to the public API.         |
+| `GITHUB_TOKEN`       | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
 
 Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
 
@@ -265,6 +267,15 @@ What happens:
 - Set `DEFAULT_MODEL` to a supported Gemini model, for example `gemini-2.0-flash`
 - Provide `GEMINI_API_KEY`
 - The wrapper in `models.GeminiProvider` adapts responses to a unified format
+
+### OpenRouter
+
+- Set `LLM_PROVIDER=openrouter`
+- Set `DEFAULT_MODEL` to any full OpenRouter model id, for example `openai/gpt-4o-mini`, `google/gemini-2.5-flash-lite`, or `deepseek/deepseek-chat`
+- Provide `OPENROUTER_API_KEY` (get one at https://openrouter.ai/keys)
+- Optionally override `OPENROUTER_BASE_URL`
+- OpenRouter exposes an OpenAI-compatible endpoint, so `models.OpenRouterProvider` sends the shared message format directly and adapts responses to the unified format
+- Because OpenRouter model ids are open-ended, routing is selected by `LLM_PROVIDER=openrouter` rather than the model-name map used for Ollama and Gemini
 
 ---
 

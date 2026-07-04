@@ -4,8 +4,19 @@ Utility functions for LLM providers.
 
 import logging
 from typing import Any, Dict, Optional
-from models import ModelProvider, OllamaProvider, GeminiProvider
-from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY
+from models import (
+    ModelProvider,
+    OllamaProvider,
+    GeminiProvider,
+    OpenRouterProvider,
+)
+from prompt import (
+    MODEL_PROVIDER_MAPPING,
+    GEMINI_API_KEY,
+    OPENROUTER_API_KEY,
+    OPENROUTER_BASE_URL,
+    PROVIDER,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +58,18 @@ def initialize_llm_provider(model_name: str) -> Any:
     Returns:
         An initialized LLM provider (either OllamaProvider or GeminiProvider)
     """
+    # Explicit provider selection via LLM_PROVIDER takes precedence. This is
+    # required for OpenRouter, whose model IDs are open-ended and therefore not
+    # enumerable in MODEL_PROVIDER_MAPPING.
+    if PROVIDER == ModelProvider.OPENROUTER.value:
+        if not OPENROUTER_API_KEY:
+            logger.warning("⚠️ OpenRouter API key not found. Falling back to Ollama.")
+            return OllamaProvider()
+        logger.info(f"🔄 Using OpenRouter provider with model {model_name}")
+        return OpenRouterProvider(
+            api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_BASE_URL
+        )
+
     # Default to Ollama provider
     provider = OllamaProvider()
     # If using Gemini and API key is available, use Gemini provider
