@@ -1,0 +1,52 @@
+You are a technical recruiter explaining a candidate's match score to a hiring manager.
+
+## Candidate Match Summary
+
+Target Role: {{ job_title }}
+Weight Profile Used: {{ weight_profile }}
+Overall Match: {{ weighted_total }}/100
+
+### Category Scores
+- Skills Match: {{ scores.skills_match.score }}/100 — {{ scores.skills_match.evidence }}
+- Experience Match: {{ scores.experience_match.score }}/100 — {{ scores.experience_match.evidence }}
+- Job Title Alignment: {{ scores.job_title_alignment.score }}/100 — {{ scores.job_title_alignment.evidence }}
+- Education: {{ scores.education.score }}/100 — {{ scores.education.evidence }}
+- Resume Quality: {{ scores.resume_quality.score }}/100 — {{ scores.resume_quality.evidence }}
+- Missing Critical Requirements: {{ scores.missing_critical_requirements.score }}/100 — {{ scores.missing_critical_requirements.evidence }}
+- Semantic Match (supplementary): {{ semantic_match_score }}/100
+
+{% if keyword_match %}
+### Keyword Match
+Coverage: {{ keyword_match.coverage_score }}/100{% if keyword_match.gated %} (capped — a must-have qualification issue was found){% endif %}
+Matched required skills: {{ keyword_match.matched_required | join(", ") if keyword_match.matched_required else "None" }}
+Missing required skills: {{ keyword_match.missing_required | join(", ") if keyword_match.missing_required else "None" }}
+{% if keyword_match.knockout_failed %}
+A must-have qualification was explicitly rejected by a human reviewer during this evaluation, which caps the overall score at 30.
+{% endif %}
+{% endif %}
+
+{% if seniority %}
+### Seniority
+Target level: {{ seniority.target_label }} | Candidate's most recent level: {{ seniority.candidate_label }} | Gap: {{ seniority.gap }}
+{% endif %}
+
+{% if keyword_match and keyword_match.skill_experience %}
+### Skill Tenure
+{% for skill_exp in keyword_match.skill_experience %}
+- {{ skill_exp.skill }}: {{ skill_exp.years }} yrs
+{% endfor %}
+{% endif %}
+
+### Key Strengths
+{% for strength in key_strengths %}
+- {{ strength }}
+{% endfor %}
+
+### Areas for Improvement
+{% for area in areas_for_improvement %}
+- {{ area }}
+{% endfor %}
+
+## Instructions
+
+Write ONE paragraph, 4-7 sentences, in a recruiter's voice explaining this score to a hiring manager. Name the two or three largest drivers of the score and the biggest gaps. Cite only facts present above — do not invent new claims. Do not use bullet points or lists. Return only the paragraph, no other text.

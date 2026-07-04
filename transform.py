@@ -1,5 +1,5 @@
 from typing import Dict, List, Optional
-from models import JSONResume
+from models import JSONResume, ParseabilityResult
 
 
 def transform_parsed_data(parsed_data: Dict) -> Dict:
@@ -740,7 +740,9 @@ def transform_evaluation_response(
     return csv_row
 
 
-def transform_job_evaluation_response(file_name=None, resume_data=None, evaluation=None):
+def transform_job_evaluation_response(
+    file_name=None, resume_data=None, evaluation=None, parseability: Optional[ParseabilityResult] = None
+):
     csv_row = {}
     csv_row["file_name"] = file_name
 
@@ -775,6 +777,7 @@ def transform_job_evaluation_response(file_name=None, resume_data=None, evaluati
         csv_row["job_title"] = evaluation.job_title
         csv_row["weighted_total"] = evaluation.weighted_total
         csv_row["semantic_match_score"] = evaluation.semantic_match_score
+        csv_row["weight_profile"] = evaluation.weight_profile
 
         if evaluation.scores:
             csv_row["skills_match_score"] = evaluation.scores.skills_match.score
@@ -790,15 +793,80 @@ def transform_job_evaluation_response(file_name=None, resume_data=None, evaluati
 
         csv_row["key_strengths"] = "; ".join(evaluation.key_strengths) if evaluation.key_strengths else ""
         csv_row["areas_for_improvement"] = "; ".join(evaluation.areas_for_improvement) if evaluation.areas_for_improvement else ""
+
+        if evaluation.keyword_match:
+            keyword_match = evaluation.keyword_match
+            csv_row["keyword_coverage_score"] = keyword_match.coverage_score
+            csv_row["keyword_gate_triggered"] = str(keyword_match.gated)
+            csv_row["matched_required_skills"] = "; ".join(keyword_match.matched_required)
+            csv_row["missing_required_skills"] = "; ".join(keyword_match.missing_required)
+            csv_row["matched_preferred_skills"] = "; ".join(keyword_match.matched_preferred)
+            csv_row["missing_preferred_skills"] = "; ".join(keyword_match.missing_preferred)
+            csv_row["must_have_qualifications_status"] = "; ".join(
+                f"{status.qualification}: {status.status}"
+                + (f" (reviewer: {'yes' if status.resolved else 'no'})" if status.resolved is not None else "")
+                for status in keyword_match.must_have_status
+            )
+            csv_row["knockout_failed"] = str(keyword_match.knockout_failed)
+            csv_row["skill_years"] = (
+                "; ".join(f"{s.skill}: {s.years}" for s in keyword_match.skill_experience)
+                if keyword_match.skill_experience else ""
+            )
+            csv_row["estimated_total_years"] = (
+                keyword_match.estimated_total_years if keyword_match.estimated_total_years is not None else "N/A"
+            )
+        else:
+            for field in ["keyword_coverage_score", "keyword_gate_triggered", "matched_required_skills",
+                          "missing_required_skills", "matched_preferred_skills", "missing_preferred_skills",
+                          "must_have_qualifications_status", "knockout_failed", "skill_years",
+                          "estimated_total_years"]:
+                csv_row[field] = "N/A"
+
+        if evaluation.seniority:
+            seniority = evaluation.seniority
+            csv_row["target_seniority"] = seniority.target_label
+            csv_row["candidate_seniority"] = seniority.candidate_label
+            csv_row["seniority_gap"] = seniority.gap
+        else:
+            csv_row["target_seniority"] = "N/A"
+            csv_row["candidate_seniority"] = "N/A"
+            csv_row["seniority_gap"] = "N/A"
+
+        if evaluation.industry_match:
+            csv_row["jd_industry"] = evaluation.industry_match.industry
+            csv_row["industry_mention_count"] = evaluation.industry_match.mention_count
+        else:
+            csv_row["jd_industry"] = "N/A"
+            csv_row["industry_mention_count"] = "N/A"
+
+        csv_row["score_summary"] = evaluation.score_summary or ""
     else:
         csv_row["job_title"] = ""
         csv_row["weighted_total"] = "N/A"
         csv_row["semantic_match_score"] = "N/A"
+        csv_row["weight_profile"] = "N/A"
         for field in ["skills_match_score", "experience_match_score", "job_title_alignment_score",
                       "education_score", "resume_quality_score", "missing_critical_score"]:
             csv_row[field] = "N/A"
         csv_row["key_strengths"] = ""
         csv_row["areas_for_improvement"] = ""
+        for field in ["keyword_coverage_score", "keyword_gate_triggered", "matched_required_skills",
+                      "missing_required_skills", "matched_preferred_skills", "missing_preferred_skills",
+                      "must_have_qualifications_status", "knockout_failed", "skill_years",
+                      "estimated_total_years"]:
+            csv_row[field] = "N/A"
+        for field in ["target_seniority", "candidate_seniority", "seniority_gap"]:
+            csv_row[field] = "N/A"
+        csv_row["jd_industry"] = "N/A"
+        csv_row["industry_mention_count"] = "N/A"
+        csv_row["score_summary"] = ""
+
+    if parseability:
+        csv_row["ats_parseability_score"] = parseability.parseability_score
+        csv_row["ats_warnings"] = "; ".join(parseability.warnings) if parseability.warnings else ""
+    else:
+        csv_row["ats_parseability_score"] = "N/A"
+        csv_row["ats_warnings"] = "N/A"
 
     return csv_row
 

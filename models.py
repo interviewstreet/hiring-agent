@@ -1,4 +1,6 @@
-from typing import List, Optional, Dict, Tuple, Any, Protocol, runtime_checkable
+import threading
+import time
+from typing import List, Optional, Dict, Tuple, Any, Literal, Protocol, runtime_checkable
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 
@@ -273,10 +275,71 @@ class JobScores(BaseModel):
     missing_critical_requirements: JobCategoryScore
 
 
+class LLMJobScores(BaseModel):
+    experience_match: JobCategoryScore
+    job_title_alignment: JobCategoryScore
+    education: JobCategoryScore
+    resume_quality: JobCategoryScore
+    missing_critical_requirements: JobCategoryScore
+
+
 class LLMJobEvaluationResponse(BaseModel):
-    scores: JobScores
+    scores: LLMJobScores
     key_strengths: List[str] = Field(min_items=1, max_items=5)
     areas_for_improvement: List[str] = Field(min_items=1, max_items=5)
+
+
+class ParseabilityResult(BaseModel):
+    table_count: int = 0
+    image_count: int = 0
+    max_columns_detected: int = 1
+    warnings: List[str] = []
+    parseability_score: float = Field(ge=0, le=100)
+
+
+class SeniorityAssessment(BaseModel):
+    target_level: int
+    target_label: str
+    candidate_level: int
+    candidate_label: str
+    highest_level: int
+    highest_label: str
+    gap: int
+
+
+class IndustryMatch(BaseModel):
+    industry: str
+    mention_count: int = 0
+    matched_entries: List[str] = []
+
+
+class MustHaveStatus(BaseModel):
+    qualification: str
+    status: Literal["found", "not_found", "unverifiable"]
+    resolved: Optional[bool] = None
+
+
+class SkillExperience(BaseModel):
+    skill: str
+    years: float = Field(ge=0)
+    evidence: List[str] = []
+
+
+class KeywordMatchResult(BaseModel):
+    matched_required: List[str] = []
+    missing_required: List[str] = []
+    matched_preferred: List[str] = []
+    missing_preferred: List[str] = []
+    must_have_status: List[MustHaveStatus] = []
+    coverage_score: float = Field(ge=0, le=100)
+    gated: bool = False
+    knockout_failed: bool = False
+    skill_experience: Optional[List[SkillExperience]] = None
+    estimated_total_years: Optional[float] = None
+
+
+class ScoreSummary(BaseModel):
+    summary: str
 
 
 class JobEvaluationData(BaseModel):
@@ -286,6 +349,12 @@ class JobEvaluationData(BaseModel):
     key_strengths: List[str]
     areas_for_improvement: List[str]
     job_title: str
+    keyword_match: Optional[KeywordMatchResult] = None
+    seniority: Optional[SeniorityAssessment] = None
+    jd_years_of_experience: Optional[float] = None
+    weight_profile: str = "engineering"
+    industry_match: Optional[IndustryMatch] = None
+    score_summary: Optional[str] = None
 
 
 class GitHubProfile(BaseModel):
@@ -349,6 +418,49 @@ class OllamaProvider:
         return self.client.chat(**chat_params)
 
 
+class GeminiRateLimiter:
+    """Proactive client-side pacing for Gemini API calls.
+
+    Sleeps before a request if it would arrive sooner than min_interval
+    after the previous request, spreading calls out so the free-tier
+    per-minute quota is rarely hit in the first place. This is separate
+    from (and complementary to) the reactive 429 backoff in GeminiProvider.
+    """
+
+    def __init__(self, requests_per_minute: float):
+        self.min_interval = 60.0 / requests_per_minute if requests_per_minute > 0 else 0.0
+        self._last_request_time: Optional[float] = None
+        self._lock = threading.Lock()
+
+    def acquire(self) -> None:
+        with self._lock:
+            if self.min_interval <= 0 or self._last_request_time is None:
+                self._last_request_time = time.monotonic()
+                return
+
+            wait = self._last_request_time + self.min_interval - time.monotonic()
+            if wait > 0:
+                print(
+                    f"[GeminiProvider] Pacing: waiting {wait:.1f}s to stay under "
+                    f"{60.0 / self.min_interval:.1f} req/min"
+                )
+                time.sleep(wait)
+
+            self._last_request_time = time.monotonic()
+
+
+def _get_gemini_rate_limiter() -> GeminiRateLimiter:
+    global _GEMINI_RATE_LIMITER
+    if _GEMINI_RATE_LIMITER is None:
+        from config import GEMINI_REQUESTS_PER_MINUTE
+
+        _GEMINI_RATE_LIMITER = GeminiRateLimiter(GEMINI_REQUESTS_PER_MINUTE)
+    return _GEMINI_RATE_LIMITER
+
+
+_GEMINI_RATE_LIMITER: Optional[GeminiRateLimiter] = None
+
+
 class GeminiProvider:
     """Google Gemini API provider implementation."""
 
@@ -396,6 +508,8 @@ class GeminiProvider:
 
         for attempt in range(MAX_RETRIES):
             try:
+                _get_gemini_rate_limiter().acquire()
+
                 # Send the chat request
                 response = gemini_model.generate_content(gemini_messages)
 

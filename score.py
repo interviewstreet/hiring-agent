@@ -5,11 +5,13 @@ import logging
 import csv
 from pdf import PDFHandler
 from github import fetch_and_display_github_info
-from models import JSONResume, EvaluationData, JobEvaluationData
+from models import JSONResume, EvaluationData, JobEvaluationData, ParseabilityResult
 from typing import Optional
 from evaluator import ResumeEvaluator, JobDescriptionEvaluator
 from pathlib import Path
 from prompt import DEFAULT_MODEL, MODEL_PARAMETERS
+from ats_parseability import scan_pdf_parseability
+from weight_profiles import WEIGHT_PROFILES, DEFAULT_PROFILE, suggest_profile
 from transform import (
     transform_evaluation_response,
     transform_job_evaluation_response,
@@ -39,6 +41,25 @@ def select_mode() -> int:
         if choice in ("1", "2"):
             return int(choice)
         print("Invalid choice. Please enter 1 or 2.")
+
+
+def select_weight_profile() -> str:
+    profile_names = list(WEIGHT_PROFILES.keys())
+    print("\nChoose a weight profile (affects how category scores are combined):")
+    for i, name in enumerate(profile_names, 1):
+        default_marker = " (default)" if name == DEFAULT_PROFILE else ""
+        print(f"  {i}. {name}{default_marker}")
+    choice = input(f"Enter choice (1-{len(profile_names)}, Enter for default): ").strip()
+    if not choice:
+        return DEFAULT_PROFILE
+    try:
+        index = int(choice) - 1
+        if 0 <= index < len(profile_names):
+            return profile_names[index]
+    except ValueError:
+        pass
+    print(f"Invalid choice. Using default profile '{DEFAULT_PROFILE}'.")
+    return DEFAULT_PROFILE
 
 
 def load_job_description() -> str:
@@ -180,27 +201,112 @@ def print_job_evaluation_results(
     print("=" * 80)
 
     print(f"\n🎯 OVERALL MATCH: {evaluation.weighted_total}/100")
+    if evaluation.keyword_match and evaluation.keyword_match.knockout_failed:
+        print("   [CAPPED at 30 — reviewer confirmed a must-have is not met]")
+    print(f"   Weight profile: {evaluation.weight_profile}")
+
+    if evaluation.score_summary:
+        print("\n💬 WHY THIS SCORE:")
+        print("-" * 30)
+        print(evaluation.score_summary)
+
+    weights = WEIGHT_PROFILES.get(evaluation.weight_profile, WEIGHT_PROFILES[DEFAULT_PROFILE])
 
     print("\n📈 CATEGORY BREAKDOWN:")
     print("-" * 60)
 
     categories = [
-        ("💻 Skills Match       (30%)", evaluation.scores.skills_match),
-        ("🏢 Experience Match   (20%)", evaluation.scores.experience_match),
-        ("📋 Title Alignment    (10%)", evaluation.scores.job_title_alignment),
-        ("🎓 Education          (10%)", evaluation.scores.education),
-        ("📝 Resume Quality     (10%)", evaluation.scores.resume_quality),
-        ("⚠️  Missing Critical   (5%)", evaluation.scores.missing_critical_requirements),
+        (f"💻 Skills Match       ({weights['skills_match']:.0%})", evaluation.scores.skills_match),
+        (f"🏢 Experience Match   ({weights['experience_match']:.0%})", evaluation.scores.experience_match),
+        (f"📋 Title Alignment    ({weights['job_title_alignment']:.0%})", evaluation.scores.job_title_alignment),
+        (f"🎓 Education          ({weights['education']:.0%})", evaluation.scores.education),
+        (f"📝 Resume Quality     ({weights['resume_quality']:.0%})", evaluation.scores.resume_quality),
+        (f"⚠️  Missing Critical   ({weights['missing_critical_requirements']:.0%})", evaluation.scores.missing_critical_requirements),
     ]
 
     for label, category in categories:
         print(f"{label}: {category.score:.0f}/100")
         print(f"   Evidence: {category.evidence}")
+        if category is evaluation.scores.job_title_alignment and evaluation.seniority:
+            seniority = evaluation.seniority
+            print(
+                f"   Seniority: target={seniority.target_label}, candidate={seniority.candidate_label} "
+                f"(gap {seniority.gap:+d})"
+            )
         print()
 
-    print(f"🔍 Semantic Match     (15%): {evaluation.semantic_match_score:.1f}/100")
-    print("   Computed via Sentence Transformers (all-MiniLM-L6-v2).")
+    print(f"🔍 Semantic Match     ({weights['semantic_match']:.0%}): {evaluation.semantic_match_score:.1f}/100")
+    print("   Whole-document embedding similarity (all-MiniLM-L6-v2) — supplementary signal.")
     print()
+
+    if evaluation.keyword_match:
+        keyword_match = evaluation.keyword_match
+        print("🔑 KEYWORD MATCH:")
+        print("-" * 30)
+        coverage_line = f"Keyword coverage: {keyword_match.coverage_score:.1f}/100"
+        if keyword_match.gated:
+            coverage_line += " [CAPPED — a must-have qualification was not found]"
+        print(coverage_line)
+
+        total_required = len(keyword_match.matched_required) + len(keyword_match.missing_required)
+        print(f"\nRequired skills matched ({len(keyword_match.matched_required)}/{total_required}):")
+        print(f"  {', '.join(keyword_match.matched_required) if keyword_match.matched_required else 'None'}")
+        print(f"Required skills MISSING:")
+        print(f"  {', '.join(keyword_match.missing_required) if keyword_match.missing_required else 'None'}")
+
+        total_preferred = len(keyword_match.matched_preferred) + len(keyword_match.missing_preferred)
+        if total_preferred:
+            print(f"\nPreferred skills matched ({len(keyword_match.matched_preferred)}/{total_preferred}):")
+            print(f"  {', '.join(keyword_match.matched_preferred) if keyword_match.matched_preferred else 'None'}")
+            print(f"Preferred skills missing:")
+            print(f"  {', '.join(keyword_match.missing_preferred) if keyword_match.missing_preferred else 'None'}")
+
+        if keyword_match.must_have_status:
+            print("\nMust-have qualifications:")
+            status_labels = {
+                "found": "found",
+                "not_found": "NOT FOUND",
+                "unverifiable": "could not be verified by keyword matching",
+            }
+            for status in keyword_match.must_have_status:
+                if status.resolved is True:
+                    label = "confirmed by reviewer"
+                elif status.resolved is False:
+                    label = "REJECTED by reviewer (knockout)"
+                else:
+                    label = status_labels[status.status]
+                print(f"  - {status.qualification}: {label}")
+
+        if keyword_match.skill_experience:
+            print("\nSKILL TENURE (deterministic, from work-history dates):")
+            for skill_exp in keyword_match.skill_experience:
+                if skill_exp.years > 0:
+                    print(f"  - {skill_exp.skill}: {skill_exp.years} yrs")
+                else:
+                    print(f"  - {skill_exp.skill}: no dated evidence")
+            if evaluation.jd_years_of_experience is not None and keyword_match.estimated_total_years is not None:
+                print(
+                    f"  JD asks for {evaluation.jd_years_of_experience} yrs; candidate total "
+                    f"~{keyword_match.estimated_total_years} yrs (from parseable work dates)"
+                )
+
+        if evaluation.industry_match:
+            industry_match = evaluation.industry_match
+            if industry_match.mention_count:
+                print(f"\nIndustry ({industry_match.industry}): mentioned in {industry_match.mention_count} work entr" +
+                      ("y" if industry_match.mention_count == 1 else "ies"))
+            else:
+                print(f"\nIndustry ({industry_match.industry}): no literal mentions (LLM judges domain fit within Experience Match)")
+
+        suggested_profile = suggest_profile(
+            evaluation.job_title, evaluation.industry_match.industry if evaluation.industry_match else None
+        )
+        if suggested_profile != evaluation.weight_profile:
+            print(
+                f"\nNote: this JD looks like a '{suggested_profile}' role; consider rerunning with that "
+                "weight profile (no extra LLM cost)."
+            )
+        print()
 
     if evaluation.key_strengths:
         print("✅ KEY STRENGTHS:")
@@ -215,6 +321,21 @@ def print_job_evaluation_results(
             print(f"  {i}. {area}")
 
     print("\n" + "=" * 80)
+
+
+def print_parseability_report(result: Optional[ParseabilityResult]):
+    if result is None:
+        return
+
+    print("\n📄 ATS PARSEABILITY (based on the original PDF's layout):")
+    print("-" * 60)
+    print(f"Parseability score: {result.parseability_score:.0f}/100")
+    if result.warnings:
+        for warning in result.warnings:
+            print(f"  ⚠️  {warning}")
+    else:
+        print("  No layout issues detected — no tables, multi-column sections, or images found.")
+    print()
 
 
 def _evaluate_resume(
@@ -236,16 +357,33 @@ def _evaluate_resume(
     return evaluator.evaluate_resume(resume_text)
 
 
+def _knockout_resolver(qualification: str) -> Optional[bool]:
+    print(f'\nMust-have could not be auto-verified: "{qualification}"')
+    while True:
+        answer = input("Does the candidate meet it? [y/n/s=skip]: ").strip().lower()
+        if answer == "y":
+            return True
+        if answer == "n":
+            return False
+        if answer in ("s", ""):
+            return None
+        print("Invalid choice. Please enter y, n, or s.")
+
+
 def _evaluate_with_job_description(
-    resume_text: str, job_description: str
+    resume_text: str,
+    job_description: str,
+    resume_data: Optional[JSONResume] = None,
+    weight_profile: str = DEFAULT_PROFILE,
 ) -> Optional[JobEvaluationData]:
     model_params = MODEL_PARAMETERS.get(DEFAULT_MODEL)
     evaluator = JobDescriptionEvaluator(
         job_description=job_description,
         model_name=DEFAULT_MODEL,
         model_params=model_params,
+        weight_profile=weight_profile,
     )
-    return evaluator.evaluate(resume_text)
+    return evaluator.evaluate(resume_text, resume_data=resume_data, knockout_resolver=_knockout_resolver)
 
 
 def is_valid_resume_data(resume_data: JSONResume) -> bool:
@@ -280,8 +418,10 @@ def main():
     mode = select_mode()
 
     job_description = None
+    weight_profile = DEFAULT_PROFILE
     if mode == 2:
         job_description = load_job_description()
+        weight_profile = select_weight_profile()
 
     cache_filename = (
         f"cache/resumecache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
@@ -289,6 +429,8 @@ def main():
     github_cache_filename = (
         f"cache/githubcache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
     )
+
+    parseability = scan_pdf_parseability(pdf_path)
 
     resume_data = None
     cache_loaded = False
@@ -398,6 +540,7 @@ def main():
     if mode == 1:
         score = _evaluate_resume(resume_data, github_data)
         print_evaluation_results(score, candidate_name)
+        print_parseability_report(parseability)
 
         if DEVELOPMENT_MODE:
             csv_row = transform_evaluation_response(
@@ -422,14 +565,18 @@ def main():
         if github_data:
             resume_text += convert_github_data_to_text(github_data)
 
-        job_evaluation = _evaluate_with_job_description(resume_text, job_description)
+        job_evaluation = _evaluate_with_job_description(
+            resume_text, job_description, resume_data=resume_data, weight_profile=weight_profile
+        )
         print_job_evaluation_results(job_evaluation, candidate_name)
+        print_parseability_report(parseability)
 
         if DEVELOPMENT_MODE:
             csv_row = transform_job_evaluation_response(
                 file_name=os.path.basename(pdf_path),
                 evaluation=job_evaluation,
                 resume_data=resume_data,
+                parseability=parseability,
             )
             csv_path = "job_evaluations.csv"
             file_exists = os.path.exists(csv_path)

@@ -48,6 +48,7 @@ class TemplateManager:
             "job_description_extraction": "job_description_extraction.jinja",
             "job_evaluation_criteria": "job_evaluation_criteria.jinja",
             "job_evaluation_system_message": "job_evaluation_system_message.jinja",
+            "why_this_score": "why_this_score.jinja",
         }
 
         for section_name, filename in template_files.items():

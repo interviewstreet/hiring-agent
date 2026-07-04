@@ -1,0 +1,11 @@
+services:
+  hiring-agent:
+    build: .
+    stdin_open: true
+    tty: true
+    env_file:
+      - .env
+    volumes:
+      - ./resume.pdf:/app/resume.pdf
+      - ./job_description.txt:/app/job_description.txt
+      - ./cache:/app/cache
