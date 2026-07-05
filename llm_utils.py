@@ -49,8 +49,16 @@ def initialize_llm_provider(model_name: str) -> Any:
     """
     # Default to Ollama provider
     provider = OllamaProvider()
+    model_provider = MODEL_PROVIDER_MAPPING.get(model_name)
+
+    if model_provider is None:
+        logger.warning(
+            "Model '%s' is not listed in MODEL_PROVIDER_MAPPING. "
+            "Falling back to Ollama. Supported models: %s",
+            model_name,
+            ", ".join(sorted(MODEL_PROVIDER_MAPPING.keys())),
+        )
     # If using Gemini and API key is available, use Gemini provider
-    model_provider = MODEL_PROVIDER_MAPPING.get(model_name, ModelProvider.OLLAMA)
     if model_provider == ModelProvider.GEMINI:
         if not GEMINI_API_KEY:
             logger.warning("⚠️ Gemini API key not found. Falling back to Ollama.")
