@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    NVIDIA_NIM = "nvidia_nim"
 
 
 @runtime_checkable
@@ -389,3 +390,58 @@ class GeminiProvider:
                     f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)
+
+
+class NvidiaNimProvider:
+    """NVIDIA NIM LLM provider implementation using the OpenAI-compatible API."""
+
+    def __init__(self, api_key: str):
+        from openai import OpenAI
+
+        self.client = OpenAI(
+            base_url="https://integrate.api.nvidia.com/v1",
+            api_key=api_key,
+        )
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Send a chat request to NVIDIA NIM."""
+
+        # Map the common generation parameters
+        request_params = {
+            "model": model,
+            "messages": messages,
+        }
+
+        if options:
+            if "temperature" in options:
+                request_params["temperature"] = options["temperature"]
+
+            if "top_p" in options:
+                request_params["top_p"] = options["top_p"]
+
+            if "max_tokens" in options:
+                request_params["max_tokens"] = options["max_tokens"]
+
+        # Stream support (optional)
+        if "stream" in kwargs:
+            request_params["stream"] = kwargs["stream"]
+
+        response = self.client.chat.completions.create(**request_params)
+
+        # Handle streaming if requested
+        if request_params.get("stream", False):
+            return response
+
+        return {
+            "message": {
+                "role": "assistant",
+                "content": response.choices[0].message.content,
+            }
+        }
+

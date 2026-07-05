@@ -4,8 +4,8 @@ Utility functions for LLM providers.
 
 import logging
 from typing import Any, Dict, Optional
-from models import ModelProvider, OllamaProvider, GeminiProvider
-from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY
+from models import ModelProvider, OllamaProvider, GeminiProvider, NvidiaNimProvider
+from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY, NVIDIA_API_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ def initialize_llm_provider(model_name: str) -> Any:
         model_name: The name of the model to use
 
     Returns:
-        An initialized LLM provider (either OllamaProvider or GeminiProvider)
+        An initialized LLM provider (either OllamaProvider or GeminiProvider or NvidiaNimProvider)
     """
     # Default to Ollama provider
     provider = OllamaProvider()
@@ -57,6 +57,14 @@ def initialize_llm_provider(model_name: str) -> Any:
         else:
             logger.info(f"🔄 Using Google Gemini API provider with model {model_name}")
             provider = GeminiProvider(api_key=GEMINI_API_KEY)
+    elif model_provider == ModelProvider.NVIDIA_NIM:
+        if not NVIDIA_API_KEY:
+            logger.warning(
+                "⚠️ NVIDIA NIM API key or model name not found. Falling back to Ollama."
+            )
+        else:
+            logger.info(f"🔄 Using NVIDIA NIM provider with model {model_name}")
+            provider = NvidiaNimProvider(api_key=NVIDIA_API_KEY)
     else:
         logger.info(f"🔄 Using Ollama provider with model {model_name}")
     return provider

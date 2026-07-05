@@ -90,6 +90,8 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
   - **Ollama** for local models
     Install from the [official site](https://ollama.com/), then run `ollama serve`.
   - **Google Gemini** if you have an API key, get it from [here](https://aistudio.google.com/api-keys).
+  - **Nvidia NIM** if you have an API key, git it from [here](https://build.nvidia.com/models)
+    Select any model, and click generate API key.
 
 ### Quick setup with pip
 
@@ -138,11 +140,11 @@ $ cp .env.example .env
 
 | Variable         | Values                                      | Description                                                            |
 | ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `LLM_PROVIDER`   | `ollama` or `gemini`                        | Chooses provider. Defaults to Ollama.                                  |
+| `LLM_PROVIDER`   | `ollama` or `gemini` or `nvidia_nim`                       | Chooses provider. Defaults to Ollama.                                  |
 | `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
 | `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
-
+| `NVIDIA_API_KEY` | string                                      | Required when `LLM_PROVIDER=nvidia_nim`.                                   |
 Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
 
 ```python
@@ -265,6 +267,13 @@ What happens:
 - Set `DEFAULT_MODEL` to a supported Gemini model, for example `gemini-2.0-flash`
 - Provide `GEMINI_API_KEY`
 - The wrapper in `models.GeminiProvider` adapts responses to a unified format
+
+### NVIDIA NIM
+
+- Set `LLM_PROVIDER=nvidia_nim`
+- Set `DEFAULT_MODEL` to a supported Nvidia NIM model, for example `z-ai/glm-5.2`
+- Provide `NVIDIA_API_KEY`
+- The wrapper in `models.NvidiaNimProvider` adapts responses to a unified format
 
 ---
 

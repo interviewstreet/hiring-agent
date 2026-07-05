@@ -61,7 +61,14 @@ MODEL_PROVIDER_MAPPING = {
     "gemini-2.5-pro": ModelProvider.GEMINI,
     "gemini-3.5-flash": ModelProvider.GEMINI,
     "gemini-3.1-flash-lite": ModelProvider.GEMINI,
+    # NVIDIA NIM models
+    "meta/llama-3.3-70b-instruct":ModelProvider.NVIDIA_NIM,
+    "meta/llama-3.1-8b-instruct":ModelProvider.NVIDIA_NIM,
+    "z-ai/glm-5.2": ModelProvider.NVIDIA_NIM,
 }
+
 
 # Get API keys from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
