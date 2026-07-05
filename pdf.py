@@ -34,7 +34,6 @@ from transform import transform_parsed_data
 
 logger = logging.getLogger(__name__)
 
-
 class PDFHandler:
     def __init__(self):
         self.template_manager = TemplateManager()
@@ -106,7 +105,6 @@ class PDFHandler:
             response = self.provider.chat(**chat_params, **kwargs)
 
             response_text = response["message"]["content"]
-
             try:
                 response_text = extract_json_from_response(response_text)
                 json_start = response_text.find("{")
@@ -200,7 +198,6 @@ class PDFHandler:
         try:
             logger.debug(f"📄 Extracting text from PDF: {pdf_path}")
             text_content = self.extract_text_from_pdf(pdf_path)
-
             if not text_content:
                 logger.error("❌ Failed to extract text from PDF")
                 return None
