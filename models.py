@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    LITELLM = "litellm"
 
 
 @runtime_checkable
@@ -385,6 +386,83 @@ class GeminiProvider:
 
                 print(
                     f"[GeminiProvider] Rate limit hit "
+                    f"(attempt {attempt + 1}/{MAX_RETRIES}). "
+                    f"Retrying in {sleep_time}s..."
+                )
+                time.sleep(sleep_time)
+
+
+class LiteLLMProvider:
+    """litellm-backed provider implementation. Model names use litellm's
+    "<provider>/<model>" convention, e.g. "openai/gpt-4o" or "deepseek/deepseek-v4-pro"."""
+
+    def __init__(self, api_base: str = "", api_key: str = "not-needed"):
+        import litellm
+
+        self.client = litellm
+        self.api_base = api_base or None
+        self.api_key = api_key or "not-needed"
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Send a chat request via litellm."""
+        import time
+        import random
+        from litellm.exceptions import RateLimitError
+
+        MAX_RETRIES = 5
+        BASE_DELAY = 10.0  # seconds — base for exponential backoff
+        MAX_DELAY = 120.0  # cap so we never wait more than 2 minutes
+
+        options = options or {}
+        completion_kwargs = {
+            "model": model,
+            "messages": messages,
+            "api_base": self.api_base,
+            "api_key": self.api_key,
+        }
+        if "temperature" in options:
+            completion_kwargs["temperature"] = options["temperature"]
+        if "top_p" in options:
+            completion_kwargs["top_p"] = options["top_p"]
+
+        response_format = None
+        if "format" in kwargs:
+            response_format = {
+                "type": "json_schema",
+                "json_schema": {"name": "response", "schema": kwargs["format"]},
+            }
+
+        for attempt in range(MAX_RETRIES):
+            try:
+                if response_format is not None:
+                    try:
+                        response = self.client.completion(
+                            **completion_kwargs, response_format=response_format
+                        )
+                    except Exception:
+                        # not all models support structured outputs
+                        response = self.client.completion(**completion_kwargs)
+                else:
+                    response = self.client.completion(**completion_kwargs)
+
+                content = response.choices[0].message.content
+                return {"message": {"role": "assistant", "content": content}}
+
+            except RateLimitError as e:
+                if attempt == MAX_RETRIES - 1:
+                    raise
+
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
+                sleep_time = round(exp_delay * random.uniform(0.8, 1.2), 2)
+
+                print(
+                    f"[LiteLLMProvider] Rate limit hit "
                     f"(attempt {attempt + 1}/{MAX_RETRIES}). "
                     f"Retrying in {sleep_time}s..."
                 )

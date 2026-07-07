@@ -36,7 +36,7 @@
 
 ## Overview
 
-Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama or use Google Gemini.
+Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama, use Google Gemini, or route through [litellm](https://docs.litellm.ai/) to any other provider or local OpenAI-compatible server (OpenAI, Anthropic, DeepSeek, LM Studio, vLLM, etc.).
 
 ---
 
@@ -85,11 +85,12 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
 
   The repository pins `.python-version` to 3.11.13.
 
-- **One LLM backend** (either of them)
+- **One LLM backend** (any of them)
 
   - **Ollama** for local models
     Install from the [official site](https://ollama.com/), then run `ollama serve`.
   - **Google Gemini** if you have an API key, get it from [here](https://aistudio.google.com/api-keys).
+  - **litellm** to use any other provider (OpenAI, Anthropic, DeepSeek, ...) or a local OpenAI-compatible server (LM Studio, vLLM, etc.) — see [Provider details](#provider-details).
 
 ### Quick setup with pip
 
@@ -136,12 +137,14 @@ $ cp .env.example .env
 
 **Environment variables**
 
-| Variable         | Values                                      | Description                                                            |
-| ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `LLM_PROVIDER`   | `ollama` or `gemini`                        | Chooses provider. Defaults to Ollama.                                  |
-| `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
-| `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
-| `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
+| Variable           | Values                                                    | Description                                                                       |
+| ------------------ | ---------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `LLM_PROVIDER`     | `ollama`, `gemini`, or `litellm`                          | Chooses provider. Defaults to Ollama.                                             |
+| `DEFAULT_MODEL`    | for example `gemma3:4b`, `gemini-2.5-pro`, `openai/gpt-4o` | Model name passed to the provider. See [Provider details](#provider-details) for the litellm naming convention. |
+| `GEMINI_API_KEY`   | string                                                    | Required when `LLM_PROVIDER=gemini` (or `DEFAULT_MODEL=gemini/...` with litellm). |
+| `LITELLM_API_BASE` | URL, optional                                             | Base URL override for local/custom OpenAI-compatible servers. Only used when `LLM_PROVIDER=litellm`. |
+| `LITELLM_API_KEY`  | string, optional                                          | Generic key for local servers that require a value but don't validate it. Only used when `LLM_PROVIDER=litellm`. |
+| `GITHUB_TOKEN`     | optional                                                  | Inherits from your shell environment, improves GitHub API rate limits.           |
 
 Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
 
@@ -265,6 +268,20 @@ What happens:
 - Set `DEFAULT_MODEL` to a supported Gemini model, for example `gemini-2.0-flash`
 - Provide `GEMINI_API_KEY`
 - The wrapper in `models.GeminiProvider` adapts responses to a unified format
+
+### litellm (any provider or local endpoint)
+
+Use this to route to a provider not otherwise wired up (OpenAI, Anthropic, DeepSeek, ...) or to a local OpenAI-compatible server such as LM Studio, vLLM, or Ollama's `/v1` route.
+
+- Set `LLM_PROVIDER=litellm`
+- Set `DEFAULT_MODEL` using litellm's `<provider>/<model>` naming convention:
+  - `openai/gpt-4o` — real OpenAI, reads `OPENAI_API_KEY`
+  - `anthropic/claude-3-5-sonnet-20241022` — real Anthropic, reads `ANTHROPIC_API_KEY`
+  - `deepseek/deepseek-chat` — real DeepSeek, reads `DEEPSEEK_API_KEY`
+  - `gemini/gemini-2.0-flash` — Gemini via litellm, reads `GEMINI_API_KEY`
+  - `openai/<local-model-name>` — any local OpenAI-compatible server; also set `LITELLM_API_BASE` (for example `http://localhost:1234/v1` for LM Studio)
+- The wrapper in `models.LiteLLMProvider` calls `litellm.completion` and adapts responses to the same unified format as the other providers
+- This is fully additive: leaving `LLM_PROVIDER` unset or set to `ollama`/`gemini` behaves exactly as before
 
 ---
 

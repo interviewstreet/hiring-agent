@@ -2,6 +2,7 @@
 
 **/*.pyc
 resume/*.pdf
+resumes/*.pdf
 run/*.pdf
 test_*.py
 cache/
