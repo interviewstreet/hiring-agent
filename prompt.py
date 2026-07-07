@@ -65,3 +65,7 @@ MODEL_PROVIDER_MAPPING = {
 
 # Get API keys from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+# litellm settings, used when LLM_PROVIDER=litellm
+LITELLM_API_BASE = os.getenv("LITELLM_API_BASE", "")
+LITELLM_API_KEY = os.getenv("LITELLM_API_KEY", "not-needed")

@@ -4,8 +4,14 @@ Utility functions for LLM providers.
 
 import logging
 from typing import Any, Dict, Optional
-from models import ModelProvider, OllamaProvider, GeminiProvider
-from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY
+from models import ModelProvider, OllamaProvider, GeminiProvider, LiteLLMProvider
+from prompt import (
+    MODEL_PROVIDER_MAPPING,
+    GEMINI_API_KEY,
+    PROVIDER,
+    LITELLM_API_BASE,
+    LITELLM_API_KEY,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +51,14 @@ def initialize_llm_provider(model_name: str) -> Any:
         model_name: The name of the model to use
 
     Returns:
-        An initialized LLM provider (either OllamaProvider or GeminiProvider)
+        An initialized LLM provider (OllamaProvider, GeminiProvider, or LiteLLMProvider)
     """
+    # litellm handles routing itself, so any model name works without a
+    # MODEL_PROVIDER_MAPPING entry
+    if PROVIDER == ModelProvider.LITELLM.value:
+        logger.info(f"🔄 Using litellm provider with model {model_name}")
+        return LiteLLMProvider(api_base=LITELLM_API_BASE, api_key=LITELLM_API_KEY)
+
     # Default to Ollama provider
     provider = OllamaProvider()
     # If using Gemini and API key is available, use Gemini provider
