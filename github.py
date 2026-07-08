@@ -335,6 +335,14 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
     if not projects:
         return []
 
+    # Build whitelist of REAL repo names from GitHub API
+    real_repo_names = {
+        p.get("name", "").lower()
+        for p in projects
+        if p.get("name")
+    }
+
+
     try:
         projects_data = []
         for project in projects:
@@ -401,11 +409,28 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
             unique_projects = []
             seen_names = set()
 
+            # for project in selected_projects:
+            #     project_name = project.get("name", "")
+            #     if project_name and project_name not in seen_names:
+            #         unique_projects.append(project)
+            #         seen_names.add(project_name)
+            # --------------- FIX ADDED HERE ----------------------------
             for project in selected_projects:
                 project_name = project.get("name", "")
+                project_name_lower = project_name.lower()
+
+                # KEY FIX: reject any project not in the real GitHub data
+                if project_name_lower not in real_repo_names:
+                    print(
+                        f"⚠️ Hallucinated project removed: '{project_name}' "
+                        f"is not in the candidate's real GitHub repos."
+                    )
+                    continue
+
                 if project_name and project_name not in seen_names:
                     unique_projects.append(project)
                     seen_names.add(project_name)
+
 
             if len(unique_projects) < 7:
                 print(
