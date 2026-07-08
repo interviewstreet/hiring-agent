@@ -2,12 +2,18 @@ from typing import List, Optional, Dict, Tuple, Any, Protocol, runtime_checkable
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 
+import asyncio
+from claude_agent_sdk import (
+    query, ClaudeAgentOptions, AssistantMessage, ResultMessage, TextBlock,
+)
+
 
 class ModelProvider(Enum):
     """Enum for supported model providers."""
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    CLAUDE_AGENT = "claude_agent"
 
 
 @runtime_checkable
@@ -389,3 +395,60 @@ class GeminiProvider:
                     f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)
+
+class ClaudeAgentProvider:
+    """Anthropic Claude Agent provider implementation. It assumes you have installed Claude Code and authenticated with your account in Claude Code."""
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Send a chat request to Claude Agent. Options parameter is not used."""
+        return asyncio.run(self._chat_claude_async(model, messages, **kwargs))
+
+    async def _chat_claude_async(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        **kwargs
+    ) -> Dict[str, Any]:
+        system_prompt = None
+        transcript = []
+        for m in messages:
+            if m["role"] == "system":
+                system_prompt = m["content"]
+            elif m["role"] == "user":
+                transcript.append(f"User: {m['content']}")
+            elif m["role"] == "assistant":
+                transcript.append(f"Assistant: {m['content']}")
+
+        if len(transcript) == 1 and messages[-1]["role"] == "user":
+            prompt = messages[-1]["content"]
+        else:
+            prompt = (
+                "Below is the conversation so far. Reply as the Assistant "
+                "to the last message.\n\n" + "\n\n".join(transcript)
+            )
+
+        options = ClaudeAgentOptions(
+            model=model,
+            system_prompt=system_prompt,
+            allowed_tools=[],
+            max_turns=1
+        )
+
+        text_parts = []
+        async for msg in query(prompt=prompt, options=options):
+            if isinstance(msg, AssistantMessage):
+                for block in msg.content:
+                    if isinstance(block, TextBlock):
+                        text_parts.append(block.text)
+        return {
+            "message": {
+                "role": "assistant",
+                "content": "".join(text_parts)
+            }
+        }

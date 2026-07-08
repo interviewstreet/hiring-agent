@@ -4,7 +4,7 @@ Utility functions for LLM providers.
 
 import logging
 from typing import Any, Dict, Optional
-from models import ModelProvider, OllamaProvider, GeminiProvider
+from models import ModelProvider, OllamaProvider, GeminiProvider, ClaudeAgentProvider
 from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ def initialize_llm_provider(model_name: str) -> Any:
         model_name: The name of the model to use
 
     Returns:
-        An initialized LLM provider (either OllamaProvider or GeminiProvider)
+        An initialized LLM provider (OllamaProvider, GeminiProvider, or ClaudeAgentProvider)
     """
     # Default to Ollama provider
     provider = OllamaProvider()
@@ -57,6 +57,9 @@ def initialize_llm_provider(model_name: str) -> Any:
         else:
             logger.info(f"🔄 Using Google Gemini API provider with model {model_name}")
             provider = GeminiProvider(api_key=GEMINI_API_KEY)
+    elif model_provider == ModelProvider.CLAUDE_AGENT:
+        logger.info("Using Claude Agent SDK (assuming logged in to Claude Code)")
+        provider = ClaudeAgentProvider()
     else:
         logger.info(f"🔄 Using Ollama provider with model {model_name}")
     return provider
