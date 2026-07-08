@@ -61,6 +61,10 @@ MODEL_PROVIDER_MAPPING = {
     "gemini-2.5-pro": ModelProvider.GEMINI,
     "gemini-3.5-flash": ModelProvider.GEMINI,
     "gemini-3.1-flash-lite": ModelProvider.GEMINI,
+    # Claude Agent models
+    "sonnet": ModelProvider.CLAUDE_AGENT,
+    "opus": ModelProvider.CLAUDE_AGENT,
+    "fable": ModelProvider.CLAUDE_AGENT
 }
 
 # Get API keys from environment

@@ -436,7 +436,7 @@ class ClaudeAgentProvider:
         options = ClaudeAgentOptions(
             model=model,
             system_prompt=system_prompt,
-            allowed_tools=[],
+            tools=[],
             max_turns=1
         )
 
