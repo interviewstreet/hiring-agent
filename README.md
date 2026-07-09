@@ -266,7 +266,13 @@ What happens:
 - Provide `GEMINI_API_KEY`
 - The wrapper in `models.GeminiProvider` adapts responses to a unified format
 
----
+### Llama.cpp (Local GGUF Models)
+
+- Set `LLM_PROVIDER=llamacpp`
+- Set `LLAMACPP_MODEL_PATH` to the absolute path of your downloaded `.gguf` file (e.g. `/path/to/model.gguf`)
+- Keep `DEFAULT_MODEL` set to your desired model's logical name (e.g. `qwen3:4b`) so its parameters are correctly mapped.
+- **Hardware Settings:** `LLAMACPP_N_GPU_LAYERS` defaults to 0 (CPU-only) for safety. Set this (e.g., to `-1` for full GPU, or `10` for partial) to enable GPU acceleration. If you encounter Out of Memory crashes on constrained hardware, try lowering `LLAMACPP_N_CTX` from its default of 32768.
+- **Note:** To use raw .gguf files via Llama.cpp instead of Ollama, you must manually install the C++ bindings by running: `pip install llama-cpp-python`. Note that a default install may compile for CPU-only. For hardware acceleration (e.g. CUDA/Metal), follow the compilation instructions in the official `llama-cpp-python` documentation.
 
 ## Contributing
 

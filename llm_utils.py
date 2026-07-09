@@ -4,8 +4,9 @@ Utility functions for LLM providers.
 
 import logging
 from typing import Any, Dict, Optional
-from models import ModelProvider, OllamaProvider, GeminiProvider
-from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY
+import os
+from models import ModelProvider, OllamaProvider, GeminiProvider, LlamaCppProvider
+from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY, PROVIDER, DEFAULT_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,8 @@ def extract_json_from_response(response_text: str) -> str:
     return response_text
 
 
+_llamacpp_instance = None
+
 def initialize_llm_provider(model_name: str) -> Any:
     """
     Initialize the appropriate LLM provider based on the model name.
@@ -47,6 +50,21 @@ def initialize_llm_provider(model_name: str) -> Any:
     Returns:
         An initialized LLM provider (either OllamaProvider or GeminiProvider)
     """
+    global _llamacpp_instance
+
+    # LlamaCpp provider: uses LLAMACPP_MODEL_PATH env var for model file
+    if PROVIDER == ModelProvider.LLAMACPP.value:
+        model_path = os.environ.get("LLAMACPP_MODEL_PATH")
+        if not model_path or not os.path.exists(model_path):
+            raise FileNotFoundError(
+                f"Llama.cpp model file not found at "
+                f"{model_path or 'LLAMACPP_MODEL_PATH not set'}"
+            )
+        if _llamacpp_instance is None:
+            logger.info(f"Using Llama.cpp provider with model {model_name} from {model_path}")
+            _llamacpp_instance = LlamaCppProvider(model_path=model_path)
+        return _llamacpp_instance
+
     # Default to Ollama provider
     provider = OllamaProvider()
     # If using Gemini and API key is available, use Gemini provider

@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    LLAMACPP = "llamacpp"
 
 
 @runtime_checkable
@@ -285,10 +286,16 @@ class OllamaProvider:
     ) -> Dict[str, Any]:
         """Send a chat request to Ollama."""
 
+        import os
         ollama_options = options.copy() if options else {}
 
         # remove steam from ollama options
         ollama_options.pop("stream", None)
+
+        # Allow env var override for temperature
+        env_temp = os.environ.get("OLLAMA_TEMPERATURE") or os.environ.get("LLM_TEMPERATURE")
+        if env_temp is not None:
+            ollama_options["temperature"] = float(env_temp)
 
         # Add num_ctx 32K context window to options
         ollama_options["num_ctx"] = 32768
@@ -389,3 +396,88 @@ class GeminiProvider:
                     f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)
+
+
+class LlamaCppProvider:
+    """
+    Llama.cpp local API provider implementation.
+
+    The llama.cpp backend inherits the project context default of 32k, but defaults to no GPU offload.
+    Users can opt into GPU acceleration by setting LLAMACPP_N_GPU_LAYERS explicitly for their hardware.
+    On constrained systems, large context sizes may still require lowering LLAMACPP_N_CTX,
+    enabling KV-cache quantization, or choosing a smaller model.
+    """
+
+    def __init__(self, model_path: str):
+        try:
+            from llama_cpp import Llama
+        except ImportError:
+            raise ImportError(
+                "Note: llama-cpp-python is an optional dependency for running local GGUF models. "
+                "A default installation may use a CPU-only build, so GPU offloading may not be available "
+                "unless llama-cpp-python is installed with the appropriate platform-specific or GPU-enabled configuration. "
+                "For GPU acceleration, follow the official llama-cpp-python installation instructions: "
+                "https://github.com/abetlen/llama-cpp-python"
+            )
+
+        import os
+
+        # Inherits the project context default of 32k
+        n_ctx = int(os.environ.get("LLAMACPP_N_CTX", "32768"))
+
+        # Defaults to NO GPU offload (0) for safety
+        n_gpu_layers = int(os.environ.get("LLAMACPP_N_GPU_LAYERS", "0"))
+
+        llama_kwargs = {
+            "model_path": model_path,
+            "n_ctx": n_ctx,
+            "n_gpu_layers": n_gpu_layers,
+            "verbose": False
+        }
+
+        self.llama_kwargs = llama_kwargs
+        self.model = None
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Send a chat request to Llama.cpp."""
+
+        import os
+        options = options or {}
+        env_temp = os.environ.get("LLAMACPP_TEMPERATURE")
+        temperature = float(env_temp) if env_temp is not None else options.get("temperature")
+        chat_kwargs = {
+            "messages": messages,
+            "max_tokens": options.get("num_predict", -1),
+            "top_p": options.get("top_p", 0.9),
+        }
+        if temperature is not None:
+            chat_kwargs["temperature"] = temperature
+
+
+
+        if self.model is None:
+            try:
+                from llama_cpp import Llama
+                self.model = Llama(**self.llama_kwargs)
+            except ValueError as e:
+                if "Failed to create llama_context" in str(e):
+                    raise RuntimeError(
+                        f"llama.cpp initialization failed (Likely Out of Memory). "
+                        f"Check your LLAMACPP_N_CTX and LLAMACPP_N_GPU_LAYERS settings."
+                    ) from e
+                else:
+                    raise e
+
+        response = self.model.create_chat_completion(**chat_kwargs)
+
+        return {
+            "model": response.get("model", "llamacpp"),
+            "message": response["choices"][0]["message"]
+        }
+
