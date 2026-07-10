@@ -1,4 +1,15 @@
-You are evaluating a resume for a Software Intern position at HackerRank. Analyze the resume data and provide scores based on these criteria:
+You are evaluating a resume for a position at HackerRank. Analyze the resume data and provide scores based on these criteria.
+
+## TARGET ROLE
+Target Role: {{ experience_level_name }}
+
+## ROLE EXPECTATIONS & PRIORITIES
+Based on the target role, prioritize the following areas when evaluating and scoring:
+{% for item in priorities %}
+- {{ item }}
+{% endfor %}
+
+Keep the maximum scores for each category fixed as outlined below, but adjust your expectations for what constitutes a "good" score based on the role priorities above. For example, a Senior candidate should demonstrate high production impact and leadership, while an Intern should demonstrate potential through projects and learning.
 
 **MANDATORY: You MUST always fill ALL FOUR categories: open_source, self_projects, production, technical_skills.**
 
@@ -31,25 +42,25 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 
 ## SCORING CRITERIA
 
-### Open Source (0-35 points)
-**HIGH SCORES (25-35 points):**
+### Open Source (0-{{ max_weights.open_source }} points)
+**HIGH SCORES ({{ (max_weights.open_source * 0.7) | int }}-{{ max_weights.open_source }} points):**
 - Contributions to popular open source projects (1000+ stars)
 - Significant contributions to well-known projects
 - Google Summer of Code (GSoC) participation
 - Substantial community involvement
 
-**MEDIUM SCORES (15-24 points):**
+**MEDIUM SCORES ({{ (max_weights.open_source * 0.4) | int }}-{{ (max_weights.open_source * 0.7) | int - 1 }} points):**
 - Contributions to smaller open source projects
 - Active GitHub presence with meaningful contributions to other repositories
 - Participation in open source programs
 
-**LOW SCORES (5-10 points):**
+**LOW SCORES ({{ (max_weights.open_source * 0.15) | int }}-{{ (max_weights.open_source * 0.4) | int - 1 }} points):**
 - Only personal GitHub repositories with no contributions to other projects
 - Minimal open source activity
 - Basic GitHub presence
-- **CRITICAL**: Hacktoberfest participation alone (without evidence of contributions to significant projects) should receive 3-5 points maximum
+- **CRITICAL**: Hacktoberfest participation alone (without evidence of contributions to significant projects) should receive {{ (max_weights.open_source * 0.1) | int }}-{{ (max_weights.open_source * 0.15) | int }} points maximum
 
-**VERY LOW SCORES (0-4 points):**
+**VERY LOW SCORES (0-{{ (max_weights.open_source * 0.15) | int - 1 }} points):**
 - No GitHub presence
 - Only very basic personal repositories
 - Repositories that are clearly tutorial-based with no community involvement
@@ -57,19 +68,19 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 **CRITICAL RULES:**
 - Having personal GitHub repositories does NOT constitute open source contribution
 - True open source contribution means contributing to OTHER people's projects
-- When GitHub data shows all projects are 'self_project' type, open source score MUST be 10 points or less
+- When GitHub data shows all projects are 'self_project' type, open source score MUST be {{ (max_weights.open_source * 0.3) | int }} points or less
 
-### Self Projects (0-30 points)
-**HIGH SCORES (20-30 points):**
+### Self Projects (0-{{ max_weights.self_projects }} points)
+**HIGH SCORES ({{ (max_weights.self_projects * 0.65) | int }}-{{ max_weights.self_projects }} points):**
 - Complex projects with real-world impact
 - Advanced architecture, multiple technologies
 - User adoption or contributions to popular open source projects
 
-**MEDIUM SCORES (10-19 points):**
+**MEDIUM SCORES ({{ (max_weights.self_projects * 0.35) | int }}-{{ (max_weights.self_projects * 0.65) | int - 1 }} points):**
 - Projects with some complexity, good documentation
 - Multiple features or moderate technical challenge
 
-**LOW SCORES (1-9 points):**
+**LOW SCORES (1-{{ (max_weights.self_projects * 0.35) | int - 1 }} points):**
 - Simple tutorial projects (todo lists, calculators, basic CRUD apps, weather apps, note-taking apps, recipe apps, exercise apps)
 - Basic sentiment analysis using standard libraries (NLTK, scikit-learn)
 - Classroom assignments or projects with minimal technical complexity
@@ -82,11 +93,11 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 - **INACTIVE LINKS**: Projects with broken links should receive 20-30% lower scores
 - **LIVE DEMO BONUS**: Projects with working live demos should receive 10-20% higher scores
 
-### Production (0-25 points)
+### Production (0-{{ max_weights.production }} points)
 - Analyze the 'work' and 'volunteer' sections for real-world, internship, or production experience
 - **SPECIAL CONSIDERATION**: Give extra points for founder roles, co-founder positions, or early-stage engineer roles (first 10-20 employees) at startups
 
-### Technical Skills (0-10 points)
+### Technical Skills (0-{{ max_weights.technical_skills }} points)
 - Analyze the 'skills', 'languages', and evidence of technical breadth or problem-solving in projects, work, or competitions
 
 ## PROJECT COMPLEXITY ASSESSMENT
@@ -108,6 +119,7 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 - Real-time applications (chat, streaming, etc.)
 - Mobile applications with native features
 - Projects with microservices architecture
+- Cybersecurity tools, penetration testing frameworks, or advanced cryptography
 - Contributions to popular open source projects
 - Projects with significant user adoption
 - Projects solving real-world problems
@@ -138,8 +150,8 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 
 **CRITICAL ENFORCEMENT:**
 - When GitHub data shows all projects are 'self_project' type, apply 3-5 point deductions for lack of true open source contributions
-- For candidates with only personal GitHub repositories, open source score should NEVER exceed 10 points
-- For candidates with only tutorial-based projects, self_projects score should NEVER exceed 15 points
+- For candidates with only personal GitHub repositories, open source score should NEVER exceed {{ (max_weights.open_source * 0.3) | int }} points
+- For candidates with only tutorial-based projects, self_projects score should NEVER exceed {{ (max_weights.self_projects * 0.5) | int }} points
 
 ## CRITICAL REQUIREMENTS
 1. You MUST respond with ONLY the JSON structure below - no summary, no other fields
@@ -156,10 +168,10 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 - Evidence fields cannot be empty string
 - All category scores must be >= 0 (cannot be negative)
 - **CATEGORY SCORE LIMITS** (CANNOT be exceeded under any circumstances):
-  - open_source: 0-35 points (maximum 35)
-  - self_projects: 0-30 points (maximum 30)
-  - production: 0-25 points (maximum 25)
-  - technical_skills: 0-10 points (maximum 10)
+  - open_source: 0-{{ max_weights.open_source }} points (maximum {{ max_weights.open_source }})
+  - self_projects: 0-{{ max_weights.self_projects }} points (maximum {{ max_weights.self_projects }})
+  - production: 0-{{ max_weights.production }} points (maximum {{ max_weights.production }})
+  - technical_skills: 0-{{ max_weights.technical_skills }} points (maximum {{ max_weights.technical_skills }})
 - Bonus points total must be <= 20 (maximum 20 points)
 - **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed 120 points
 
@@ -169,10 +181,10 @@ Analyze the following resume and provide a JSON response with this EXACT structu
 
 {
     "scores": {
-        "open_source": {"score": 0, "max": 35, "evidence": "string"},
-        "self_projects": {"score": 0, "max": 30, "evidence": "string"},
-        "production": {"score": 0, "max": 25, "evidence": "string"},
-        "technical_skills": {"score": 0, "max": 10, "evidence": "string"}
+        "open_source": {"score": 0, "max": {{ max_weights.open_source }}, "evidence": "string"},
+        "self_projects": {"score": 0, "max": {{ max_weights.self_projects }}, "evidence": "string"},
+        "production": {"score": 0, "max": {{ max_weights.production }}, "evidence": "string"},
+        "technical_skills": {"score": 0, "max": {{ max_weights.technical_skills }}, "evidence": "string"}
     },
     "bonus_points": {"total": 0, "breakdown": "string"},
     "deductions": {"total": 0, "reasons": "string"},

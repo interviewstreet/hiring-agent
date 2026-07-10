@@ -17,6 +17,7 @@ from prompt import (
     GEMINI_API_KEY,
 )
 from prompts.template_manager import TemplateManager
+from roles import EXPERIENCE_LEVELS, ROLE_PRIORITIES, ROLE_MAX_SCORES
 
 logger = logging.getLogger(__name__)
 
@@ -37,21 +38,45 @@ class ResumeEvaluator:
         """Initialize the appropriate LLM provider based on the model."""
         self.provider = initialize_llm_provider(self.model_name)
 
-    def _load_evaluation_prompt(self, resume_text: str) -> str:
+    def _load_evaluation_prompt(
+        self,
+        resume_text: str,
+        experience_level_name: str,
+        priorities: List[str],
+        max_weights: dict,
+    ) -> str:
         criteria_template = self.template_manager.render_template(
-            "resume_evaluation_criteria", text_content=resume_text
+            "resume_evaluation_criteria",
+            text_content=resume_text,
+            experience_level_name=experience_level_name,
+            priorities=priorities,
+            max_weights=max_weights,
         )
         if criteria_template is None:
             raise ValueError("Failed to load resume evaluation criteria template")
         return criteria_template
 
-    def evaluate_resume(self, resume_text: str) -> EvaluationData:
+    def evaluate_resume(
+        self, resume_text: str, experience_level: str = "intern"
+    ) -> EvaluationData:
         self._last_resume_text = resume_text
-        full_prompt = self._load_evaluation_prompt(resume_text)
+
+        experience_level_name = EXPERIENCE_LEVELS.get(
+            experience_level, "Software Intern"
+        )
+        priorities = ROLE_PRIORITIES.get(experience_level, [])
+        max_weights = ROLE_MAX_SCORES.get(experience_level, ROLE_MAX_SCORES["intern"])
+
+        full_prompt = self._load_evaluation_prompt(
+            resume_text, experience_level_name, priorities, max_weights
+        )
         # logger.info(f"🔤 Evaluation prompt being sent: {full_prompt}")
         try:
             system_message = self.template_manager.render_template(
-                "resume_evaluation_system_message"
+                "resume_evaluation_system_message",
+                experience_level_name=experience_level_name,
+                priorities=priorities,
+                max_weights=max_weights,
             )
             if system_message is None:
                 raise ValueError(

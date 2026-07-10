@@ -160,7 +160,10 @@ def print_evaluation_results(
 
 
 def _evaluate_resume(
-    resume_data: JSONResume, github_data: dict = None, blog_data: dict = None
+    resume_data: JSONResume,
+    github_data: dict = None,
+    blog_data: dict = None,
+    experience_level: str = "intern",
 ) -> Optional[EvaluationData]:
     """Evaluate the resume using AI and display results."""
 
@@ -181,7 +184,9 @@ def _evaluate_resume(
         resume_text += blog_text
 
     # Evaluate the enhanced resume
-    evaluation_result = evaluator.evaluate_resume(resume_text)
+    evaluation_result = evaluator.evaluate_resume(
+        resume_text, experience_level=experience_level
+    )
 
     # print(evaluation_result)
 
@@ -211,7 +216,7 @@ def find_profile(profiles, network):
     )
 
 
-def main(pdf_path):
+def main(pdf_path, experience_level="intern"):
     # Create cache filename based on PDF path
     cache_filename = (
         f"cache/resumecache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
@@ -323,7 +328,9 @@ def main(pdf_path):
                     encoding="utf-8",
                 )
 
-    score = _evaluate_resume(resume_data, github_data)
+    score = _evaluate_resume(
+        resume_data, github_data, experience_level=experience_level
+    )
 
     # Get candidate name for display
     candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
@@ -365,13 +372,22 @@ def main(pdf_path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python score.py <pdf_path>")
-        exit(1)
-    pdf_path = sys.argv[1]
+    import argparse
+    from roles import EXPERIENCE_LEVELS
 
-    if not os.path.exists(pdf_path):
-        print(f"Error: File '{pdf_path}' does not exist.")
+    parser = argparse.ArgumentParser(description="Evaluate a resume from a PDF file.")
+    parser.add_argument("pdf_path", help="Path to the PDF resume file.")
+    parser.add_argument(
+        "-e", "--experience",
+        choices=list(EXPERIENCE_LEVELS.keys()),
+        default="intern",
+        help="Target experience level for evaluation.",
+    )
+
+    args = parser.parse_args()
+
+    if not os.path.exists(args.pdf_path):
+        print(f"Error: File '{args.pdf_path}' does not exist.")
         exit(1)
 
-    main(pdf_path)
+    main(args.pdf_path, experience_level=args.experience)
