@@ -76,18 +76,10 @@ def print_evaluation_results(
     print("-" * 60)
 
     if hasattr(evaluation, "scores") and evaluation.scores:
-        # Define category maximums
-        category_maxes = {
-            "open_source": 35,
-            "self_projects": 30,
-            "production": 25,
-            "technical_skills": 10,
-        }
-
         # Open Source
         if hasattr(evaluation.scores, "open_source") and evaluation.scores.open_source:
             os_score = evaluation.scores.open_source
-            capped_score = min(os_score.score, category_maxes["open_source"])
+            capped_score = min(os_score.score, os_score.max)
             print(f"🌐 Open Source:          {capped_score}/{os_score.max}")
             print(f"   Evidence: {os_score.evidence}")
             print()
@@ -98,7 +90,7 @@ def print_evaluation_results(
             and evaluation.scores.self_projects
         ):
             sp_score = evaluation.scores.self_projects
-            capped_score = min(sp_score.score, category_maxes["self_projects"])
+            capped_score = min(sp_score.score, sp_score.max)
             print(f"🚀 Self Projects:        {capped_score}/{sp_score.max}")
             print(f"   Evidence: {sp_score.evidence}")
             print()
@@ -106,7 +98,7 @@ def print_evaluation_results(
         # Production Experience
         if hasattr(evaluation.scores, "production") and evaluation.scores.production:
             prod_score = evaluation.scores.production
-            capped_score = min(prod_score.score, category_maxes["production"])
+            capped_score = min(prod_score.score, prod_score.max)
             print(f"🏢 Production Experience: {capped_score}/{prod_score.max}")
             print(f"   Evidence: {prod_score.evidence}")
             print()
@@ -117,7 +109,7 @@ def print_evaluation_results(
             and evaluation.scores.technical_skills
         ):
             tech_score = evaluation.scores.technical_skills
-            capped_score = min(tech_score.score, category_maxes["technical_skills"])
+            capped_score = min(tech_score.score, tech_score.max)
             print(f"💻 Technical Skills:     {capped_score}/{tech_score.max}")
             print(f"   Evidence: {tech_score.evidence}")
             print()
