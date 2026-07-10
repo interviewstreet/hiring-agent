@@ -203,10 +203,19 @@ You can leave it on during iteration. See the next section for details.
 
 ### End to end scoring
 
-Provide a path to a resume PDF.
+Provide a path to a resume PDF and optionally specify the target experience level using the `--e` flag. 
 
 ```bash
-$ python score.py /path/to/resume.pdf
+$ python score.py /path/to/resume.pdf --e entry
+```
+*Available experience levels: `intern`, `entry`, `junior` (0-2 years), `mid` (2-5 years), `senior` (5+ years), `staff`, `principal`. Defaults to `intern` if omitted.*
+
+### View all options
+
+To see all available commands and arguments, use the help flag:
+
+```bash
+$ python score.py -h
 ```
 
 What happens:
