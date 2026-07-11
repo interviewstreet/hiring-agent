@@ -131,10 +131,14 @@ def extract_github_username(github_url: str) -> Optional[str]:
         match = re.search(pattern, github_url)
         if match:
             username = match.group(1)
-            # Remove query parameters if present (e.g., "?tab=repositories")
-            if "?" in username:
-                username = username.split("?", 1)[0]
-            return username
+            # Remove query parameters, fragments, or trailing path if present
+            # (e.g., "?tab=repositories", "#projects", "/repos")
+            username = re.split(r"[?#/]", username, maxsplit=1)[0]
+            # Strip any trailing punctuation carried over from prose
+            # (e.g., "github.com/octocat." or a trailing comma); GitHub
+            # usernames only contain alphanumerics and hyphens.
+            username = re.sub(r"[^A-Za-z0-9-]+$", "", username)
+            return username or None
     return None
 
 
