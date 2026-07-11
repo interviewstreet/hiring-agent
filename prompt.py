@@ -61,7 +61,13 @@ MODEL_PROVIDER_MAPPING = {
     "gemini-2.5-pro": ModelProvider.GEMINI,
     "gemini-3.5-flash": ModelProvider.GEMINI,
     "gemini-3.1-flash-lite": ModelProvider.GEMINI,
+    # OpenAI models
+    "gpt-4o": ModelProvider.OPENAI,
+    "gpt-4o-mini": ModelProvider.OPENAI,
+    "gpt-4.1": ModelProvider.OPENAI,
+    "gpt-4.1-mini": ModelProvider.OPENAI,
 }
 
 # Get API keys from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")

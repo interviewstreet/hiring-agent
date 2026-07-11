@@ -4,6 +4,9 @@
 resume/*.pdf
 run/*.pdf
 test_*.py
+# Keep the committed Meritlab-service tests (the ignore above excludes local scratch tests).
+!test_jd_evaluator.py
+!test_service.py
 cache/
 resume_evaluations.csv
 greenhouse_resumes/*
