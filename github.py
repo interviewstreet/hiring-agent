@@ -229,6 +229,9 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
         status_code, repos_data = _fetch_github_api(api_url, params=params)
 
         if status_code == 200:
+            repos_data.sort(key=lambda r: r.get("stargazers_count", 0), reverse=True)
+            repos_data = repos_data[:15]
+
             projects = []
             for repo in repos_data:
                 if repo.get("fork") and repo.get("forks_count", 0) < 5:
