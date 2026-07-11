@@ -54,6 +54,7 @@ class ClassifyRequest(BaseModel):
     jd: JobDescription
     resume_text: Optional[str] = None
     resume_pdf_path: Optional[str] = None
+    resume_url: Optional[str] = None  # a fetchable PDF URL (e.g. the candidate's stored resume)
     github_url: Optional[str] = None
     callback_url: Optional[str] = None
     reference_id: Optional[str] = None
@@ -82,6 +83,35 @@ def _http_post(url: str, content: bytes, headers: Dict[str, str]) -> None:
         client.post(url, content=content, headers=headers)
 
 
+def _resume_text_from_url(url: str) -> str:
+    """Download a PDF resume and extract its text, reusing the fork's PDF parser.
+
+    Best-effort: returns "" on any failure so a missing or unreadable resume never
+    breaks the classification.
+    """
+    import os as _os
+    import tempfile
+
+    try:
+        with httpx.Client(timeout=30, follow_redirects=True) as client:
+            resp = client.get(url)
+            resp.raise_for_status()
+            data = resp.content
+        fd, path = tempfile.mkstemp(suffix=".pdf")
+        try:
+            with _os.fdopen(fd, "wb") as f:
+                f.write(data)
+            return jd_evaluator.extract_resume_text(path) or ""
+        finally:
+            try:
+                _os.remove(path)
+            except OSError:
+                pass
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to fetch/parse resume from %s: %s", url, exc)
+        return ""
+
+
 def _post_callback(url: str, payload: Dict[str, Any]) -> None:
     """Sign and POST a completed job to the caller. Best-effort; never raises out."""
     secret = os.environ.get("CALLBACK_SIGNING_SECRET", "")
@@ -102,6 +132,8 @@ def _run_job(job_id: str, req: ClassifyRequest) -> None:
         resume_text = req.resume_text
         if not resume_text and req.resume_pdf_path:
             resume_text = jd_evaluator.extract_resume_text(req.resume_pdf_path)
+        if not resume_text and req.resume_url:
+            resume_text = _resume_text_from_url(req.resume_url)
         github_data = jd_evaluator.fetch_github(req.github_url) if req.github_url else None
         result = jd_evaluator.classify_fit(req.jd.model_dump(), resume_text or "", github_data)
         JOBS[job_id] = {"status": "ready", "result": result, "reference_id": req.reference_id}
