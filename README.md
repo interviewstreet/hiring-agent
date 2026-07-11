@@ -278,6 +278,27 @@ Please read the [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines on 
 
 ---
 
+## Meritlab classification service
+
+`service.py` exposes the JD-aware fit classifier (`jd_evaluator.classify_fit`) as a
+FastAPI service for Meritlab. It is a separate deployment and is not part of
+Meritlab's docker-compose.
+
+- `POST /classify` (header `X-Internal-Key`): body `{jd: {title, description,
+  requirements}, resume_text?, github_url?, callback_url?, reference_id?}`. Returns a
+  `job_id` and runs the classification in the background.
+- On completion it POSTs the result to `callback_url`, signed with
+  `X-Meritlab-Signature: sha256=HMAC-SHA256(CALLBACK_SIGNING_SECRET, f"{timestamp}." + body)`
+  and `X-Meritlab-Timestamp`, so the receiver can reject a stale callback.
+- `GET /classify/{job_id}` (same auth) is the poll fallback. `GET /health` for liveness.
+
+Run it: copy `.env.example` to `.env`, fill in `INTERNAL_API_KEY` and
+`CALLBACK_SIGNING_SECRET`, then `docker compose up --build` (serves on `:8100`). The
+in-memory job store assumes a single instance; back it with a shared store before
+scaling to multiple workers.
+
+---
+
 
 ## License
 

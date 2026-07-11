@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    OPENAI = "openai"
 
 
 @runtime_checkable
@@ -389,3 +390,33 @@ class GeminiProvider:
                     f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)
+
+
+class OpenAIProvider:
+    """OpenAI Chat Completions provider, returning the same shape as the others."""
+
+    def __init__(self, api_key: str):
+        from openai import OpenAI
+
+        self.client = OpenAI(api_key=api_key)
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Send a chat request to OpenAI and normalize to {"message": {...}}."""
+        opts = options or {}
+        params: Dict[str, Any] = {"model": model, "messages": messages}
+        if "temperature" in opts:
+            params["temperature"] = opts["temperature"]
+        if "top_p" in opts:
+            params["top_p"] = opts["top_p"]
+        # Ask for a JSON object when the caller expects structured output.
+        if kwargs.get("format"):
+            params["response_format"] = {"type": "json_object"}
+
+        response = self.client.chat.completions.create(**params)
+        return {"message": {"role": "assistant", "content": response.choices[0].message.content}}
