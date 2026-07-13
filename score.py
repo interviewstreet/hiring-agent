@@ -38,35 +38,30 @@ def print_evaluation_results(
         print("❌ No evaluation data available")
         return
 
-    # Calculate overall score
-    total_score = 0
-    max_score = 0
+    # Calculate overall score using the shared aggregation (single source of
+    # truth, also used by the evals framework).
+    from score_utils import aggregate_scores, MAX_BONUS
 
+    aggregate = aggregate_scores(evaluation)
+    max_score = aggregate.category_max
+
+    # Log warning if any category score was capped.
     if hasattr(evaluation, "scores") and evaluation.scores:
         for category_name, category_data in evaluation.scores.model_dump().items():
-            category_score = min(category_data["score"], category_data["max"])
-            total_score += category_score
-            max_score += category_data["max"]
-
-            # Log warning if score was capped
-            if category_score < category_data["score"]:
+            capped_score = aggregate.per_category[category_name]
+            if capped_score < category_data["score"]:
                 print(
-                    f"⚠️  Warning: {category_name} score capped from {category_data['score']} to {category_score} (max: {category_data['max']})"
+                    f"⚠️  Warning: {category_name} score capped from {category_data['score']} to {capped_score} (max: {category_data['max']})"
                 )
 
-    # Add bonus points
-    if hasattr(evaluation, "bonus_points") and evaluation.bonus_points:
-        total_score += evaluation.bonus_points.total
-
-    # Subtract deductions
-    if hasattr(evaluation, "deductions") and evaluation.deductions:
-        total_score -= evaluation.deductions.total
-
-    # Ensure total score doesn't exceed maximum possible score
-    max_possible_score = max_score + 20  # 120 (100 categories + 20 bonus)
-    if total_score > max_possible_score:
-        total_score = max_possible_score
+    # Warn if the uncapped total would have exceeded the maximum possible score.
+    if (
+        aggregate.category_total + aggregate.bonus - aggregate.deductions
+        > max_score + MAX_BONUS
+    ):
         print(f"⚠️  Warning: Total score capped at maximum possible value")
+
+    total_score = aggregate.total
 
     # Overall Score
     print(f"\n🎯 OVERALL SCORE: {total_score:.1f}/{max_score}")
