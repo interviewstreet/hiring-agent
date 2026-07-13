@@ -1,0 +1,46 @@
+{
+  "id": "medium_oss_only_no_prod",
+  "description": "Some real open-source contributions but weak personal projects and no work experience.",
+  "resume": {
+    "basics": {
+      "name": "Candidate F",
+      "summary": "Contributes small fixes to open-source projects while studying.",
+      "profiles": [
+        {"network": "GitHub", "username": "candidate-f", "url": "https://github.com/candidate-f"}
+      ]
+    },
+    "education": [
+      {"institution": "State University", "area": "Computer Science", "studyType": "B.Sc", "startDate": "2023-08", "endDate": "2027-05"}
+    ],
+    "skills": [
+      {"name": "Languages", "keywords": ["Python", "Go"]}
+    ],
+    "projects": [
+      {
+        "name": "requests (upstream)",
+        "description": "3 merged PRs fixing bugs and improving tests in a popular library.",
+        "url": "https://github.com/psf/requests/pulls?q=author:candidate-f",
+        "highlights": ["3 merged PRs into a 50k+ star project"],
+        "technologies": ["Python"]
+      },
+      {
+        "name": "todo-cli",
+        "description": "A simple command-line todo list.",
+        "url": "https://github.com/candidate-f/todo-cli",
+        "highlights": ["Basic CRUD in the terminal"],
+        "technologies": ["Go"]
+      }
+    ]
+  },
+  "github": null,
+  "labels": {
+    "overall_band": "medium",
+    "categories": {
+      "open_source": {"min": 18, "max": 28},
+      "self_projects": {"min": 4, "max": 14},
+      "production": {"min": 0, "max": 8},
+      "technical_skills": {"min": 5, "max": 9}
+    },
+    "rationale": "Real merged PRs to a popular project give meaningful open_source credit, but personal projects are trivial (a todo CLI) and there is no production experience. The open-source strength alone lifts the total into the low-medium band."
+  }
+}

@@ -217,6 +217,25 @@ What happens:
 
 ---
 
+## Evaluation
+
+To measure how well the agent's scores agree with human judgment — and to
+compare models or catch regressions — use the golden-dataset framework:
+
+```bash
+python -m evals.run_eval                 # score the golden dataset, print metrics
+python -m evals.run_eval --repeat 3      # average runs to smooth LLM noise
+```
+
+See [`evals/README.md`](./evals/README.md) for the dataset format, metrics, and
+how to add cases. The framework's own tests run offline (no LLM required):
+
+```bash
+python -m pytest evals/tests
+```
+
+---
+
 ## Directory layout
 
 ```text
@@ -246,7 +265,9 @@ What happens:
 ├── pymupdf_rag.py
 ├── requirements.txt
 ├── score.py
-└── transform.py
+├── score_utils.py
+├── transform.py
+└── evals/                 # golden dataset + evaluation framework (see evals/README.md)
 ```
 
 ---

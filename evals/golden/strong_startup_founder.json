@@ -1,0 +1,62 @@
+{
+  "id": "strong_startup_founder",
+  "description": "Startup co-founder / early engineer with strong shipped products; moderate OSS.",
+  "resume": {
+    "basics": {
+      "name": "Candidate B",
+      "summary": "Founding engineer who ships full-stack products end to end.",
+      "url": "https://candidate-b.dev",
+      "profiles": [
+        {"network": "GitHub", "username": "candidate-b", "url": "https://github.com/candidate-b"},
+        {"network": "LinkedIn", "username": "candidate-b", "url": "https://linkedin.com/in/candidate-b"}
+      ]
+    },
+    "work": [
+      {
+        "name": "Nimbus (seed-stage startup)",
+        "position": "Co-founder & Engineer",
+        "startDate": "2024-01",
+        "endDate": "2026-01",
+        "summary": "Co-founded a B2B analytics startup; built and operated the product in production.",
+        "highlights": [
+          "Built the full product from zero to 1,200 paying users",
+          "Owned infra, on-call, and the data pipeline in production"
+        ]
+      }
+    ],
+    "education": [
+      {"institution": "State University", "area": "Computer Science", "studyType": "B.Sc", "startDate": "2020-08", "endDate": "2024-05"}
+    ],
+    "skills": [
+      {"name": "Languages", "keywords": ["TypeScript", "Python", "Go"]},
+      {"name": "Stack", "keywords": ["React", "Node.js", "PostgreSQL", "AWS", "Docker"]}
+    ],
+    "projects": [
+      {
+        "name": "Nimbus Analytics",
+        "description": "Real-time analytics dashboard with auth, billing, and a streaming ingest pipeline.",
+        "url": "https://nimbus.example.com",
+        "highlights": ["Live product with paying customers", "Event pipeline processing millions of events/day"],
+        "technologies": ["TypeScript", "Kafka", "ClickHouse"]
+      },
+      {
+        "name": "openbilling",
+        "description": "Extracted the billing module as an open-source library; a few external contributors.",
+        "url": "https://github.com/candidate-b/openbilling",
+        "highlights": ["200+ stars", "Accepts community PRs"],
+        "technologies": ["TypeScript"]
+      }
+    ]
+  },
+  "github": null,
+  "labels": {
+    "overall_band": "strong",
+    "categories": {
+      "open_source": {"min": 12, "max": 24},
+      "self_projects": {"min": 22, "max": 30},
+      "production": {"min": 20, "max": 25},
+      "technical_skills": {"min": 8, "max": 10}
+    },
+    "rationale": "Co-founder shipping a live product with paying users maxes production and self_projects; open_source is moderate (one self-published library with light external activity). Founder role + portfolio + LinkedIn justify bonus, keeping the total firmly in the strong band."
+  }
+}
