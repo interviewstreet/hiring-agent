@@ -28,12 +28,12 @@ def extract_json_from_response(response_text: str) -> str:
         if think_start != -1 and think_end != -1:
             response_text = response_text[:think_start] + response_text[think_end + 8 :]
 
-    # Remove leading ```json if present
-    if response_text.startswith("```json"):
-        response_text = response_text[7:]
-    # Remove trailing ``` if present
-    if response_text.endswith("```"):
-        response_text = response_text[:-3]
+    # Extract the JSON object itself, ignoring any wrapper text
+    # (markdown fences, a stray "json" label, etc.) before/after it
+    start = response_text.find("{")
+    end = response_text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        return response_text[start : end + 1]
     return response_text
 
 
