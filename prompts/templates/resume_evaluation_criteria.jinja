@@ -1,6 +1,6 @@
 You are evaluating a resume for a Software Intern position at HackerRank. Analyze the resume data and provide scores based on these criteria:
 
-**MANDATORY: You MUST always fill ALL FOUR categories: open_source, self_projects, production, technical_skills.**
+**MANDATORY: You MUST always fill ALL FIVE categories: open_source, self_projects, production, technical_skills, competitive_programming.**
 
 ## CRITICAL FAIRNESS REQUIREMENTS
 **SCORES MUST NEVER DEPEND ON:**
@@ -89,6 +89,31 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 ### Technical Skills (0-10 points)
 - Analyze the 'skills', 'languages', and evidence of technical breadth or problem-solving in projects, work, or competitions
 
+### Competitive Programming (0-20 points)
+Analyze the competitive programming data (if provided in === COMPETITIVE PROGRAMMING DATA === section), resume awards, and any mentions of competitive programming platforms.
+
+**ICPC (up to 10 points):**
+- +10 points for ICPC Regionalist (participated at ICPC Regional level or higher)
+- +5 points for ICPC participation at preliminary/online rounds only
+
+**Codeforces Rating (up to 5 points):**
+- +5 points for Expert or higher on Codeforces (rating >= 1600)
+- +3 points for Specialist on Codeforces (rating >= 1400)
+- +1 point for Pupil on Codeforces (rating >= 1200)
+- 0 points for Newbie or unrated
+
+**Problem Solving Count (up to 5 points) — highest applicable tier only:**
+- +5 points for 1000+ problems solved (LeetCode + Codeforces combined)
+- +4 points for 800+ problems solved
+- +3 points for 500+ problems solved
+- +1 point for 200+ problems solved
+- 0 points for fewer than 200 problems
+
+**CHEATING PENALTIES (CRITICAL — MUST ENFORCE):**
+- If Codeforces cheating data shows `is_cheater: True` (4+ SKIPPED submissions in a single contest): set Codeforces rating points to 0 (ICPC and problem count points remain)
+- If Codeforces cheating data shows `is_serial_cheater: True` (2+ cheated contests or 6+ total SKIPPED): set the ENTIRE competitive_programming score to 0
+- Cheating penalties are NON-NEGOTIABLE — if the data says cheating is detected, you MUST apply the penalty regardless of other achievements
+
 ## PROJECT COMPLEXITY ASSESSMENT
 
 **Simple/Basic Projects (Low Impact):**
@@ -141,9 +166,14 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 - For candidates with only personal GitHub repositories, open source score should NEVER exceed 10 points
 - For candidates with only tutorial-based projects, self_projects score should NEVER exceed 15 points
 
+**For Competitive Programming Cheating:**
+- If `is_cheater` is True: Codeforces rating-based points within competitive_programming → 0
+- If `is_serial_cheater` is True: entire competitive_programming score → 0
+- Include cheating details in evidence and deduction reasons
+
 ## CRITICAL REQUIREMENTS
 1. You MUST respond with ONLY the JSON structure below - no summary, no other fields
-2. You MUST fill ALL FOUR score categories: open_source, self_projects, production, technical_skills
+2. You MUST fill ALL FIVE score categories: open_source, self_projects, production, technical_skills, competitive_programming
 3. You MUST provide evidence for each score
 4. You MUST NOT add any other fields like "summary", "skills", "experience", etc.
 5. You MUST NOT change the field names or structure
@@ -160,8 +190,9 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
   - self_projects: 0-30 points (maximum 30)
   - production: 0-25 points (maximum 25)
   - technical_skills: 0-10 points (maximum 10)
+  - competitive_programming: 0-20 points (maximum 20)
 - Bonus points total must be <= 20 (maximum 20 points)
-- **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed 120 points
+- **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed 140 points
 
 **DO NOT RETURN A RESUME SUMMARY. RETURN ONLY THE SCORING EVALUATION IN THE SPECIFIED JSON FORMAT.**
 
@@ -172,7 +203,8 @@ Analyze the following resume and provide a JSON response with this EXACT structu
         "open_source": {"score": 0, "max": 35, "evidence": "string"},
         "self_projects": {"score": 0, "max": 30, "evidence": "string"},
         "production": {"score": 0, "max": 25, "evidence": "string"},
-        "technical_skills": {"score": 0, "max": 10, "evidence": "string"}
+        "technical_skills": {"score": 0, "max": 10, "evidence": "string"},
+        "competitive_programming": {"score": 0, "max": 20, "evidence": "string"}
     },
     "bonus_points": {"total": 0, "breakdown": "string"},
     "deductions": {"total": 0, "reasons": "string"},

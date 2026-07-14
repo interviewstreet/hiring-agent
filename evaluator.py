@@ -8,7 +8,7 @@ import re
 
 MAX_BONUS_POINTS = 20
 MIN_FINAL_SCORE = -20
-MAX_FINAL_SCORE = 120
+MAX_FINAL_SCORE = 140
 
 from prompt import (
     DEFAULT_MODEL,

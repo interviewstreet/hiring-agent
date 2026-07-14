@@ -15,7 +15,9 @@ from transform import (
     convert_json_resume_to_text,
     convert_github_data_to_text,
     convert_blog_data_to_text,
+    convert_cp_data_to_text,
 )
+from codeforces import fetch_codeforces_data
 from config import DEVELOPMENT_MODE
 
 logger = logging.getLogger(__name__)
@@ -63,7 +65,7 @@ def print_evaluation_results(
         total_score -= evaluation.deductions.total
 
     # Ensure total score doesn't exceed maximum possible score
-    max_possible_score = max_score + 20  # 120 (100 categories + 20 bonus)
+    max_possible_score = max_score + 20  # 140 (120 categories + 20 bonus)
     if total_score > max_possible_score:
         total_score = max_possible_score
         print(f"⚠️  Warning: Total score capped at maximum possible value")
@@ -82,6 +84,7 @@ def print_evaluation_results(
             "self_projects": 30,
             "production": 25,
             "technical_skills": 10,
+            "competitive_programming": 20,
         }
 
         # Open Source
@@ -122,6 +125,19 @@ def print_evaluation_results(
             print(f"   Evidence: {tech_score.evidence}")
             print()
 
+        # Competitive Programming
+        if (
+            hasattr(evaluation.scores, "competitive_programming")
+            and evaluation.scores.competitive_programming
+        ):
+            cp_score = evaluation.scores.competitive_programming
+            capped_score = min(
+                cp_score.score, category_maxes["competitive_programming"]
+            )
+            print(f"🏆 Competitive Prog:    {capped_score}/{cp_score.max}")
+            print(f"   Evidence: {cp_score.evidence}")
+            print()
+
     # Bonus Points
     if hasattr(evaluation, "bonus_points") and evaluation.bonus_points:
         print(f"\n⭐ BONUS POINTS: {evaluation.bonus_points.total}")
@@ -160,7 +176,10 @@ def print_evaluation_results(
 
 
 def _evaluate_resume(
-    resume_data: JSONResume, github_data: dict = None, blog_data: dict = None
+    resume_data: JSONResume,
+    github_data: dict = None,
+    blog_data: dict = None,
+    cp_data: dict = None,
 ) -> Optional[EvaluationData]:
     """Evaluate the resume using AI and display results."""
 
@@ -179,6 +198,11 @@ def _evaluate_resume(
     if blog_data:
         blog_text = convert_blog_data_to_text(blog_data)
         resume_text += blog_text
+
+    # Add competitive programming data if available
+    if cp_data:
+        cp_text = convert_cp_data_to_text(cp_data)
+        resume_text += cp_text
 
     # Evaluate the enhanced resume
     evaluation_result = evaluator.evaluate_resume(resume_text)
@@ -323,7 +347,32 @@ def main(pdf_path):
                     encoding="utf-8",
                 )
 
-    score = _evaluate_resume(resume_data, github_data)
+    # --- Competitive Programming Data ---
+    cp_data = {}
+
+    # Look for Codeforces profile
+    profiles = []
+    if resume_data and hasattr(resume_data, "basics") and resume_data.basics:
+        profiles = resume_data.basics.profiles or []
+
+    codeforces_profile = find_profile(profiles, "Codeforces")
+    if codeforces_profile:
+        print(f"Fetching Codeforces data...")
+        cf_data = fetch_codeforces_data(codeforces_profile.url)
+        if cf_data:
+            cp_data["codeforces"] = cf_data
+
+    # Look for LeetCode profile (no API, just pass URL for context)
+    leetcode_profile = find_profile(profiles, "LeetCode")
+    if not leetcode_profile:
+        leetcode_profile = find_profile(profiles, "Leetcode")
+    if leetcode_profile:
+        cp_data["leetcode"] = {
+            "username": leetcode_profile.username,
+            "url": leetcode_profile.url,
+        }
+
+    score = _evaluate_resume(resume_data, github_data, cp_data=cp_data)
 
     # Get candidate name for display
     candidate_name = os.path.basename(pdf_path).replace(".pdf", "")

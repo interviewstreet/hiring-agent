@@ -685,17 +685,22 @@ def transform_evaluation_response(
         csv_row["technical_skills_score"] = scores.technical_skills.score
         csv_row["technical_skills_max"] = scores.technical_skills.max
 
+        csv_row["competitive_programming_score"] = scores.competitive_programming.score
+        csv_row["competitive_programming_max"] = scores.competitive_programming.max
+
         total_score = (
             scores.open_source.score
             + scores.self_projects.score
             + scores.production.score
             + scores.technical_skills.score
+            + scores.competitive_programming.score
         )
         total_max = (
             scores.open_source.max
             + scores.self_projects.max
             + scores.production.max
             + scores.technical_skills.max
+            + scores.competitive_programming.max
         )
 
         csv_row["total_score"] = total_score
@@ -709,6 +714,8 @@ def transform_evaluation_response(
         csv_row["production_max"] = "N/A"
         csv_row["technical_skills_score"] = "N/A"
         csv_row["technical_skills_max"] = "N/A"
+        csv_row["competitive_programming_score"] = "N/A"
+        csv_row["competitive_programming_max"] = "N/A"
         csv_row["total_score"] = "N/A"
         csv_row["total_max"] = "N/A"
 
@@ -936,3 +943,44 @@ def convert_blog_data_to_text(blog_data: dict) -> str:
             blog_text += "\n"
 
     return blog_text
+
+
+def convert_cp_data_to_text(cp_data: dict) -> str:
+    """Convert competitive programming data to text for LLM evaluation."""
+    cp_text = "\n\n=== COMPETITIVE PROGRAMMING DATA ===\n"
+
+    if "codeforces" in cp_data and cp_data["codeforces"]:
+        cf = cp_data["codeforces"]
+        profile = cf.get("profile", {})
+        cheating = cf.get("cheating", {})
+
+        cp_text += "\nCodeforces Profile:\n"
+        cp_text += f"- Handle: {profile.get('handle', 'N/A')}\n"
+        cp_text += f"- Current Rating: {profile.get('rating', 0)}\n"
+        cp_text += f"- Max Rating: {profile.get('max_rating', 0)}\n"
+        cp_text += f"- Current Rank: {profile.get('rank', 'unrated')}\n"
+        cp_text += f"- Max Rank: {profile.get('max_rank', 'unrated')}\n"
+        cp_text += f"- Problems Solved: {profile.get('solved_count', 0)}\n"
+
+        cp_text += "\nCodeforces Cheating Analysis:\n"
+        cp_text += f"- Cheating Detected: {cheating.get('is_cheater', False)}\n"
+        cp_text += f"- Serial Cheater: {cheating.get('is_serial_cheater', False)}\n"
+        cp_text += f"- Cheated Contests: {cheating.get('cheated_contests', 0)}\n"
+        cp_text += f"- Total Skipped Submissions: {cheating.get('total_skipped', 0)}\n"
+        cp_text += f"- Details: {cheating.get('details', 'N/A')}\n"
+
+    if "leetcode" in cp_data and cp_data["leetcode"]:
+        lc = cp_data["leetcode"]
+        cp_text += "\nLeetCode Profile:\n"
+        cp_text += f"- Username: {lc.get('username', 'N/A')}\n"
+        cp_text += f"- URL: {lc.get('url', 'N/A')}\n"
+        cp_text += (
+            "  (LeetCode data is self-reported from resume; no API verification)\n"
+        )
+
+    if "icpc" in cp_data and cp_data["icpc"]:
+        cp_text += "\nICPC Data:\n"
+        cp_text += f"- Participation: {cp_data['icpc'].get('participation', 'N/A')}\n"
+        cp_text += f"- Details: {cp_data['icpc'].get('details', 'N/A')}\n"
+
+    return cp_text
