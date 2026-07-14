@@ -396,7 +396,8 @@ class CopilotProvider:
     """GitHub Copilot SDK API provider implementation."""
 
     def __init__(self):
-        pass
+        import concurrent.futures
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
     def chat(
         self,
@@ -413,14 +414,33 @@ class CopilotProvider:
         from copilot.session import PermissionHandler
 
         async def run_chat():
-            system_msg = next((msg["content"] for msg in messages if msg["role"] == "system"), "")
-            user_msg = next((msg["content"] for msg in messages if msg["role"] == "user"), "")
+            system_msgs = [msg["content"] for msg in messages if msg["role"] == "system"]
+            system_msg = "\n\n".join(system_msgs)
             
+            non_system_msgs = [msg for msg in messages if msg["role"] != "system"]
+            if len(non_system_msgs) == 1 and non_system_msgs[0]["role"] == "user":
+                user_msg = non_system_msgs[0]["content"]
+            else:
+                conversation = []
+                for msg in non_system_msgs:
+                    role = "User" if msg["role"] == "user" else "Assistant"
+                    conversation.append(f"{role}:\n{msg['content']}")
+                user_msg = "\n\n".join(conversation)
+            
+            if kwargs.get("format") == "json":
+                json_instruction = "You must output the result in strictly valid JSON format."
+                system_msg = f"{system_msg}\n\n{json_instruction}" if system_msg else json_instruction
+
             async with CopilotClient() as client:
                 session_params = {
                     "model": model,
-                    "on_permission_request": PermissionHandler.approve_all,
                 }
+                if "stream" in kwargs:
+                    session_params["streaming"] = kwargs["stream"]
+                if "on_permission_request" in kwargs:
+                    session_params["on_permission_request"] = kwargs["on_permission_request"]
+                elif options and "on_permission_request" in options:
+                    session_params["on_permission_request"] = options["on_permission_request"]
                 if system_msg:
                     session_params["system_message"] = {
                         "mode": "replace",
@@ -438,7 +458,8 @@ class CopilotProvider:
                             if event.data.content:
                                 response_content.append(event.data.content)
                         elif isinstance(event.data, SessionErrorData):
-                            session_error = getattr(event.data, "error", str(event.data))
+                            session_error = getattr(event.data, "error", event.data)
+                            done.set()
                         elif isinstance(event.data, SessionIdleData):
                             done.set()
 
@@ -447,13 +468,14 @@ class CopilotProvider:
                     await done.wait()
                     
                     if session_error:
+                        if isinstance(session_error, Exception):
+                            raise session_error
                         raise RuntimeError(f"Copilot SDK Error: {session_error}")
 
                     return "".join(response_content)
 
-        # Use a ThreadPoolExecutor as a clean sync-async bridge
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(asyncio.run, run_chat())
-            content = future.result()
+        # Use the class-level ThreadPoolExecutor as a clean sync-async bridge
+        future = self.executor.submit(asyncio.run, run_chat())
+        content = future.result()
             
         return {"message": {"role": "assistant", "content": content}}

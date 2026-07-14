@@ -42,14 +42,14 @@ MODEL_PARAMETERS = {
     "gemini-3.5-flash": {"temperature": 0.1, "top_p": 0.9},
     "gemini-3.1-flash-lite": {"temperature": 0.1, "top_p": 0.9},
     # GitHub Copilot models
-    "gpt-5.5": {"temperature": 0.1, "top_p": 0.9},
-    "gpt-5.6-luna": {"temperature": 0.1, "top_p": 0.9},
-    "gpt-5.6-sol": {"temperature": 0.1, "top_p": 0.9},
-    "gpt-5.6-terra": {"temperature": 0.1, "top_p": 0.9},
-    "claude-sonnet-5": {"temperature": 0.1, "top_p": 0.9},
-    "claude-opus-4.8": {"temperature": 0.1, "top_p": 0.9},
-    "claude-fable-5": {"temperature": 0.1, "top_p": 0.9},
-    "mai-code-1-flash": {"temperature": 0.1, "top_p": 0.9},
+    "gpt-5.5": {},
+    "gpt-5.6-luna": {},
+    "gpt-5.6-sol": {},
+    "gpt-5.6-terra": {},
+    "claude-sonnet-5": {},
+    "claude-opus-4.8": {},
+    "claude-fable-5": {},
+    "mai-code-1-flash": {},
 }
 
 # Model provider mapping
