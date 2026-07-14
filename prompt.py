@@ -41,6 +41,15 @@ MODEL_PARAMETERS = {
     "gemini-2.5-flash-lite": {"temperature": 0.1, "top_p": 0.9},
     "gemini-3.5-flash": {"temperature": 0.1, "top_p": 0.9},
     "gemini-3.1-flash-lite": {"temperature": 0.1, "top_p": 0.9},
+    # GitHub Copilot models
+    "gpt-5.5": {"temperature": 0.1, "top_p": 0.9},
+    "gpt-5.6-luna": {"temperature": 0.1, "top_p": 0.9},
+    "gpt-5.6-sol": {"temperature": 0.1, "top_p": 0.9},
+    "gpt-5.6-terra": {"temperature": 0.1, "top_p": 0.9},
+    "claude-sonnet-5": {"temperature": 0.1, "top_p": 0.9},
+    "claude-opus-4.8": {"temperature": 0.1, "top_p": 0.9},
+    "claude-fable-5": {"temperature": 0.1, "top_p": 0.9},
+    "mai-code-1-flash": {"temperature": 0.1, "top_p": 0.9},
 }
 
 # Model provider mapping
@@ -61,6 +70,15 @@ MODEL_PROVIDER_MAPPING = {
     "gemini-2.5-pro": ModelProvider.GEMINI,
     "gemini-3.5-flash": ModelProvider.GEMINI,
     "gemini-3.1-flash-lite": ModelProvider.GEMINI,
+    # GitHub Copilot models
+    "gpt-5.5": ModelProvider.COPILOT,
+    "gpt-5.6-luna": ModelProvider.COPILOT,
+    "gpt-5.6-sol": ModelProvider.COPILOT,
+    "gpt-5.6-terra": ModelProvider.COPILOT,
+    "claude-sonnet-5": ModelProvider.COPILOT,
+    "claude-opus-4.8": ModelProvider.COPILOT,
+    "claude-fable-5": ModelProvider.COPILOT,
+    "mai-code-1-flash": ModelProvider.COPILOT,
 }
 
 # Get API keys from environment

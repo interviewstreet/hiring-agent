@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 
     OLLAMA = "ollama"
     GEMINI = "gemini"
+    COPILOT = "copilot"
 
 
 @runtime_checkable
@@ -389,3 +390,70 @@ class GeminiProvider:
                     f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)
+
+
+class CopilotProvider:
+    """GitHub Copilot SDK API provider implementation."""
+
+    def __init__(self):
+        pass
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Send a chat request to GitHub Copilot SDK."""
+        import asyncio
+        import concurrent.futures
+        from copilot import CopilotClient
+        from copilot.session_events import AssistantMessageData, SessionIdleData, SessionErrorData
+        from copilot.session import PermissionHandler
+
+        async def run_chat():
+            system_msg = next((msg["content"] for msg in messages if msg["role"] == "system"), "")
+            user_msg = next((msg["content"] for msg in messages if msg["role"] == "user"), "")
+            
+            async with CopilotClient() as client:
+                session_params = {
+                    "model": model,
+                    "on_permission_request": PermissionHandler.approve_all,
+                }
+                if system_msg:
+                    session_params["system_message"] = {
+                        "mode": "replace",
+                        "content": system_msg
+                    }
+                
+                async with await client.create_session(**session_params) as session:
+                    done = asyncio.Event()
+                    response_content = []
+                    session_error = None
+
+                    def on_event(event):
+                        nonlocal session_error
+                        if isinstance(event.data, AssistantMessageData):
+                            if event.data.content:
+                                response_content.append(event.data.content)
+                        elif isinstance(event.data, SessionErrorData):
+                            session_error = getattr(event.data, "error", str(event.data))
+                        elif isinstance(event.data, SessionIdleData):
+                            done.set()
+
+                    session.on(on_event)
+                    await session.send(user_msg)
+                    await done.wait()
+                    
+                    if session_error:
+                        raise RuntimeError(f"Copilot SDK Error: {session_error}")
+
+                    return "".join(response_content)
+
+        # Use a ThreadPoolExecutor as a clean sync-async bridge
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(asyncio.run, run_chat())
+            content = future.result()
+            
+        return {"message": {"role": "assistant", "content": content}}

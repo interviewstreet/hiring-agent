@@ -4,7 +4,7 @@ Utility functions for LLM providers.
 
 import logging
 from typing import Any, Dict, Optional
-from models import ModelProvider, OllamaProvider, GeminiProvider
+from models import ModelProvider, OllamaProvider, GeminiProvider, CopilotProvider
 from prompt import MODEL_PROVIDER_MAPPING, GEMINI_API_KEY
 
 logger = logging.getLogger(__name__)
@@ -57,6 +57,9 @@ def initialize_llm_provider(model_name: str) -> Any:
         else:
             logger.info(f"🔄 Using Google Gemini API provider with model {model_name}")
             provider = GeminiProvider(api_key=GEMINI_API_KEY)
+    elif model_provider == ModelProvider.COPILOT:
+        logger.info(f"🔄 Using GitHub Copilot SDK provider with model {model_name}")
+        provider = CopilotProvider()
     else:
         logger.info(f"🔄 Using Ollama provider with model {model_name}")
     return provider
