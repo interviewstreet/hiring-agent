@@ -226,6 +226,7 @@ __marimo__/
 .streamlit/secrets.toml
 
 # my stuff
+*.pdf
 hiring_after-2.pdf
 ll.pdf
 meet.pdf

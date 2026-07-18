@@ -293,10 +293,13 @@ class PDFHandler:
                 complete_resume.update(section_data)
                 logger.debug(f"✅ Successfully extracted {section_name} section")
             else:
-                logger.error(
-                    f"⚠️ Failed to extract {section_name} section. Aborting extraction to prevent partial/invalid resume data."
-                )
-                return None
+                if section_name == "awards":
+                    logger.debug(f"ℹ️ Optional section '{section_name}' not found, skipping")
+                else:
+                    logger.error(
+                        f"⚠️ Failed to extract {section_name} section. Aborting extraction to prevent partial/invalid resume data."
+                    )
+                    return None
 
         try:
             if complete_resume.get("basics") and isinstance(
