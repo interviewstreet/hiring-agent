@@ -206,7 +206,7 @@ You can leave it on during iteration. See the next section for details.
 Provide a path to a resume PDF.
 
 ```bash
-$ python score.py /path/to/resume.pdf
+$ python score.py ./resume/sample.pdf
 ```
 
 What happens:
