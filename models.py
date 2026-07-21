@@ -1,3 +1,4 @@
+import os
 from typing import List, Optional, Dict, Tuple, Any, Protocol, runtime_checkable
 from pydantic import BaseModel, Field, field_validator
 from enum import Enum
@@ -272,9 +273,10 @@ class OllamaProvider:
     """Ollama LLM provider implementation."""
 
     def __init__(self):
-        import ollama
+        import requests
 
-        self.client = ollama
+        self.session = requests.Session()
+        self.base_url = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 
     def chat(
         self,
@@ -287,27 +289,30 @@ class OllamaProvider:
 
         ollama_options = options.copy() if options else {}
 
-        # remove steam from ollama options
+        # remove stream from ollama options
         ollama_options.pop("stream", None)
 
         # Add num_ctx 32K context window to options
         ollama_options["num_ctx"] = 32768
 
-        # convert to chat params
-        chat_params = {
+        # Build payload
+        payload = {
             "model": model,
             "messages": messages,
             "options": ollama_options,
+            "stream": False,
         }
 
-        # add it to top level
-        if "stream" in kwargs:
-            chat_params["stream"] = kwargs["stream"]
-
         if "format" in kwargs:
-            chat_params["format"] = kwargs["format"]
+            payload["format"] = kwargs["format"]
 
-        return self.client.chat(**chat_params)
+        resp = self.session.post(
+            f"{self.base_url}/api/chat",
+            json=payload,
+            timeout=300,
+        )
+        resp.raise_for_status()
+        return resp.json()
 
 
 class GeminiProvider:
