@@ -286,10 +286,16 @@ class PDFHandler:
 
         for section_name in sections:
             section_data = self._extract_section_data(text_content, section_name)
+            if section_data is None:
+                logger.warning(f"🔁 Retrying {section_name} section extraction")
+                section_data = self._extract_section_data(text_content, section_name)
 
             if section_data:
                 complete_resume.update(section_data)
                 logger.debug(f"✅ Successfully extracted {section_name} section")
+            elif section_data is not None:
+                # Valid response with no content for this section (e.g. no awards)
+                logger.warning(f"⚠️ {section_name} section empty; continuing")
             else:
                 logger.error(
                     f"⚠️ Failed to extract {section_name} section. Aborting extraction to prevent partial/invalid resume data."
