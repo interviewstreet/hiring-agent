@@ -13,8 +13,6 @@ MAX_FINAL_SCORE = 120
 from prompt import (
     DEFAULT_MODEL,
     MODEL_PARAMETERS,
-    MODEL_PROVIDER_MAPPING,
-    GEMINI_API_KEY,
 )
 from prompts.template_manager import TemplateManager
 

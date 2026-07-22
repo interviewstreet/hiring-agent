@@ -26,8 +26,6 @@ from typing import List, Optional, Dict, Any
 from prompt import (
     DEFAULT_MODEL,
     MODEL_PARAMETERS,
-    MODEL_PROVIDER_MAPPING,
-    GEMINI_API_KEY,
 )
 from prompts.template_manager import TemplateManager
 from transform import transform_parsed_data
