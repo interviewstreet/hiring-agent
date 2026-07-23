@@ -4,9 +4,14 @@ import json
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 # Global development mode flag. Preserved here because score.py and github.py
 # import it from this module.
 DEVELOPMENT_MODE = True
+
+# Load .env before any os.getenv below, so values apply regardless of import order.
+load_dotenv(Path(__file__).parent / ".env")
 
 _CONFIG_PATH = Path(__file__).parent / "providers.json"
 
