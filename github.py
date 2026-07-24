@@ -215,6 +215,125 @@ def fetch_repo_contributors(owner: str, repo_name: str) -> list[dict]:
         return []
 
 
+def fetch_repo_commits_forensics(owner: str, repo_name: str) -> dict:
+    """Fetch recent commits of a repository and analyze development patterns for AI or plagiarism detection."""
+    try:
+        api_url = f"https://api.github.com/repos/{owner}/{repo_name}/commits"
+        params = {"per_page": 50}
+        status_code, commits_data = _fetch_github_api(api_url, params=params)
+
+        if (
+            status_code != 200
+            or not isinstance(commits_data, list)
+            or len(commits_data) == 0
+        ):
+            return {
+                "development_span_days": 0.0,
+                "commit_spacing_avg_hours": 0.0,
+                "ai_generation_likelihood": 0.0,
+                "cloned_template_likelihood": 0.0,
+                "single_commit_push": False,
+            }
+
+        timestamps = []
+        messages = []
+        authors = set()
+
+        for commit in commits_data:
+            if not isinstance(commit, dict):
+                continue
+            commit_detail = commit.get("commit", {})
+            author_detail = commit_detail.get("author", {})
+            date_str = author_detail.get("date")
+            message = commit_detail.get("message", "")
+
+            author_name = author_detail.get("name")
+            if author_name:
+                authors.add(author_name)
+
+            if date_str:
+                try:
+                    # Date format: 2026-07-11T20:00:00Z
+                    dt = datetime.datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%SZ")
+                    timestamps.append(dt)
+                except Exception:
+                    pass
+            if message:
+                messages.append(message.lower().strip())
+
+        # Sort timestamps from oldest to newest
+        timestamps.sort()
+
+        # 1. Check if single commit push
+        num_commits = len(commits_data)
+        single_commit_push = num_commits <= 2
+
+        # 2. Work duration / development span
+        development_span_days = 0.0
+        if len(timestamps) > 1:
+            delta = timestamps[-1] - timestamps[0]
+            development_span_days = round(delta.total_seconds() / 86400.0, 2)
+
+        # 3. Spacing between commits
+        commit_spacing_avg_hours = 0.0
+        if len(timestamps) > 1:
+            spacings = []
+            for i in range(1, len(timestamps)):
+                spacings.append(
+                    (timestamps[i] - timestamps[i - 1]).total_seconds() / 3600.0
+                )
+            commit_spacing_avg_hours = round(sum(spacings) / len(spacings), 2)
+
+        # 4. LLM / Template detection heuristics
+        ai_score = 0.0
+        template_score = 0.0
+
+        # AI indicators:
+        # - Patterned semantic commits (feat, chore, fix) with perfect formatting but extremely short spacing (under 10 seconds)
+        very_short_intervals = 0
+        if len(timestamps) > 1:
+            for i in range(1, len(timestamps)):
+                diff_sec = (timestamps[i] - timestamps[i - 1]).total_seconds()
+                if diff_sec < 10:  # less than 10 seconds between commits
+                    very_short_intervals += 1
+            if num_commits > 2:
+                ratio = very_short_intervals / (num_commits - 1)
+                if ratio > 0.6:  # more than 60% of commits were made within 10 seconds
+                    ai_score += 0.5
+
+        # Template indicators:
+        # - Repository cloned and committed once (initial commit) containing massive codebase
+        if single_commit_push:
+            template_score += 0.4
+
+        # Analyze commit messages
+        ai_commit_keywords = ["init", "add files via upload", "create ", "uploading "]
+        for msg in messages:
+            if any(kw in msg for kw in ai_commit_keywords):
+                template_score += 0.1
+
+        # Cap scores
+        ai_generation_likelihood = min(1.0, round(ai_score, 2))
+        cloned_template_likelihood = min(1.0, round(template_score, 2))
+
+        return {
+            "development_span_days": development_span_days,
+            "commit_spacing_avg_hours": commit_spacing_avg_hours,
+            "ai_generation_likelihood": ai_generation_likelihood,
+            "cloned_template_likelihood": cloned_template_likelihood,
+            "single_commit_push": single_commit_push,
+        }
+    except Exception as e:
+        logger.error(f"Error in commit forensics for {owner}/{repo_name}: {e}")
+        return {
+            "development_span_days": 0.0,
+            "commit_spacing_avg_hours": 0.0,
+            "ai_generation_likelihood": 0.0,
+            "cloned_template_likelihood": 0.0,
+            "single_commit_push": False,
+        }
+
+
 def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
     try:
         username = extract_github_username(github_url)
@@ -229,11 +348,20 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
         status_code, repos_data = _fetch_github_api(api_url, params=params)
 
         if status_code == 200:
-            projects = []
+            # Pre-filter and sort repos by stargazers_count to limit deep analysis to top 15 repositories
+            candidate_repos = []
             for repo in repos_data:
                 if repo.get("fork") and repo.get("forks_count", 0) < 5:
                     continue
+                candidate_repos.append(repo)
 
+            candidate_repos.sort(
+                key=lambda r: r.get("stargazers_count", 0), reverse=True
+            )
+            top_repos = candidate_repos[:15]
+
+            projects = []
+            for repo in top_repos:
                 repo_name = repo.get("name")
 
                 contributors_data = fetch_repo_contributors(username, repo_name)
@@ -246,6 +374,9 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                 project_type = (
                     "open_source" if contributor_count > 1 else "self_project"
                 )
+
+                # Query commit forensics
+                forensics = fetch_repo_commits_forensics(username, repo_name)
 
                 project = {
                     "name": repo.get("name"),
@@ -273,6 +404,7 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                         "archived": repo.get("archived", False),
                         "default_branch": repo.get("default_branch"),
                         "contributors": contributor_count,
+                        "commit_forensics": forensics,
                     },
                 }
                 projects.append(project)
