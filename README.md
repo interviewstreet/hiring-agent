@@ -190,7 +190,7 @@ $ cp .env.example .env
 | `GEMINI_API_KEY` | string                                      | Required when using a Gemini model.                                   |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
 
-Provider mapping lives in `providers.json` — each provider declares its `base_url`, an optional API-key env var, and per-model parameters; `config.py` loads it and resolves the provider for a model. `config.py` also has a flag:
+Provider mapping lives in `providers.json` — each provider declares its `base_url`, an optional API-key env var, and per-model parameters; `config.py` loads it and resolves the provider for a model. A provider may instead set `"provider_type": "claude_agent_sdk"` to use the local Claude Agent SDK (no `base_url`/`api_key`); the default `provider_type` is `openai_compatible`. `config.py` also has a flag:
 
 ```python
 # config.py
@@ -311,6 +311,14 @@ What happens:
 - Set `DEFAULT_MODEL` to a Gemini model listed in `providers.json`, for example `gemini-2.0-flash`
 - Provide `GEMINI_API_KEY`
 - The same `models.OpenAICompatibleProvider` wrapper is used, pointed at Gemini's OpenAI-compatible endpoint
+
+### Claude Agent SDK
+
+- Set `DEFAULT_MODEL` to a Claude Agent model listed in `providers.json`, for example `sonnet`, `opus`, or `fable`
+- No API key required — it uses your local [Claude Code](https://claude.com/claude-code) authentication
+- Install the optional dependency: `pip install claude-agent-sdk`
+- Requests go through `models.ClaudeAgentProvider`, selected via the `"provider_type": "claude_agent_sdk"` flag on the `claude_agent` entry in `providers.json` (no `base_url`/`api_key`)
+- Distinct from the `anthropic` provider, which calls the Anthropic API and needs `ANTHROPIC_API_KEY`
 
 ---
 

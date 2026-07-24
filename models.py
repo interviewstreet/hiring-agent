@@ -359,3 +359,83 @@ class OpenAICompatibleProvider:
             except (KeyError, IndexError, TypeError):
                 raise ValueError(f"Unexpected response shape from {url}: {data}")
             return {"message": {"role": "assistant", "content": content}}
+
+
+class ClaudeAgentProvider:
+    """Claude Agent SDK provider (uses local Claude Code authentication).
+
+    Unlike OpenAICompatibleProvider, this does not use an API key or base_url.
+    It relies on the Claude Agent SDK, which authenticates through a local
+    Claude Code login. Install the optional dependency with:
+
+        pip install claude-agent-sdk
+
+    Adapts the response to the {"message": {"content": ...}} shape the
+    evaluator expects.
+    """
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Send a chat request to Claude Agent. `options`/`format` are ignored;
+        structured output is driven by the prompt and parsed downstream."""
+        import asyncio
+
+        return asyncio.run(self._chat_claude_async(model, messages, **kwargs))
+
+    async def _chat_claude_async(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        **kwargs
+    ) -> Dict[str, Any]:
+        # Imported lazily so the base install does not require claude-agent-sdk.
+        try:
+            from claude_agent_sdk import (
+                query,
+                ClaudeAgentOptions,
+                AssistantMessage,
+                TextBlock,
+            )
+        except ImportError as e:
+            raise ImportError(
+                "claude_agent_sdk is required for the Claude Agent provider. "
+                "Install it with: pip install claude-agent-sdk"
+            ) from e
+
+        system_prompt = None
+        transcript = []
+        for m in messages:
+            if m["role"] == "system":
+                system_prompt = m["content"]
+            elif m["role"] == "user":
+                transcript.append(f"User: {m['content']}")
+            elif m["role"] == "assistant":
+                transcript.append(f"Assistant: {m['content']}")
+
+        if len(transcript) == 1 and messages[-1]["role"] == "user":
+            prompt = messages[-1]["content"]
+        else:
+            prompt = (
+                "Below is the conversation so far. Reply as the Assistant "
+                "to the last message.\n\n" + "\n\n".join(transcript)
+            )
+
+        agent_options = ClaudeAgentOptions(
+            model=model,
+            system_prompt=system_prompt,
+            tools=[],
+            max_turns=1,
+        )
+
+        text_parts = []
+        async for msg in query(prompt=prompt, options=agent_options):
+            if isinstance(msg, AssistantMessage):
+                for block in msg.content:
+                    if isinstance(block, TextBlock):
+                        text_parts.append(block.text)
+        return {"message": {"role": "assistant", "content": "".join(text_parts)}}

@@ -6,3 +6,5 @@ Jinja2==3.1.6
 google-generativeai==0.4.0
 python-dotenv==1.2.2
 black==25.9.0
+# Optional: only needed for the Claude Agent SDK provider (claude_agent models).
+# claude-agent-sdk==0.2.127
