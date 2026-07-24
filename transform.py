@@ -673,16 +673,16 @@ def transform_evaluation_response(
     if evaluation and hasattr(evaluation, "scores"):
         scores = evaluation.scores
 
-        csv_row["open_source_score"] = scores.open_source.score
+        csv_row["open_source_score"] = min(scores.open_source.score, scores.open_source.max)
         csv_row["open_source_max"] = scores.open_source.max
 
-        csv_row["self_projects_score"] = scores.self_projects.score
+        csv_row["self_projects_score"] = min(scores.self_projects.score, scores.self_projects.max)
         csv_row["self_projects_max"] = scores.self_projects.max
 
-        csv_row["production_score"] = scores.production.score
+        csv_row["production_score"] = min(scores.production.score, scores.production.max)
         csv_row["production_max"] = scores.production.max
 
-        csv_row["technical_skills_score"] = scores.technical_skills.score
+        csv_row["technical_skills_score"] = min(scores.technical_skills.score, scores.technical_skills.max)
         csv_row["technical_skills_max"] = scores.technical_skills.max
 
         total_score = (
@@ -697,6 +697,11 @@ def transform_evaluation_response(
             + scores.production.max
             + scores.technical_skills.max
         )
+
+        if evaluation and hasattr(evaluation, "bonus_points"):
+            total_score += evaluation.bonus_points.total
+        if evaluation and hasattr(evaluation, "deductions"):
+            total_score -= evaluation.deductions.total
 
         csv_row["total_score"] = total_score
         csv_row["total_max"] = total_max

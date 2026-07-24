@@ -212,6 +212,14 @@ class CategoryScore(BaseModel):
     max: int = Field(gt=0, description="Maximum possible score")
     evidence: str = Field(min_length=1, description="Evidence supporting the score")
 
+    @field_validator("score")
+    @classmethod
+    def score_must_not_exceed_max(cls, v: float, info) -> float:
+        max_val = (info.data or {}).get("max")
+        if max_val is not None and v > max_val:
+            return float(max_val)
+        return v
+
 
 class Scores(BaseModel):
     open_source: CategoryScore
@@ -237,8 +245,8 @@ class EvaluationData(BaseModel):
     scores: Scores
     bonus_points: BonusPoints
     deductions: Deductions
-    key_strengths: List[str] = Field(min_items=1, max_items=5)
-    areas_for_improvement: List[str] = Field(min_items=1, max_items=5)
+    key_strengths: List[str] = Field(min_length=1, max_length=5)
+    areas_for_improvement: List[str] = Field(min_length=1, max_length=3)
 
 
 class GitHubProfile(BaseModel):
