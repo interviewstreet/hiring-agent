@@ -320,6 +320,9 @@ class OpenAICompatibleProvider:
         MAX_RETRIES = 5
         BASE_DELAY = 10.0  # seconds — base for exponential backoff
         MAX_DELAY = 120.0  # cap so we never wait more than 2 minutes
+        # Transient server errors worth retrying with backoff. Unlike 429 these
+        # rarely carry a Retry-After header, so we always use exponential backoff.
+        RETRYABLE_SERVER_ERRORS = {500, 502, 503, 504}
         for attempt in range(MAX_RETRIES):
             response = requests.post(url, json=body, headers=headers, timeout=300)
 
@@ -331,6 +334,20 @@ class OpenAICompatibleProvider:
                 print(
                     f"[OpenAICompatibleProvider] Rate limit hit "
                     f"(attempt {attempt + 1}/{MAX_RETRIES}). Retrying in {sleep_time}s..."
+                )
+                time.sleep(sleep_time)
+                continue
+
+            if (
+                response.status_code in RETRYABLE_SERVER_ERRORS
+                and attempt < MAX_RETRIES - 1
+            ):
+                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                sleep_time = round(exp_delay * random.uniform(0.8, 1.2), 2)
+                print(
+                    f"[OpenAICompatibleProvider] Transient server error "
+                    f"{response.status_code} (attempt {attempt + 1}/{MAX_RETRIES}). "
+                    f"Retrying in {sleep_time}s..."
                 )
                 time.sleep(sleep_time)
                 continue
