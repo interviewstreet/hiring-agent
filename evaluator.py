@@ -1,5 +1,5 @@
 from typing import Dict, List, Optional, Tuple, Any
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ValidationError
 from models import JSONResume, EvaluationData
 from llm_utils import initialize_llm_provider, extract_json_from_response
 import logging
@@ -43,47 +43,70 @@ class ResumeEvaluator:
             raise ValueError("Failed to load resume evaluation criteria template")
         return criteria_template
 
+    # Retry count for when the model returns broken or off-schema JSON.
+    # Providers that do not enforce a schema server-side sometimes emit
+    # invalid JSON, and a fresh sample almost always parses.
+    MAX_EVALUATION_ATTEMPTS = 3
+
     def evaluate_resume(self, resume_text: str) -> EvaluationData:
         self._last_resume_text = resume_text
         full_prompt = self._load_evaluation_prompt(resume_text)
         # logger.info(f"🔤 Evaluation prompt being sent: {full_prompt}")
-        try:
-            system_message = self.template_manager.render_template(
-                "resume_evaluation_system_message"
+
+        system_message = self.template_manager.render_template(
+            "resume_evaluation_system_message"
+        )
+        if system_message is None:
+            raise ValueError(
+                "Failed to load resume evaluation system message template"
             )
-            if system_message is None:
-                raise ValueError(
-                    "Failed to load resume evaluation system message template"
+
+        # Prepare chat parameters
+        chat_params = {
+            "model": self.model_name,
+            "messages": [
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": full_prompt},
+            ],
+            "options": {
+                "stream": False,
+                "temperature": self.model_params.get("temperature", 0.5),
+                "top_p": self.model_params.get("top_p", 0.9),
+            },
+        }
+
+        # Add format parameter for structured output
+        kwargs = {"format": EvaluationData.model_json_schema()}
+
+        last_error: Optional[Exception] = None
+        for attempt in range(1, self.MAX_EVALUATION_ATTEMPTS + 1):
+            try:
+                # Use the appropriate provider to make the API call
+                response = self.provider.chat(**chat_params, **kwargs)
+
+                response_text = response["message"]["content"]
+                response_text = extract_json_from_response(response_text)
+
+                # Trim to the outermost JSON object so any stray prose around
+                # it does not break parsing.
+                json_start = response_text.find("{")
+                json_end = response_text.rfind("}")
+                if json_start != -1 and json_end != -1:
+                    response_text = response_text[json_start : json_end + 1]
+                logger.debug(f"🔤 Prompt response: {response_text}")
+
+                evaluation_dict = json.loads(response_text)
+                return EvaluationData(**evaluation_dict)
+
+            except (json.JSONDecodeError, ValidationError) as e:
+                last_error = e
+                logger.warning(
+                    f"🔁 Evaluation response invalid "
+                    f"(attempt {attempt}/{self.MAX_EVALUATION_ATTEMPTS}): {e}"
                 )
 
-            # Prepare chat parameters
-            chat_params = {
-                "model": self.model_name,
-                "messages": [
-                    {"role": "system", "content": system_message},
-                    {"role": "user", "content": full_prompt},
-                ],
-                "options": {
-                    "stream": False,
-                    "temperature": self.model_params.get("temperature", 0.5),
-                    "top_p": self.model_params.get("top_p", 0.9),
-                },
-            }
-
-            # Add format parameter for structured output
-            kwargs = {"format": EvaluationData.model_json_schema()}
-            # Use the appropriate provider to make the API call
-            response = self.provider.chat(**chat_params, **kwargs)
-
-            response_text = response["message"]["content"]
-            response_text = extract_json_from_response(response_text)
-            logger.error(f"🔤 Prompt response: {response_text}")
-
-            evaluation_dict = json.loads(response_text)
-            evaluation_data = EvaluationData(**evaluation_dict)
-
-            return evaluation_data
-
-        except Exception as e:
-            logger.error(f"Error evaluating resume: {str(e)}")
-            raise
+        logger.error(
+            f"Error evaluating resume after "
+            f"{self.MAX_EVALUATION_ATTEMPTS} attempts: {last_error}"
+        )
+        raise last_error

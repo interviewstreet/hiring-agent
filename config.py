@@ -33,7 +33,10 @@ MODEL_PARAMETERS = {
 def provider_for(model_name: str) -> dict:
     """Resolve provider config for a model.
 
-    Returns {base_url, api_key, structured_output, extra_body}.
+    Returns {provider_type, base_url, api_key, structured_output, extra_body}.
+    `provider_type` selects the client: "openai_compatible" (default) hits
+    base_url with api_key; "claude_agent_sdk" uses the local Claude Agent SDK
+    and needs neither base_url nor api_key.
     Raises ValueError if the model is unknown or its required key is unset.
     """
     for name, prov in _config["providers"].items():
@@ -50,8 +53,10 @@ def provider_for(model_name: str) -> dict:
             **prov.get("extra_body", {}),
             **prov["models"][model_name].get("extra_body", {}),
         }
+        base_url = prov.get("base_url")
         return {
-            "base_url": prov["base_url"].rstrip("/"),
+            "provider_type": prov.get("provider_type", "openai_compatible"),
+            "base_url": base_url.rstrip("/") if base_url else None,
             "api_key": api_key,
             "structured_output": prov.get("structured_output", "json_schema"),
             "extra_body": extra_body,

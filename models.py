@@ -1,3 +1,5 @@
+import json
+
 from typing import List, Optional, Dict, Tuple, Any, Protocol, runtime_checkable
 from pydantic import BaseModel, Field, field_validator
 
@@ -359,3 +361,129 @@ class OpenAICompatibleProvider:
             except (KeyError, IndexError, TypeError):
                 raise ValueError(f"Unexpected response shape from {url}: {data}")
             return {"message": {"role": "assistant", "content": content}}
+
+
+class ClaudeAgentProvider:
+    """Claude Agent SDK provider (uses local Claude Code authentication).
+
+    Unlike OpenAICompatibleProvider, this does not use an API key or base_url.
+    It relies on the Claude Agent SDK, which authenticates through a local
+    Claude Code login. Install the optional dependency with:
+
+        pip install claude-agent-sdk
+
+    Adapts the response to the {"message": {"content": ...}} shape the
+    evaluator expects.
+    """
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Send a chat request to Claude Agent. `options`/`format` are ignored;
+        structured output is driven by the prompt and parsed downstream."""
+        import asyncio
+
+        return asyncio.run(self._chat_claude_async(model, messages, **kwargs))
+
+    async def _chat_claude_async(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        **kwargs
+    ) -> Dict[str, Any]:
+        # Imported lazily so the base install does not require claude-agent-sdk.
+        try:
+            from claude_agent_sdk import (
+                query,
+                ClaudeAgentOptions,
+                AssistantMessage,
+                ResultMessage,
+                TextBlock,
+            )
+        except ImportError as e:
+            raise ImportError(
+                "claude_agent_sdk is required for the Claude Agent provider. "
+                "Install it with: pip install claude-agent-sdk"
+            ) from e
+
+        system_prompt = None
+        transcript = []
+        for m in messages:
+            if m["role"] == "system":
+                system_prompt = m["content"]
+            elif m["role"] == "user":
+                transcript.append(f"User: {m['content']}")
+            elif m["role"] == "assistant":
+                transcript.append(f"Assistant: {m['content']}")
+
+        if len(transcript) == 1 and messages[-1]["role"] == "user":
+            prompt = messages[-1]["content"]
+        else:
+            prompt = (
+                "Below is the conversation so far. Reply as the Assistant "
+                "to the last message.\n\n" + "\n\n".join(transcript)
+            )
+
+        # When the caller passes a JSON schema in `format`, set `output_format`
+        # so the CLI returns validated JSON in ResultMessage.structured_output
+        # instead of free-form JSON in the text, which the model sometimes
+        # gets wrong.
+        output_schema = kwargs.get("format")
+
+        option_kwargs = dict(
+            model=model,
+            system_prompt=system_prompt,
+            tools=[],
+            allowed_tools=[],
+            # A no-tool query usually finishes in one turn, but structured
+            # output uses an extra internal turn, so cap at 8 rather than 1.
+            # No tools means the model cannot loop, so the higher bound is safe.
+            max_turns=8,
+            # Isolation mode. Keep the host project's CLAUDE.md, settings,
+            # skills, hooks, and MCP servers out of this subprocess. They
+            # pollute the prompt and break structured output.
+            setting_sources=[],
+            skills=[],
+            strict_mcp_config=True,
+        )
+        if output_schema:
+            option_kwargs["output_format"] = {
+                "type": "json_schema",
+                "schema": output_schema,
+            }
+        agent_options = ClaudeAgentOptions(**option_kwargs)
+
+        # The CLI may emit an in-progress assistant snapshot before the final
+        # one. Joining text across every AssistantMessage or TextBlock would
+        # glue a partial draft onto the final answer and produce two JSON
+        # objects in a row. Keep only the last assistant message, and prefer
+        # structured_output, then result.
+        text_parts: List[str] = []
+        structured_output = None
+        result_text = None
+        async for msg in query(prompt=prompt, options=agent_options):
+            if isinstance(msg, AssistantMessage):
+                text_parts = [
+                    block.text
+                    for block in msg.content
+                    if isinstance(block, TextBlock)
+                ]
+            elif isinstance(msg, ResultMessage):
+                if msg.structured_output is not None:
+                    structured_output = msg.structured_output
+                if msg.result:
+                    result_text = msg.result
+
+        if structured_output is not None:
+            # Serialize back to text so callers that json.loads() the body
+            # still work, now with valid JSON.
+            content = json.dumps(structured_output)
+        elif result_text is not None:
+            content = result_text
+        else:
+            content = "".join(text_parts)
+        return {"message": {"role": "assistant", "content": content}}

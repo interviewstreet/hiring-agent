@@ -43,6 +43,10 @@ logging.basicConfig(
     format="%(asctime)s - %(name)5s - %(lineno)5d - %(funcName)33s - %(levelname)5s - %(message)s",
 )
 
+# Quiet the SDK's "Using bundled Claude Code CLI" INFO line, which fires on
+# every LLM call and carries no useful signal.
+logging.getLogger("claude_agent_sdk").setLevel(logging.WARNING)
+
 
 def print_evaluation_results(
     evaluation: EvaluationData, candidate_name: str = "Candidate"

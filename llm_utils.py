@@ -5,7 +5,7 @@ Utility functions for LLM providers.
 import logging
 from typing import Any, Dict, Optional
 from config import provider_for
-from models import OpenAICompatibleProvider
+from models import OpenAICompatibleProvider, ClaudeAgentProvider
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,12 @@ def initialize_llm_provider(model_name: str) -> Any:
     resolving base_url / api_key / structured-output mode from providers.json.
     """
     cfg = provider_for(model_name)
+    if cfg["provider_type"] == "claude_agent_sdk":
+        logger.info(
+            f"🔄 Using model {model_name} via Claude Agent SDK "
+            "(local Claude Code authentication)"
+        )
+        return ClaudeAgentProvider()
     logger.info(f"🔄 Using model {model_name} via {cfg['base_url']}")
     return OpenAICompatibleProvider(
         base_url=cfg["base_url"],

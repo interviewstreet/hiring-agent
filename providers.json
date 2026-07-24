@@ -37,6 +37,16 @@
         "claude-sonnet-5":  { "temperature": 0.1, "top_p": 0.9 },
         "claude-haiku-4-5": { "temperature": 0.1, "top_p": 0.9 }
       }
+    },
+    "claude_agent": {
+      "provider_type": "claude_agent_sdk",
+      "api_key_env": null,
+      "structured_output": "none",
+      "models": {
+        "sonnet": { "temperature": 0.1, "top_p": 0.9 },
+        "opus":   { "temperature": 0.1, "top_p": 0.9 },
+        "fable":  { "temperature": 0.1, "top_p": 0.9 }
+      }
     }
   }
 }
