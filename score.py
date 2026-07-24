@@ -1,6 +1,17 @@
 import os
 import sys
 import json
+
+# Fix for Windows Console Unicode errors
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass
+
+# Fix for Python 3.14 Protobuf TypeError
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
 import logging
 import csv
 
