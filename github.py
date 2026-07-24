@@ -398,14 +398,26 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
 
             selected_projects = json.loads(response_text)
 
+            # Map of real repo names -> authoritative project data. The LLM can
+            # hallucinate repos the candidate has no association with (e.g.
+            # "TensorFlow", "Kubernetes"), so only names present here are accepted,
+            # and we use this data rather than the LLM's (possibly fabricated) copy.
+            valid_by_name = {p["name"]: p for p in projects_data if p.get("name")}
+
             unique_projects = []
             seen_names = set()
 
             for project in selected_projects:
                 project_name = project.get("name", "")
-                if project_name and project_name not in seen_names:
-                    unique_projects.append(project)
-                    seen_names.add(project_name)
+                if not project_name or project_name in seen_names:
+                    continue
+                if project_name not in valid_by_name:
+                    print(
+                        f"⚠️ Dropping hallucinated project not in candidate's repos: {project_name}"
+                    )
+                    continue
+                unique_projects.append(valid_by_name[project_name])
+                seen_names.add(project_name)
 
             if len(unique_projects) < 7:
                 print(
