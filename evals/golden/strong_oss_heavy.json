@@ -1,0 +1,66 @@
+{
+  "id": "strong_oss_heavy",
+  "description": "Prolific open-source contributor across several popular projects; limited formal work experience.",
+  "resume": {
+    "basics": {
+      "name": "Candidate C",
+      "summary": "Open-source maintainer contributing to widely used developer tooling.",
+      "url": "https://candidate-c.dev",
+      "profiles": [
+        {"network": "GitHub", "username": "candidate-c", "url": "https://github.com/candidate-c"},
+        {"network": "LinkedIn", "username": "candidate-c", "url": "https://linkedin.com/in/candidate-c"}
+      ]
+    },
+    "work": [
+      {
+        "name": "OpenDev Foundation",
+        "position": "Open Source Contributor (part-time)",
+        "startDate": "2024-06",
+        "endDate": "2026-01",
+        "summary": "Regular contributor and reviewer across multiple maintained repositories.",
+        "highlights": ["Triaged issues and reviewed community PRs", "Maintainer on one mid-sized project"]
+      }
+    ],
+    "education": [
+      {"institution": "State University", "area": "Computer Science", "studyType": "B.Tech", "startDate": "2022-08", "endDate": "2026-05"}
+    ],
+    "skills": [
+      {"name": "Languages", "keywords": ["Python", "C++", "TypeScript"]},
+      {"name": "Areas", "keywords": ["Compilers", "CLI tooling", "Testing infrastructure"]}
+    ],
+    "projects": [
+      {
+        "name": "pandas (upstream)",
+        "description": "12 merged PRs improving groupby performance and fixing correctness bugs.",
+        "url": "https://github.com/pandas-dev/pandas/pulls?q=author:candidate-c",
+        "highlights": ["Merged into a 40k+ star project", "Fixed a long-standing timezone bug"],
+        "technologies": ["Python", "Cython"]
+      },
+      {
+        "name": "ruff (upstream)",
+        "description": "Contributed new lint rules with tests; reviewed by maintainers.",
+        "url": "https://github.com/astral-sh/ruff/pulls?q=author:candidate-c",
+        "highlights": ["Added 3 lint rules", "20k+ star project"],
+        "technologies": ["Rust"]
+      },
+      {
+        "name": "devcli",
+        "description": "Own CLI tool that scaffolds project templates; live demo and docs.",
+        "url": "https://github.com/candidate-c/devcli",
+        "highlights": ["500+ stars", "Documented and tested"],
+        "technologies": ["TypeScript"]
+      }
+    ]
+  },
+  "github": null,
+  "labels": {
+    "overall_band": "strong",
+    "categories": {
+      "open_source": {"min": 28, "max": 35},
+      "self_projects": {"min": 16, "max": 28},
+      "production": {"min": 10, "max": 20},
+      "technical_skills": {"min": 8, "max": 10}
+    },
+    "rationale": "Sustained merged contributions to multiple popular projects put open_source near the top. Production is only part-time/OSS work so it caps lower, but strong self projects and technical breadth keep the total in the strong band."
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "id": "strong_oss_gsoc",
+  "description": "GSoC contributor with merged PRs to a popular project and a production internship.",
+  "resume": {
+    "basics": {
+      "name": "Candidate A",
+      "summary": "CS undergraduate and open-source contributor focused on distributed systems.",
+      "url": "https://candidate-a.dev",
+      "profiles": [
+        {"network": "GitHub", "username": "candidate-a", "url": "https://github.com/candidate-a"},
+        {"network": "LinkedIn", "username": "candidate-a", "url": "https://linkedin.com/in/candidate-a"}
+      ]
+    },
+    "work": [
+      {
+        "name": "Acme Cloud",
+        "position": "Software Engineering Intern",
+        "startDate": "2025-05",
+        "endDate": "2025-08",
+        "summary": "Backend intern on the billing platform serving production traffic.",
+        "highlights": [
+          "Shipped a rate-limiting service handling 5k req/s in production",
+          "Reduced p99 latency of the invoice API by 40%"
+        ]
+      }
+    ],
+    "education": [
+      {"institution": "State University", "area": "Computer Science", "studyType": "B.Tech", "startDate": "2022-08", "endDate": "2026-05"}
+    ],
+    "skills": [
+      {"name": "Languages", "keywords": ["Go", "Python", "Rust", "SQL"]},
+      {"name": "Systems", "keywords": ["Kubernetes", "gRPC", "PostgreSQL", "Kafka"]}
+    ],
+    "projects": [
+      {
+        "name": "kubernetes (upstream)",
+        "description": "Google Summer of Code (GSoC) 2025 contributor: implemented a scheduler plugin, 6 PRs merged upstream.",
+        "url": "https://github.com/kubernetes/kubernetes/pulls?q=author:candidate-a",
+        "highlights": ["Merged 6 PRs into a 100k+ star project", "Authored the design doc reviewed by maintainers"],
+        "technologies": ["Go"]
+      },
+      {
+        "name": "raftlite",
+        "description": "A from-scratch Raft consensus library with a live demo cluster.",
+        "url": "https://github.com/candidate-a/raftlite",
+        "highlights": ["Leader election + log replication", "Fuzz-tested with 500+ generated scenarios"],
+        "technologies": ["Rust"]
+      }
+    ]
+  },
+  "github": null,
+  "labels": {
+    "overall_band": "strong",
+    "categories": {
+      "open_source": {"min": 26, "max": 35},
+      "self_projects": {"min": 18, "max": 30},
+      "production": {"min": 14, "max": 25},
+      "technical_skills": {"min": 7, "max": 10}
+    },
+    "rationale": "Merged PRs to a 100k-star project plus GSoC drives open_source high; a real production internship and a non-trivial systems project support the rest. Portfolio + LinkedIn justify bonus."
+  }
+}

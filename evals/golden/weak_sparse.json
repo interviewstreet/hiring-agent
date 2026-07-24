@@ -1,0 +1,34 @@
+{
+  "id": "weak_sparse",
+  "description": "Very sparse resume: few skills, no projects with substance, no links, no experience.",
+  "resume": {
+    "basics": {
+      "name": "Candidate H",
+      "summary": "Aspiring programmer."
+    },
+    "education": [
+      {"institution": "State University", "area": "Computer Science", "studyType": "B.Sc", "startDate": "2024-08", "endDate": "2028-05"}
+    ],
+    "skills": [
+      {"name": "Languages", "keywords": ["C", "Python"]}
+    ],
+    "projects": [
+      {
+        "name": "College Assignment",
+        "description": "A classroom assignment implementing basic sorting algorithms.",
+        "highlights": ["Bubble sort and merge sort"]
+      }
+    ]
+  },
+  "github": null,
+  "labels": {
+    "overall_band": "weak",
+    "categories": {
+      "open_source": {"min": 0, "max": 4},
+      "self_projects": {"min": 0, "max": 8},
+      "production": {"min": 0, "max": 5},
+      "technical_skills": {"min": 1, "max": 5}
+    },
+    "rationale": "Almost no signal: a single classroom assignment, two languages, no GitHub profile, no links, no experience. Every category sits near the floor."
+  }
+}

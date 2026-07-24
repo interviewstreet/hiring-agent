@@ -1,0 +1,59 @@
+{
+  "id": "medium_balanced",
+  "description": "Solid but not standout: one internship, a couple of real projects, some GitHub activity.",
+  "resume": {
+    "basics": {
+      "name": "Candidate D",
+      "summary": "CS student with internship experience and a few personal projects.",
+      "url": "https://candidate-d.dev",
+      "profiles": [
+        {"network": "GitHub", "username": "candidate-d", "url": "https://github.com/candidate-d"},
+        {"network": "LinkedIn", "username": "candidate-d", "url": "https://linkedin.com/in/candidate-d"}
+      ]
+    },
+    "work": [
+      {
+        "name": "Local Software Co.",
+        "position": "Software Intern",
+        "startDate": "2025-06",
+        "endDate": "2025-08",
+        "summary": "Worked on internal web tooling used by the support team.",
+        "highlights": ["Added features to an internal admin dashboard", "Wrote unit tests for existing endpoints"]
+      }
+    ],
+    "education": [
+      {"institution": "State University", "area": "Computer Science", "studyType": "B.Tech", "startDate": "2022-08", "endDate": "2026-05"}
+    ],
+    "skills": [
+      {"name": "Languages", "keywords": ["Java", "Python", "JavaScript"]},
+      {"name": "Web", "keywords": ["Spring Boot", "React", "MySQL"]}
+    ],
+    "projects": [
+      {
+        "name": "expense-tracker",
+        "description": "Full-stack expense tracker with auth and charts; deployed live demo.",
+        "url": "https://github.com/candidate-d/expense-tracker",
+        "highlights": ["User auth and persistent storage", "Deployed with a working demo link"],
+        "technologies": ["React", "Spring Boot", "MySQL"]
+      },
+      {
+        "name": "small OSS fix",
+        "description": "One merged PR fixing documentation in a mid-sized open-source library.",
+        "url": "https://github.com/some-org/some-lib/pull/123",
+        "highlights": ["1 merged PR (docs/typo fix)"],
+        "technologies": ["Markdown"]
+      }
+    ]
+  },
+  "github": null,
+  "labels": {
+    "overall_band": "medium",
+    "categories": {
+      "open_source": {"min": 6, "max": 16},
+      "self_projects": {"min": 12, "max": 22},
+      "production": {"min": 10, "max": 20},
+      "technical_skills": {"min": 5, "max": 9}
+    },
+    "rationale": "One real internship and a deployed full-stack project are solid but not exceptional; the single docs PR is minimal open-source signal. Totals land squarely in the medium band."
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "id": "weak_tutorial_projects",
+  "description": "Only tutorial-style projects (todo, calculator, weather), no OSS, no work experience.",
+  "resume": {
+    "basics": {
+      "name": "Candidate G",
+      "summary": "Beginner developer learning web development.",
+      "profiles": [
+        {"network": "GitHub", "username": "candidate-g", "url": "https://github.com/candidate-g"}
+      ]
+    },
+    "education": [
+      {"institution": "State University", "area": "Computer Applications", "studyType": "BCA", "startDate": "2024-08", "endDate": "2027-05"}
+    ],
+    "skills": [
+      {"name": "Languages", "keywords": ["HTML", "CSS", "JavaScript"]}
+    ],
+    "projects": [
+      {
+        "name": "Todo App",
+        "description": "A basic to-do list following a YouTube tutorial.",
+        "highlights": ["Add and remove tasks"],
+        "technologies": ["JavaScript"]
+      },
+      {
+        "name": "Calculator",
+        "description": "A simple calculator web page.",
+        "highlights": ["Basic arithmetic"],
+        "technologies": ["JavaScript"]
+      },
+      {
+        "name": "Weather App",
+        "description": "Shows weather using a public API; no live link.",
+        "highlights": ["Fetches from a weather API"],
+        "technologies": ["JavaScript"]
+      }
+    ]
+  },
+  "github": null,
+  "labels": {
+    "overall_band": "weak",
+    "categories": {
+      "open_source": {"min": 0, "max": 6},
+      "self_projects": {"min": 0, "max": 9},
+      "production": {"min": 0, "max": 5},
+      "technical_skills": {"min": 2, "max": 6}
+    },
+    "rationale": "All projects are generic tutorial clones with no links, no open-source contribution, and no work experience. Per the criteria these attract low self_projects scores and deductions, placing the candidate firmly in the weak band."
+  }
+}

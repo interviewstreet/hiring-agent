@@ -1,0 +1,55 @@
+{
+  "id": "medium_projects_no_prod",
+  "description": "Strong self-projects but no production/work experience and little open source.",
+  "resume": {
+    "basics": {
+      "name": "Candidate E",
+      "summary": "Self-taught builder with several substantial personal projects.",
+      "url": "https://candidate-e.dev",
+      "profiles": [
+        {"network": "GitHub", "username": "candidate-e", "url": "https://github.com/candidate-e"}
+      ]
+    },
+    "education": [
+      {"institution": "State University", "area": "Information Technology", "studyType": "B.Tech", "startDate": "2023-08", "endDate": "2027-05"}
+    ],
+    "skills": [
+      {"name": "Languages", "keywords": ["Python", "JavaScript", "TypeScript"]},
+      {"name": "ML/Web", "keywords": ["PyTorch", "FastAPI", "Next.js"]}
+    ],
+    "projects": [
+      {
+        "name": "semantic-notes",
+        "description": "Note app with local embedding search; non-trivial architecture, live demo.",
+        "url": "https://github.com/candidate-e/semantic-notes",
+        "highlights": ["Vector search over notes", "Working deployed demo", "Documented"],
+        "technologies": ["Next.js", "FastAPI", "SQLite"]
+      },
+      {
+        "name": "mini-torch",
+        "description": "A small autograd engine reimplementing backprop from scratch.",
+        "url": "https://github.com/candidate-e/mini-torch",
+        "highlights": ["Reverse-mode autodiff", "Trains a small MLP on MNIST"],
+        "technologies": ["Python"]
+      },
+      {
+        "name": "chat-rooms",
+        "description": "Real-time chat with WebSockets and presence.",
+        "url": "https://github.com/candidate-e/chat-rooms",
+        "highlights": ["WebSocket rooms", "Redis-backed presence"],
+        "technologies": ["Node.js", "Redis"]
+      }
+    ]
+  },
+  "github": null,
+  "labels": {
+    "overall_band": "medium",
+    "categories": {
+      "open_source": {"min": 3, "max": 11},
+      "self_projects": {"min": 18, "max": 28},
+      "production": {"min": 0, "max": 6},
+      "technical_skills": {"min": 6, "max": 9}
+    },
+    "rationale": "Genuinely strong, complex self-projects with live demos push self_projects high, but the complete absence of work experience caps production near zero and there is essentially no contribution to others' projects. Net total is medium."
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "id": "weak_selfrepos_only",
+  "description": "Only personal GitHub repos (no contributions to others); moderate personal projects, no work.",
+  "resume": {
+    "basics": {
+      "name": "Candidate I",
+      "summary": "Hobbyist developer with a handful of personal repositories.",
+      "profiles": [
+        {"network": "GitHub", "username": "candidate-i", "url": "https://github.com/candidate-i"}
+      ]
+    },
+    "education": [
+      {"institution": "State University", "area": "Computer Science", "studyType": "B.Tech", "startDate": "2023-08", "endDate": "2027-05"}
+    ],
+    "skills": [
+      {"name": "Languages", "keywords": ["Python", "JavaScript"]},
+      {"name": "Web", "keywords": ["Flask", "Bootstrap"]}
+    ],
+    "projects": [
+      {
+        "name": "portfolio-site",
+        "description": "Personal portfolio website.",
+        "url": "https://github.com/candidate-i/portfolio-site",
+        "highlights": ["Static site about myself"],
+        "technologies": ["HTML", "CSS"]
+      },
+      {
+        "name": "blog-engine",
+        "description": "A small personal blog engine with markdown posts; no external contributors.",
+        "url": "https://github.com/candidate-i/blog-engine",
+        "highlights": ["Markdown rendering", "Personal project, no live demo"],
+        "technologies": ["Flask"]
+      }
+    ]
+  },
+  "github": null,
+  "labels": {
+    "overall_band": "weak",
+    "categories": {
+      "open_source": {"min": 0, "max": 8},
+      "self_projects": {"min": 5, "max": 14},
+      "production": {"min": 0, "max": 6},
+      "technical_skills": {"min": 3, "max": 7}
+    },
+    "rationale": "Per the criteria, personal repositories alone do not constitute open-source contribution (open_source must stay <= 10). Projects are moderate at best and there is no work experience, so the total stays in the weak band despite an active GitHub presence."
+  }
+}
