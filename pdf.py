@@ -297,10 +297,13 @@ class PDFHandler:
                 # Valid response with no content for this section (e.g. no awards)
                 logger.warning(f"⚠️ {section_name} section empty; continuing")
             else:
-                logger.error(
-                    f"⚠️ Failed to extract {section_name} section. Aborting extraction to prevent partial/invalid resume data."
-                )
-                return None
+                if section_name == "awards":
+                    logger.debug(f"ℹ️ Optional section '{section_name}' not found, skipping")
+                else:
+                    logger.error(
+                        f"⚠️ Failed to extract {section_name} section. Aborting extraction to prevent partial/invalid resume data."
+                    )
+                    return None
 
         try:
             if complete_resume.get("basics") and isinstance(
