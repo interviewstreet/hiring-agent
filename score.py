@@ -26,11 +26,25 @@ from transform import (
 from config import DEVELOPMENT_MODE
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)5s - %(lineno)5d - %(funcName)33s - %(levelname)5s - %(message)s",
+formatter = logging.Formatter(
+    "%(asctime)s - %(name)5s - %(lineno)5d - %(funcName)33s - %(levelname)5s - %(message)s"
 )
+
+stdout_handler = logging.StreamHandler(sys.stdout)
+stdout_handler.setLevel(logging.INFO)
+stdout_handler.addFilter(
+    lambda record: record.levelno < logging.ERROR
+)
+stdout_handler.setFormatter(formatter)
+
+stderr_handler = logging.StreamHandler(sys.stderr)
+stderr_handler.setLevel(logging.ERROR)
+stderr_handler.setFormatter(formatter)
+
+logger.addHandler(stdout_handler)
+logger.addHandler(stderr_handler)
 
 
 def print_evaluation_results(

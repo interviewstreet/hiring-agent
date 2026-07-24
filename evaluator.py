@@ -77,7 +77,7 @@ class ResumeEvaluator:
 
             response_text = response["message"]["content"]
             response_text = extract_json_from_response(response_text)
-            logger.error(f"🔤 Prompt response: {response_text}")
+            logger.info(f"🔤 Prompt response: {response_text}")
 
             evaluation_dict = json.loads(response_text)
             evaluation_data = EvaluationData(**evaluation_dict)
