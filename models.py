@@ -232,6 +232,13 @@ class Deductions(BaseModel):
     )
     reasons: str = Field(description="Reasons for deductions")
 
+    @field_validator("total", mode="before")
+    @classmethod
+    def normalize_total(cls, value):
+        if value is None:
+            return 0
+        return abs(float(value))
+
 
 class EvaluationData(BaseModel):
     scores: Scores
