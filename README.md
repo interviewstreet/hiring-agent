@@ -53,7 +53,7 @@ Since this was built, HackerRank has also shipped [AI Interviewer (Chakra)](http
 
 **On the default model:**
 
-The repo ships with `gemma3:4b` as the default because it runs locally on most laptops without any cloud API key. Actual intern resumes at HackerRank are evaluated using a top-tier Gemini model. The repo ships with a demo config, not the production one.
+The repo ships with `gemma4:latest` as the default because it runs locally on most laptops without any cloud API key. Actual intern resumes at HackerRank are evaluated using a top-tier Gemini model. The repo ships with a demo config, not the production one.
 
 ---
 
@@ -159,7 +159,7 @@ $ pip install -r requirements.txt
 Pull the model you want to use. For example:
 
 ```bash
-$ ollama pull gemma3:4b
+$ ollama pull gemma4:latest
 ```
 
 If you want different results, you can pull other models such as:
@@ -187,7 +187,7 @@ $ cp .env.example .env
 | Variable         | Values                                      | Description                                                            |
 | ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
 | `LLM_PROVIDER`   | `ollama` or `gemini`                        | Chooses provider. Defaults to Ollama.                                  |
-| `DEFAULT_MODEL`  | for example `gemma3:4b` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
+| `DEFAULT_MODEL`  | for example `gemma4:latest` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
 | `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
 
@@ -304,7 +304,7 @@ What happens:
 ### Ollama
 
 - Set `LLM_PROVIDER=ollama`
-- Set `DEFAULT_MODEL` to any pulled model, for example `gemma3:4b`
+- Set `DEFAULT_MODEL` to any pulled model, for example `gemma4:latest`
 - The provider wrapper in `models.OllamaProvider` calls `ollama.chat`
 
 ### Gemini
