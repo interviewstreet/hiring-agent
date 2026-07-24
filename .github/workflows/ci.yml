@@ -1,0 +1,136 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  pr-validation:
+    name: PR Validation Checks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Get PR information
+      id: pr-info
+      run: |
+        echo "target_branch=${{ github.base_ref }}" >> $GITHUB_OUTPUT
+        echo "source_branch=${{ github.head_ref }}" >> $GITHUB_OUTPUT
+        echo "pr_number=${{ github.event.number }}" >> $GITHUB_OUTPUT
+    
+    - name: Check file count in PR
+      id: file-count
+      run: |
+        # Get the list of changed files
+        files_changed=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+        file_count=$(echo "$files_changed" | wc -l)
+        
+        echo "Files changed in this PR:"
+        echo "$files_changed"
+        echo ""
+        echo "Total files changed: $file_count"
+        
+        if [ $file_count -gt 20 ]; then
+          echo "ERROR: This PR modifies $file_count files, which exceeds the limit of 20 files."
+          echo "Please consider breaking this PR into smaller, more focused changes."
+          exit 1
+        else
+          echo "File count check passed: $file_count files (≤ 20)"
+        fi
+        
+        echo "file_count=$file_count" >> $GITHUB_OUTPUT
+    
+    - name: Validate target branch
+      run: |
+        target_branch="${{ steps.pr-info.outputs.target_branch }}"
+        echo "Target branch: $target_branch"
+        
+        if [ "$target_branch" = "main" ]; then
+          echo "PR is targeting the main branch"
+        else
+          echo "ERROR: PRs should only target 'main' branch"
+          echo "Current target: $target_branch"
+          exit 1
+        fi
+
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov flake8
+    
+    - name: Run Black formatter check
+      run: |
+        echo "Running Black formatter check..."
+        black --check --diff .
+    
+    - name: Run Flake8 linter
+      run: |
+        echo "Running Flake8 linter..."
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+    
+    - name: Check Python syntax
+      run: |
+        echo "Checking Python syntax..."
+        python -m py_compile *.py
+    
+    - name: Validate requirements.txt
+      run: |
+        echo "Validating requirements.txt..."
+        pip check
+
+
+
+  pr-summary:
+    name: PR Summary
+    runs-on: ubuntu-latest
+    needs: [pr-validation, code-quality]
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: PR Summary Comment
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { owner, repo, number } = context.issue;
+          
+          const summary = `## 🔍 CI Pipeline Summary
+          
+          **PR Validation**: Passed
+          - File count check
+          - Target branch validation
+          
+          **Code Quality**: Passed
+          - Black formatter
+          - Flake8 linter
+          - Python syntax
+          
+          *This PR has passed all validation checks and is ready for review!*`;
+          
+          github.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: number,
+            body: summary
+          });
