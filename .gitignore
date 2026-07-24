@@ -3,7 +3,6 @@
 **/*.pyc
 resume/*.pdf
 run/*.pdf
-test_*.py
 cache/
 resume_evaluations.csv
 greenhouse_resumes/*
