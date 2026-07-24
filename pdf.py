@@ -266,7 +266,8 @@ class PDFHandler:
     ) -> Optional[JSONResume]:
         start_time = time.time()
 
-        sections = ["basics", "work", "education", "skills", "projects", "awards"]
+        required_sections = ["basics"]
+        optional_sections = ["work", "education", "skills", "projects", "awards"]
 
         complete_resume = {
             "basics": None,
@@ -284,7 +285,7 @@ class PDFHandler:
             "meta": None,
         }
 
-        for section_name in sections:
+        for section_name in required_sections:
             section_data = self._extract_section_data(text_content, section_name)
             if section_data is None:
                 logger.warning(f"🔁 Retrying {section_name} section extraction")
@@ -301,6 +302,17 @@ class PDFHandler:
                     f"⚠️ Failed to extract {section_name} section. Aborting extraction to prevent partial/invalid resume data."
                 )
                 return None
+
+        for section_name in optional_sections:
+            section_data = self._extract_section_data(text_content, section_name)
+
+            if section_data:
+                complete_resume.update(section_data)
+                logger.debug(f"✅ Successfully extracted {section_name} section")
+            else:
+                logger.warning(
+                    f"⚠️ Could not extract {section_name} section (may not be present in resume). Continuing."
+                )
 
         try:
             if complete_resume.get("basics") and isinstance(
