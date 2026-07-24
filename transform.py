@@ -918,6 +918,31 @@ def convert_github_data_to_text(github_data: dict) -> str:
                 github_text += f"   Language: {details.get('language', 'N/A')}\n"
             github_text += "\n"
 
+    contributions = github_data.get("open_source_contributions") or []
+    if contributions:
+        total_prs = sum(c.get("merged_pr_count", 0) for c in contributions)
+        github_text += (
+            f"\nVerified External Open-Source Contributions "
+            f"({total_prs} merged PR(s) authored in {len(contributions)} "
+            f"repositories the candidate does NOT own):\n"
+        )
+        github_text += (
+            "These are REAL open-source contributions to OTHER people's projects "
+            "(confirmed merged PRs), NOT self_projects. Weigh them for the Open "
+            "Source score based on the projects' significance (stars) and number "
+            "of merged PRs.\n"
+        )
+        for i, contrib in enumerate(contributions[:10], 1):
+            github_text += f"{i}. {contrib.get('repo', 'N/A')}\n"
+            github_text += (
+                f"   Merged PRs by candidate: {contrib.get('merged_pr_count', 'N/A')}\n"
+            )
+            github_text += f"   Stars: {contrib.get('stars', 'N/A')}\n"
+            github_text += f"   Language: {contrib.get('language', 'N/A')}\n"
+            if contrib.get("description"):
+                github_text += f"   Description: {contrib.get('description')}\n"
+            github_text += "\n"
+
     return github_text
 
 
