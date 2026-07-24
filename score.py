@@ -199,7 +199,11 @@ def _evaluate_resume(
         resume_text += blog_text
 
     # Evaluate the enhanced resume
-    evaluation_result = evaluator.evaluate_resume(resume_text)
+    evaluation_result = evaluator.evaluate_resume(
+        resume_text,
+        resume_data=resume_data,
+        github_data=github_data,
+    )
 
     # print(evaluation_result)
 

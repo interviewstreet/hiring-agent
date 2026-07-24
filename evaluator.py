@@ -2,6 +2,8 @@ from typing import Dict, List, Optional, Tuple, Any
 from pydantic import BaseModel, Field, field_validator
 from models import JSONResume, EvaluationData
 from llm_utils import initialize_llm_provider, extract_json_from_response
+from evaluation_validation import normalize_evaluation
+from pdf_sanitize import sanitize_resume_text_for_pipeline
 import logging
 import json
 import re
@@ -43,7 +45,13 @@ class ResumeEvaluator:
             raise ValueError("Failed to load resume evaluation criteria template")
         return criteria_template
 
-    def evaluate_resume(self, resume_text: str) -> EvaluationData:
+    def evaluate_resume(
+        self,
+        resume_text: str,
+        resume_data: Optional[JSONResume] = None,
+        github_data: Optional[dict] = None,
+    ) -> EvaluationData:
+        resume_text = sanitize_resume_text_for_pipeline(resume_text)
         self._last_resume_text = resume_text
         full_prompt = self._load_evaluation_prompt(resume_text)
         # logger.info(f"🔤 Evaluation prompt being sent: {full_prompt}")
@@ -82,7 +90,12 @@ class ResumeEvaluator:
             evaluation_dict = json.loads(response_text)
             evaluation_data = EvaluationData(**evaluation_dict)
 
-            return evaluation_data
+            return normalize_evaluation(
+                evaluation_data,
+                source_text=resume_text,
+                resume_data=resume_data,
+                github_data=github_data,
+            )
 
         except Exception as e:
             logger.error(f"Error evaluating resume: {str(e)}")
