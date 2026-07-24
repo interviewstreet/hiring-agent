@@ -338,7 +338,7 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
     try:
         projects_data = []
         for project in projects:
-            if project.get("author_commit_count") == 0:
+            if (project.get("author_commit_count") or 0) < 4:
                 continue
 
             project_data = {
@@ -402,6 +402,8 @@ def generate_projects_json(projects: List[Dict]) -> List[Dict]:
             seen_names = set()
 
             for project in selected_projects:
+                if (project.get("author_commit_count") or 0) < 4:
+                    continue
                 project_name = project.get("name", "")
                 if project_name and project_name not in seen_names:
                     unique_projects.append(project)
