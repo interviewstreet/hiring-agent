@@ -3,6 +3,9 @@
 import json
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Global development mode flag. Preserved here because score.py and github.py
 # import it from this module.
