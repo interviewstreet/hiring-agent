@@ -10,6 +10,25 @@ MAX_BONUS_POINTS = 20
 MIN_FINAL_SCORE = -20
 MAX_FINAL_SCORE = 120
 
+# Maps bonus category keys to keywords and point values for validation
+BONUS_KEYWORD_MAP = {
+    "gsoc": {
+        "keywords": ["google summer of code", "gsoc"],
+        "points": 5,
+        "label": "Google Summer of Code (GSoC)"
+    },
+    "girlscript": {
+        "keywords": ["girl script summer of code", "girlscript", "gssoc"],
+        "points": 3,
+        "label": "Girl Script Summer of Code"
+    },
+    "startup_founder": {
+        "keywords": ["founder", "co-founder", "cofounder"],
+        "points": 4,
+        "label": "Startup Founder/Co-founder"
+    },
+}
+
 from prompt import (
     DEFAULT_MODEL,
     MODEL_PARAMETERS,
@@ -42,6 +61,67 @@ class ResumeEvaluator:
         if criteria_template is None:
             raise ValueError("Failed to load resume evaluation criteria template")
         return criteria_template
+
+    def validate_bonus_points(
+        self,
+        evaluation_data: EvaluationData,
+        resume_text: str,
+    ) -> EvaluationData:
+        """
+        Cross-reference each bonus claim against the actual resume text.
+        Removes any bonus that cannot be verified, recalculates total.
+        """
+        resume_lower = resume_text.lower()
+        breakdown_text = evaluation_data.bonus_points.breakdown.lower()
+
+        # Sum of points the LLM claimed for hallucination-prone categories
+        claimed_hallucination_points = 0
+        validated_hallucination_points = 0
+        validated_breakdown_parts = []
+
+        for key, info in BONUS_KEYWORD_MAP.items():
+            category_mentioned = any(kw in breakdown_text for kw in info["keywords"])
+            if not category_mentioned:
+                continue
+
+            claimed_hallucination_points += info["points"]
+
+            found_in_resume = any(kw in resume_lower for kw in info["keywords"])
+            if found_in_resume:
+                validated_hallucination_points += info["points"]
+                validated_breakdown_parts.append(
+                    f"{info['label']}: +{info['points']} pts"
+                )
+                logger.info(f"Bonus verified in resume: {info['label']}")
+            else:
+                logger.warning(
+                    f"Hallucinated bonus removed: '{info['label']}' "
+                    f"not found in resume text."
+                )
+
+        # Preserve non-hallucination-prone bonus (portfolio, LinkedIn, blog)
+        other_points = max(
+            0,
+            evaluation_data.bonus_points.total - claimed_hallucination_points
+        )
+
+        validated_total = min(
+            validated_hallucination_points + other_points,
+            MAX_BONUS_POINTS
+        )
+
+        new_breakdown = (
+            "; ".join(validated_breakdown_parts) + (
+                f"; Other: +{other_points} pts" if other_points > 0 else ""
+            )
+            if (validated_breakdown_parts or other_points > 0)
+            else "No verifiable bonus achievements found"
+        )
+
+        evaluation_dict = evaluation_data.model_dump()
+        evaluation_dict["bonus_points"]["total"] = validated_total
+        evaluation_dict["bonus_points"]["breakdown"] = new_breakdown
+        return EvaluationData(**evaluation_dict)
 
     def evaluate_resume(self, resume_text: str) -> EvaluationData:
         self._last_resume_text = resume_text
@@ -81,6 +161,7 @@ class ResumeEvaluator:
 
             evaluation_dict = json.loads(response_text)
             evaluation_data = EvaluationData(**evaluation_dict)
+            evaluation_data = self.validate_bonus_points(evaluation_data, resume_text)
 
             return evaluation_data
 
