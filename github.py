@@ -226,17 +226,31 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
 
         params = {"sort": "updated", "per_page": min(max_repos, 100), "type": "all"}
 
-        status_code, repos_data = _fetch_github_api(api_url, params=params)
+        status_code, repos_list = _fetch_github_api(api_url, params=params)
 
         if status_code == 200:
             projects = []
-            for repo in repos_data:
-                if repo.get("fork") and repo.get("forks_count", 0) < 5:
-                    continue
+            for repo in repos_list:
+                repo_details_source = repo
+                repo_owner = username
 
-                repo_name = repo.get("name")
+                is_forked = repo_details_source.get("fork", False)
+                
+                if is_forked:
+                    # second call to get parent data
+                    detail_status, detailed_repo_data = _fetch_github_api(repo["url"])
 
-                contributors_data = fetch_repo_contributors(username, repo_name)
+                    if detail_status == 200 and "parent" in detailed_repo_data:
+                        if detailed_repo_data["parent"].get("forks_count", 0) < 5:
+                            print(f"-> Skipping fork '{repo['name']}' as parent has less than 5 forks.")
+                            continue
+                    repo_details_source = detailed_repo_data.get("parent")
+                    repo_owner = repo_details_source["owner"].get("login")
+                    
+
+                repo_name = repo_details_source.get("name")
+
+                contributors_data = fetch_repo_contributors(repo_owner, repo_name)
                 contributor_count = len(contributors_data)
 
                 user_contributions, total_contributions = fetch_contributions_count(
@@ -246,32 +260,32 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                 project_type = (
                     "open_source" if contributor_count > 1 else "self_project"
                 )
-
+                
                 project = {
                     "name": repo.get("name"),
                     "description": repo.get("description"),
                     "github_url": repo.get("html_url"),
-                    "live_url": repo.get("homepage") if repo.get("homepage") else None,
+                    "live_url": repo_details_source.get("homepage") if repo_details_source.get("homepage") else None,
                     "technologies": (
-                        [repo.get("language")] if repo.get("language") else []
+                        [repo_details_source.get("language")] if repo_details_source.get("language") else []
                     ),
                     "project_type": project_type,
                     "contributor_count": contributor_count,
                     "author_commit_count": user_contributions,
                     "total_commit_count": total_contributions,
                     "github_details": {
-                        "stars": repo.get("stargazers_count", 0),
-                        "forks": repo.get("forks_count", 0),
-                        "language": repo.get("language"),
-                        "description": repo.get("description"),
-                        "created_at": repo.get("created_at"),
-                        "updated_at": repo.get("updated_at"),
-                        "topics": repo.get("topics", []),
-                        "open_issues": repo.get("open_issues_count", 0),
-                        "size": repo.get("size", 0),
-                        "fork": repo.get("fork", False),
-                        "archived": repo.get("archived", False),
-                        "default_branch": repo.get("default_branch"),
+                        "stars": repo_details_source.get("stargazers_count", 0),
+                        "forks": repo_details_source.get("forks_count", 0),
+                        "language": repo_details_source.get("language"),
+                        "description": repo_details_source.get("description"),
+                        "created_at": repo_details_source.get("created_at"),
+                        "updated_at": repo_details_source.get("updated_at"),
+                        "topics": repo_details_source.get("topics", []),
+                        "open_issues": repo_details_source.get("open_issues_count", 0),
+                        "size": repo_details_source.get("size", 0),
+                        "fork": is_forked,
+                        "archived": repo_details_source.get("archived", False),
+                        "default_branch": repo_details_source.get("default_branch"),
                         "contributors": contributor_count,
                     },
                 }
@@ -290,13 +304,14 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
             print(
                 f"📊 Project classification: {open_source_count} open source, {self_project_count} self projects"
             )
+
             return projects
 
         elif status_code == 404:
             print(f"GitHub user not found: {username}")
             return []
         else:
-            print(f"GitHub API error: {status_code} - {repos_data}")
+            print(f"GitHub API error: {status_code} - {repos_list}")
             return []
 
     except requests.exceptions.RequestException as e:
