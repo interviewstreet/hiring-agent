@@ -1375,3 +1375,94 @@ def to_markdown(
         del parms
 
     return document_output
+
+
+def _parse_pages_arg(pages_arg: str, page_count: int) -> list:
+    """Parse a pages string like '2-5,8,N' into 0-based page numbers.
+
+    "N" may be used to reference the last page.
+    """
+    if not pages_arg:
+        return None
+    out = set()
+    parts = pages_arg.split(",")
+    for p in parts:
+        p = p.strip()
+        if not p:
+            continue
+        if "-" in p:
+            a, b = p.split("-", 1)
+            a = a.strip()
+            b = b.strip()
+            if a.upper() == "N":
+                start = page_count
+            else:
+                start = int(a)
+            if b.upper() == "N":
+                end = page_count
+            else:
+                end = int(b)
+            # pages are specified 1-based, convert to 0-based
+            for i in range(min(start, end) - 1, max(start, end)):
+                if 0 <= i < page_count:
+                    out.add(i)
+        else:
+            if p.upper() == "N":
+                idx = page_count - 1
+            else:
+                idx = int(p) - 1
+            if 0 <= idx < page_count:
+                out.add(idx)
+    return sorted(out)
+
+
+def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Convert PDF to GitHub-friendly Markdown")
+    parser.add_argument("input", help="input PDF filename")
+    parser.add_argument("-o", "--output", help="output markdown filename (defaults to input.md)")
+    parser.add_argument("-p", "--pages", help="pages to include, e.g. '1-3,5,N' where N is last page")
+    parser.add_argument("--no-images", dest="images", action="store_false", help="do not write or embed images")
+    parser.add_argument("--embed-images", dest="embed_images", action="store_true", help="embed images as base64 data URIs")
+    parser.add_argument("--dpi", type=int, default=150, help="dpi for rendering images (default: 150)")
+    args = parser.parse_args()
+
+    doc = pymupdf.open(args.input)
+    try:
+        page_count = doc.page_count
+    except Exception:
+        page_count = None
+
+    pages = None
+    if args.pages:
+        if page_count is None:
+            # open to get page count
+            with pymupdf.open(args.input) as tmpdoc:
+                page_count = tmpdoc.page_count
+        pages = _parse_pages_arg(args.pages, page_count)
+
+    output = args.output if args.output else os.path.splitext(args.input)[0] + ".md"
+
+    md = to_markdown(
+        args.input,
+        pages=pages,
+        write_images=args.images and not args.embed_images,
+        embed_images=args.embed_images,
+        dpi=args.dpi,
+    )
+
+    # md may be list (page_chunks=True) or string; ensure string
+    if isinstance(md, list):
+        text = "\n\n".join([p.get("text", "") for p in md])
+    else:
+        text = md
+
+    with open(output, "w", encoding="utf-8") as f:
+        f.write(text)
+
+    print(f"Wrote: {output}")
+
+
+if __name__ == "__main__":
+    main()
