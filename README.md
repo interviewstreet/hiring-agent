@@ -186,12 +186,11 @@ $ cp .env.example .env
 
 | Variable         | Values                                      | Description                                                            |
 | ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `LLM_PROVIDER`   | `ollama` or `gemini`                        | Chooses provider. Defaults to Ollama.                                  |
-| `DEFAULT_MODEL`  | for example `gemma4:latest` or `gemini-2.5-pro` | Model name passed to the provider.                                     |
-| `GEMINI_API_KEY` | string                                      | Required when `LLM_PROVIDER=gemini`.                                   |
+| `DEFAULT_MODEL`  | for example `gemma4:latest` or `gemini-2.5-pro` | Model to use; must exist in `providers.json` — the provider is inferred from which provider lists it. Defaults to `default_model` in `providers.json`. |
+| `GEMINI_API_KEY` | string                                      | Required when using a Gemini model.                                   |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
 
-Provider mapping lives in `prompt.py` and `models.py`. The `config.py` file has a single flag:
+Provider mapping lives in `providers.json` — each provider declares its `base_url`, an optional API-key env var, and per-model parameters; `config.py` loads it and resolves the provider for a model. `config.py` also has a flag:
 
 ```python
 # config.py
@@ -291,6 +290,7 @@ What happens:
 │       ├── skills.jinja
 │       ├── system_message.jinja
 │       └── work.jinja
+├── providers.json
 ├── pymupdf_rag.py
 ├── requirements.txt
 ├── score.py
@@ -303,16 +303,14 @@ What happens:
 
 ### Ollama
 
-- Set `LLM_PROVIDER=ollama`
-- Set `DEFAULT_MODEL` to any pulled model, for example `gemma4:latest`
-- The provider wrapper in `models.OllamaProvider` calls `ollama.chat`
+- Set `DEFAULT_MODEL` to any pulled model listed in `providers.json`, for example `gemma4:latest`
+- Requests go through `models.OpenAICompatibleProvider` against Ollama's OpenAI-compatible endpoint (`http://localhost:11434/v1`)
 
 ### Gemini
 
-- Set `LLM_PROVIDER=gemini`
-- Set `DEFAULT_MODEL` to a supported Gemini model, for example `gemini-2.0-flash`
+- Set `DEFAULT_MODEL` to a Gemini model listed in `providers.json`, for example `gemini-2.0-flash`
 - Provide `GEMINI_API_KEY`
-- The wrapper in `models.GeminiProvider` adapts responses to a unified format
+- The same `models.OpenAICompatibleProvider` wrapper is used, pointed at Gemini's OpenAI-compatible endpoint
 
 ---
 
