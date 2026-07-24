@@ -2,6 +2,8 @@
 
 **/*.pyc
 resume/*.pdf
+# ignores(PDFs, DOCX, TXT, extracted JSON, etc.)
+resume/**
 run/*.pdf
 test_*.py
 cache/
