@@ -36,7 +36,6 @@ CA 94129, USA, for further information.
 """
 
 import os
-import string
 from binascii import b2a_base64
 import pymupdf
 from pymupdf import mupdf

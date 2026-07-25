@@ -1,5 +1,5 @@
-from typing import List, Optional, Dict, Tuple, Any, Protocol, runtime_checkable
-from pydantic import BaseModel, Field, field_validator
+from typing import List, Optional, Dict, Any, Protocol, runtime_checkable
+from pydantic import BaseModel, Field
 
 
 @runtime_checkable
@@ -11,7 +11,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -285,7 +285,7 @@ class OpenAICompatibleProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         import requests
         import time
@@ -328,7 +328,7 @@ class OpenAICompatibleProvider:
 
             if response.status_code == 429 and attempt < MAX_RETRIES - 1:
                 retry_after = response.headers.get("Retry-After")
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
                 delay = float(retry_after) if retry_after else exp_delay
                 sleep_time = round(delay * random.uniform(0.8, 1.2), 2)
                 print(
@@ -342,7 +342,7 @@ class OpenAICompatibleProvider:
                 response.status_code in RETRYABLE_SERVER_ERRORS
                 and attempt < MAX_RETRIES - 1
             ):
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
                 sleep_time = round(exp_delay * random.uniform(0.8, 1.2), 2)
                 print(
                     f"[OpenAICompatibleProvider] Transient server error "

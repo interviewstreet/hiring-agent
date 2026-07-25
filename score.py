@@ -5,7 +5,7 @@ import json
 # Fix for Windows Console Unicode errors
 if sys.platform == "win32":
     try:
-        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stdout.reconfigure(encoding="utf-8")
     except AttributeError:
         pass
 
@@ -24,7 +24,7 @@ if sys.platform == "win32":
 from pdf import PDFHandler
 from github import fetch_and_display_github_info
 from models import JSONResume, EvaluationData
-from typing import List, Optional, Dict
+from typing import Optional
 from evaluator import ResumeEvaluator
 from pathlib import Path
 from prompt import DEFAULT_MODEL, MODEL_PARAMETERS

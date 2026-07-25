@@ -1,5 +1,4 @@
-from typing import Dict, List, Optional
-import pdb
+from typing import Dict, List
 from models import JSONResume
 
 

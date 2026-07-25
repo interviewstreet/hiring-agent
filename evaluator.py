@@ -1,10 +1,7 @@
-from typing import Dict, List, Optional, Tuple, Any
-from pydantic import BaseModel, Field, field_validator
-from models import JSONResume, EvaluationData
+from models import EvaluationData
 from llm_utils import initialize_llm_provider, extract_json_from_response
 import logging
 import json
-import re
 
 MAX_BONUS_POINTS = 20
 MIN_FINAL_SCORE = -20

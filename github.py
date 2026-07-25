@@ -6,7 +6,7 @@ import datetime
 import time
 from pathlib import Path
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 from models import GitHubProfile
 from pdf import logger
 from prompts.template_manager import TemplateManager
