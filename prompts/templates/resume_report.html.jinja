@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resume Report — {{ candidate_name }}</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --surface-2: #243044;
+      --surface-3: #2c3d54;
+      --border: #2f3f56;
+      --text: #e8eef7;
+      --muted: #9db0c9;
+      --accent: #1ba94c;
+      --accent-soft: rgba(27, 169, 76, 0.15);
+      --warn: #f5a524;
+      --danger: #ef4444;
+      --excellent: #1ba94c;
+      --good: #3b82f6;
+      --fair: #f5a524;
+      --needs-work: #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: linear-gradient(180deg, #0b1016 0%, var(--bg) 160px);
+      color: var(--text);
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-end;
+      margin-bottom: 1rem;
+    }
+
+    .btn {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 0.45rem 0.85rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn:hover { background: var(--surface-3); border-color: #4a6283; }
+
+    .hero {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1.5rem;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .hero h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.35rem; }
+    .hero .meta { color: var(--muted); font-size: 0.9rem; }
+    .hero .meta span { display: inline-block; margin-right: 1rem; margin-top: 0.15rem; }
+
+    .score-ring {
+      width: 120px; height: 120px; border-radius: 50%;
+      background: conic-gradient(var(--accent) {{ (final_score / base_max * 100)|round }}%, var(--surface-2) 0);
+      display: grid; place-items: center; position: relative;
+    }
+    .score-ring::after {
+      content: ""; position: absolute; inset: 9px; border-radius: 50%; background: var(--surface);
+    }
+    .score-ring .inner { position: relative; z-index: 1; text-align: center; }
+    .score-ring .value { font-size: 1.75rem; font-weight: 800; line-height: 1; }
+    .score-ring .label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .grade-badge {
+      display: inline-block; margin-top: 0.6rem; padding: 0.2rem 0.65rem;
+      border-radius: 999px; font-weight: 700; font-size: 0.85rem;
+      background: var(--accent-soft); color: var(--accent);
+    }
+
+    @media (max-width: 720px) { .hero { grid-template-columns: 1fr; } }
+
+    /* Accordion base */
+    details.accordion {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      margin-bottom: 0.75rem;
+      overflow: hidden;
+    }
+
+    details.accordion > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 1rem 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      font-weight: 600;
+      user-select: none;
+      transition: background 0.15s;
+    }
+
+    details.accordion > summary::-webkit-details-marker { display: none; }
+
+    details.accordion > summary:hover { background: rgba(255,255,255,0.02); }
+
+    details.accordion > summary .summary-left {
+      display: flex; align-items: center; gap: 0.65rem; min-width: 0;
+    }
+
+    details.accordion > summary .chevron {
+      width: 1.1rem; height: 1.1rem; flex-shrink: 0;
+      transition: transform 0.2s ease;
+      color: var(--muted);
+    }
+
+    details.accordion[open] > summary .chevron { transform: rotate(90deg); }
+
+    details.accordion > summary .summary-meta {
+      display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;
+    }
+
+    .accordion-body { padding: 0 1.1rem 1.1rem; }
+
+    details.accordion.level-2 {
+      background: var(--surface-2);
+      border-color: #364a63;
+      margin-top: 0.5rem;
+    }
+
+    details.accordion.level-2 > summary {
+      padding: 0.85rem 1rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    details.accordion.level-3 {
+      background: var(--surface-3);
+      border-color: #405572;
+    }
+
+    details.accordion.level-3 > summary {
+      padding: 0.75rem 0.9rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .badge-count {
+      font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.5rem;
+      border-radius: 999px; background: var(--surface-3); color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .grade {
+      font-weight: 800; font-size: 0.85rem; padding: 0.15rem 0.5rem; border-radius: 8px;
+    }
+    .grade.excellent { color: var(--excellent); background: rgba(27,169,76,0.12); }
+    .grade.good { color: var(--good); background: rgba(59,130,246,0.12); }
+    .grade.fair { color: var(--fair); background: rgba(245,165,36,0.12); }
+    .grade.needs-work { color: var(--needs-work); background: rgba(239,68,68,0.12); }
+
+    .pill {
+      font-size: 0.72rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 999px;
+      background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+    }
+
+    .category-mini-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.65rem;
+    }
+
+    .mini-stat {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.65rem 0.75rem;
+      text-align: center;
+    }
+    .mini-stat .label { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.2rem; }
+    .mini-stat .value { font-size: 1.1rem; font-weight: 700; }
+
+    .bar-track {
+      height: 6px; background: var(--surface-3); border-radius: 999px; overflow: hidden; margin: 0.5rem 0 0.35rem;
+    }
+    .bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #34d399); border-radius: 999px; }
+
+    .evidence { color: var(--muted); font-size: 0.88rem; margin-top: 0.35rem; line-height: 1.5; }
+
+    .point-block {
+      padding: 0.75rem 0;
+      border-top: 1px dashed var(--border);
+    }
+    .point-block:first-child { border-top: none; padding-top: 0.25rem; }
+
+    .point-text { font-size: 0.92rem; margin-bottom: 0.45rem; }
+    .point-meta { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.35rem; }
+    .point-comment { font-size: 0.88rem; color: #c9d7ea; }
+
+    ul.clean { list-style: none; }
+    ul.clean li {
+      padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem;
+    }
+    ul.clean li:last-child { border-bottom: none; }
+
+    .tag-ok { color: var(--excellent); }
+    .tag-warn { color: var(--warn); }
+
+    .hint { color: var(--muted); font-size: 0.85rem; margin-bottom: 0.75rem; }
+
+    .metric-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .metric-card h4 { font-size: 0.95rem; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+    .metric-range {
+      font-size: 0.72rem; font-weight: 700; color: var(--accent);
+      background: var(--accent-soft); padding: 0.1rem 0.45rem; border-radius: 6px;
+    }
+    .metric-formula { font-size: 0.82rem; color: var(--muted); font-family: Consolas, monospace; margin-bottom: 0.35rem; }
+    .metric-desc { font-size: 0.88rem; color: #c9d7ea; line-height: 1.5; }
+    .fairness-list { margin-top: 0.5rem; }
+    .fairness-list li { font-size: 0.88rem; color: var(--muted); margin-left: 1.1rem; margin-bottom: 0.35rem; }
+
+    footer {
+      margin-top: 1.5rem; text-align: center; color: var(--muted); font-size: 0.82rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="toolbar">
+      <button class="btn" type="button" id="expand-all">Expand all</button>
+      <button class="btn" type="button" id="collapse-all">Collapse all</button>
+    </div>
+
+    <header class="hero">
+      <div>
+        <h1>{{ candidate_name }}</h1>
+        <div class="meta">
+          <span>📄 {{ source_file }}</span>
+          <span>🕒 {{ generated_at }}</span>
+        </div>
+        {% if confidence %}
+        <div class="meta">
+          <span>📊 Confidence: {{ confidence.confidence_level }}
+            {% if confidence.runs > 1 %}({{ "%.1f"|format(confidence.mean_score) }} ± {{ "%.1f"|format(confidence.std_dev) }}){% endif %}
+          </span>
+        </div>
+        {% endif %}
+      </div>
+      <div style="text-align:center;">
+        <div class="score-ring">
+          <div class="inner">
+            <div class="value">{{ "%.0f"|format(final_score) }}</div>
+            <div class="label">Final / {{ base_max }}</div>
+          </div>
+        </div>
+        <div class="grade-badge">Grade {{ final_grade }}</div>
+        <div class="meta" style="margin-top:0.45rem;">Categories: {{ "%.0f"|format(category_total) }}/{{ base_max }}</div>
+      </div>
+    </header>
+
+    <details class="accordion" open>
+      <summary>
+        <span class="summary-left">
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+          How scoring works — metrics explained
+        </span>
+        <span class="summary-meta"><span class="badge-count">guide</span></span>
+      </summary>
+      <div class="accordion-body">
+        <p class="hint">This report uses the Hiring Agent rubric for a Software Intern role. Expand each group to understand what a metric means.</p>
+
+        <details class="accordion level-2" open>
+          <summary>
+            <span class="summary-left">
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+              Overall scores
+            </span>
+            <span class="summary-meta"><span class="badge-count">{{ metric_glossary.overall|length }} metrics</span></span>
+          </summary>
+          <div class="accordion-body">
+            {% for metric in metric_glossary.overall %}
+            <div class="metric-card">
+              <h4>{{ metric.name }} <span class="metric-range">{{ metric.range }}</span></h4>
+              {% if metric.formula %}<div class="metric-formula">{{ metric.formula }}</div>{% endif %}
+              <p class="metric-desc">{{ metric.description }}</p>
+            </div>
+            {% endfor %}
+          </div>
+        </details>
+
+        <details class="accordion level-2">
+          <summary>
+            <span class="summary-left">
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+              Rubric categories (100 pts base)
+            </span>
+            <span class="summary-meta"><span class="badge-count">{{ metric_glossary.categories|length }} categories</span></span>
+          </summary>
+          <div class="accordion-body">
+            {% for metric in metric_glossary.categories %}
+            <div class="metric-card">
+              <h4>{% if metric.icon %}{{ metric.icon }} {% endif %}{{ metric.name }} <span class="metric-range">{{ metric.range }}</span></h4>
+              <p class="metric-desc">{{ metric.description }}</p>
+            </div>
+            {% endfor %}
+          </div>
+        </details>
+
+        <details class="accordion level-2">
+          <summary>
+            <span class="summary-left">
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+              Bonus & deductions
+            </span>
+          </summary>
+          <div class="accordion-body">
+            {% for metric in metric_glossary.adjustments %}
+            <div class="metric-card">
+              <h4>{{ metric.name }} <span class="metric-range">{{ metric.range }}</span></h4>
+              <p class="metric-desc">{{ metric.description }}</p>
+            </div>
+            {% endfor %}
+          </div>
+        </details>
+
+        <details class="accordion level-2">
+          <summary>
+            <span class="summary-left">
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+              Reading this report
+            </span>
+            <span class="summary-meta"><span class="badge-count">{{ metric_glossary.report_sections|length }} notes</span></span>
+          </summary>
+          <div class="accordion-body">
+            {% for metric in metric_glossary.report_sections %}
+            <div class="metric-card">
+              <h4>{{ metric.name }} <span class="metric-range">{{ metric.range }}</span></h4>
+              <p class="metric-desc">{{ metric.description }}</p>
+            </div>
+            {% endfor %}
+          </div>
+        </details>
+
+        <details class="accordion level-2">
+          <summary>
+            <span class="summary-left">
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+              Fairness rules
+            </span>
+          </summary>
+          <div class="accordion-body">
+            <ul class="fairness-list">
+              {% for rule in metric_glossary.fairness %}
+              <li>{{ rule }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    {% if narrative_summary %}
+    <details class="accordion" open>
+      <summary>
+        <span class="summary-left">
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+          Executive summary
+        </span>
+      </summary>
+      <div class="accordion-body">
+        <p class="evidence">{{ narrative_summary }}</p>
+      </div>
+    </details>
+    {% endif %}
+
+    <details class="accordion" open>
+      <summary>
+        <span class="summary-left">
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+          Score overview
+        </span>
+        <span class="summary-meta">
+          <span class="grade {{ final_tier }}">{{ final_grade }}</span>
+          <span class="badge-count">{{ "%.0f"|format(final_score) }}/{{ base_max }}</span>
+        </span>
+      </summary>
+      <div class="accordion-body">
+        <div class="category-mini-grid">
+          {% for cat in categories %}
+          <div class="mini-stat">
+            <div class="label">{{ cat.icon }} {{ cat.label }}</div>
+            <div class="value">{{ "%.0f"|format(cat.score) }}/{{ cat.max }}</div>
+            <div class="bar-track"><div class="bar-fill" style="width: {{ cat.pct }}%;"></div></div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </details>
+
+    <details class="accordion">
+      <summary>
+        <span class="summary-left">
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+          Rubric breakdown
+        </span>
+        <span class="summary-meta"><span class="badge-count">{{ categories|length }} categories</span></span>
+      </summary>
+      <div class="accordion-body">
+        {% for cat in categories %}
+        <details class="accordion level-2">
+          <summary>
+            <span class="summary-left">
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+              {{ cat.icon }} {{ cat.label }}
+            </span>
+            <span class="summary-meta">
+              <span class="grade {{ cat.tier }}">{{ cat.grade }}</span>
+              <span class="badge-count">{{ "%.0f"|format(cat.score) }}/{{ cat.max }}</span>
+            </span>
+          </summary>
+          <div class="accordion-body">
+            <div class="bar-track"><div class="bar-fill" style="width: {{ cat.pct }}%;"></div></div>
+            <p class="evidence">{{ cat.evidence }}</p>
+          </div>
+        </details>
+        {% endfor %}
+      </div>
+    </details>
+
+    <details class="accordion">
+      <summary>
+        <span class="summary-left">
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+          Bonus & deductions
+        </span>
+        <span class="summary-meta">
+          <span class="badge-count">+{{ "%.0f"|format(bonus.total) }}</span>
+          {% if deductions.total > 0 %}<span class="badge-count">−{{ "%.0f"|format(deductions.total) }}</span>{% endif %}
+        </span>
+      </summary>
+      <div class="accordion-body">
+        <details class="accordion level-2" open>
+          <summary>
+            <span class="summary-left">
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+              ⭐ Bonus points
+            </span>
+            <span class="summary-meta">
+              <span class="grade good">{{ bonus.grade }}</span>
+              <span class="badge-count">{{ "%.0f"|format(bonus.total) }}/20</span>
+            </span>
+          </summary>
+          <div class="accordion-body"><p class="evidence">{{ bonus.breakdown }}</p></div>
+        </details>
+        <details class="accordion level-2">
+          <summary>
+            <span class="summary-left">
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+              ⚠️ Deductions
+            </span>
+            <span class="summary-meta">
+              <span class="badge-count">{% if deductions.total > 0 %}−{{ "%.0f"|format(deductions.total) }}{% else %}none{% endif %}</span>
+            </span>
+          </summary>
+          <div class="accordion-body"><p class="evidence">{{ deductions.reasons or "No deductions applied." }}</p></div>
+        </details>
+      </div>
+    </details>
+
+    <details class="accordion">
+      <summary>
+        <span class="summary-left">
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+          Strengths & improvements
+        </span>
+        <span class="summary-meta"><span class="badge-count">{{ strengths|length + improvements|length }} notes</span></span>
+      </summary>
+      <div class="accordion-body">
+        <details class="accordion level-2" open>
+          <summary>
+            <span class="summary-left">
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+              ✅ Key strengths
+            </span>
+            <span class="summary-meta"><span class="badge-count">{{ strengths|length }}</span></span>
+          </summary>
+          <div class="accordion-body">
+            <ul class="clean">{% for s in strengths %}<li>{{ s }}</li>{% endfor %}</ul>
+          </div>
+        </details>
+        <details class="accordion level-2">
+          <summary>
+            <span class="summary-left">
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+              🔧 Areas for improvement
+            </span>
+            <span class="summary-meta"><span class="badge-count">{{ improvements|length }}</span></span>
+          </summary>
+          <div class="accordion-body">
+            <ul class="clean">{% for i in improvements %}<li>{{ i }}</li>{% endfor %}</ul>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <details class="accordion">
+      <summary>
+        <span class="summary-left">
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+          Resume review — point by point
+        </span>
+        <span class="summary-meta"><span class="badge-count">{{ resume_sections|length }} sections</span></span>
+      </summary>
+      <div class="accordion-body">
+        <p class="hint">
+          Expand each section to see job/project entries and bullet-level grades.
+          {% if not llm_commentary_enabled %}Enable <code>ENABLE_REPORT_LLM=true</code> for AI commentary per bullet.{% endif %}
+        </p>
+
+        {% for section in resume_sections %}
+        <details class="accordion level-2">
+          <summary>
+            <span class="summary-left">
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+              {{ section.title }}
+            </span>
+            <span class="summary-meta">
+              {% if section.overall_max > 0 %}
+              <span class="grade {{ section.overall_tier }}">{{ section.overall_grade }}</span>
+              <span class="badge-count">{{ "%.0f"|format(section.overall_score) }}/{{ section.overall_max }}</span>
+              {% else %}
+              <span class="pill">{{ section.overall_grade }}</span>
+              {% endif %}
+              <span class="badge-count">{{ section.entries|length }} entries</span>
+            </span>
+          </summary>
+          <div class="accordion-body">
+            <p class="evidence" style="margin-bottom:0.75rem;">{{ section.section_comment }}</p>
+
+            {% for item in section.entries %}
+            <details class="accordion level-3">
+              <summary>
+                <span class="summary-left">
+                  <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+                  <span>
+                    <strong>{{ item.title }}</strong>
+                    {% if item.subtitle %}<span style="color:var(--muted); font-weight:400;"> · {{ item.subtitle }}</span>{% endif %}
+                  </span>
+                </span>
+                <span class="summary-meta"><span class="badge-count">{{ item.points|length }} points</span></span>
+              </summary>
+              <div class="accordion-body">
+                {% if item.dates %}<p class="evidence" style="margin-bottom:0.5rem;">{{ item.dates }}</p>{% endif %}
+
+                {% for point in item.points %}
+                <details class="accordion level-3">
+                  <summary>
+                    <span class="summary-left">
+                      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+                      <span style="font-weight:400; color:#c9d7ea;">{{ point.point_text[:120] }}{% if point.point_text|length > 120 %}…{% endif %}</span>
+                    </span>
+                    <span class="summary-meta">
+                      <span class="grade {{ point.tier }}">{{ point.grade }}</span>
+                    </span>
+                  </summary>
+                  <div class="accordion-body">
+                    <p class="point-text">{{ point.point_text }}</p>
+                    <div class="point-meta">
+                      {% if point.max_score > 0 and point.score > 0 %}
+                      <span class="pill">{{ "%.1f"|format(point.score) }}/{{ "%.0f"|format(point.max_score) }}</span>
+                      {% endif %}
+                      <span class="pill">{{ point.rubric }}</span>
+                    </div>
+                    <p class="point-comment">{{ point.comment }}</p>
+                  </div>
+                </details>
+                {% endfor %}
+              </div>
+            </details>
+            {% endfor %}
+          </div>
+        </details>
+        {% endfor %}
+      </div>
+    </details>
+
+    <details class="accordion">
+      <summary>
+        <span class="summary-left">
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+          Writing quality
+        </span>
+        <span class="summary-meta">
+          <span class="badge-count">{{ writing_quality.spelling_issues|length }} spelling</span>
+          {% if writing_quality.grammar_issues %}<span class="badge-count">{{ writing_quality.grammar_issues|length }} grammar</span>{% endif %}
+        </span>
+      </summary>
+      <div class="accordion-body">
+        {% if writing_quality.spelling_issues %}
+        <details class="accordion level-2">
+          <summary>
+            <span class="summary-left">
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+              Spelling issues
+            </span>
+            <span class="summary-meta"><span class="badge-count">{{ writing_quality.spelling_issues|length }}</span></span>
+          </summary>
+          <div class="accordion-body">
+            <ul class="clean">
+              {% for issue in writing_quality.spelling_issues %}
+              <li>"{{ issue.word }}"{% if issue.suggestion %} → "{{ issue.suggestion }}"{% endif %}
+                {% if issue.context %}<span class="evidence" style="display:block; margin-top:0.2rem;">{{ issue.context[:100] }}</span>{% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </details>
+        {% else %}
+        <p class="evidence">No spelling issues flagged.</p>
+        {% endif %}
+
+        {% if writing_quality.grammar_issues %}
+        <details class="accordion level-2">
+          <summary>
+            <span class="summary-left">
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+              Grammar
+            </span>
+            <span class="summary-meta"><span class="badge-count">{{ writing_quality.grammar_issues|length }}</span></span>
+          </summary>
+          <div class="accordion-body">
+            <ul class="clean">{% for g in writing_quality.grammar_issues %}<li>{{ g }}</li>{% endfor %}</ul>
+          </div>
+        </details>
+        {% endif %}
+
+        {% if writing_quality.clarity_suggestions %}
+        <details class="accordion level-2">
+          <summary>
+            <span class="summary-left">
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+              Clarity suggestions
+            </span>
+            <span class="summary-meta"><span class="badge-count">{{ writing_quality.clarity_suggestions|length }}</span></span>
+          </summary>
+          <div class="accordion-body">
+            <ul class="clean">{% for c in writing_quality.clarity_suggestions %}<li>{{ c }}</li>{% endfor %}</ul>
+          </div>
+        </details>
+        {% endif %}
+      </div>
+    </details>
+
+    <details class="accordion">
+      <summary>
+        <span class="summary-left">
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+          Checks & signals
+        </span>
+        <span class="summary-meta">
+          {% if pdf_integrity and pdf_integrity.passed %}
+          <span class="pill tag-ok">PDF OK</span>
+          {% elif pdf_integrity %}
+          <span class="pill tag-warn">PDF issues</span>
+          {% endif %}
+        </span>
+      </summary>
+      <div class="accordion-body">
+        <details class="accordion level-2" open>
+          <summary>
+            <span class="summary-left">
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+              🔒 PDF integrity
+            </span>
+            <span class="summary-meta">
+              {% if pdf_integrity and pdf_integrity.passed %}<span class="tag-ok">Passed</span>
+              {% elif pdf_integrity %}<span class="tag-warn">{{ pdf_integrity.issues|length }} issues</span>
+              {% else %}<span class="pill">Not run</span>{% endif %}
+            </span>
+          </summary>
+          <div class="accordion-body">
+            {% if pdf_integrity and pdf_integrity.issues %}
+            <ul class="clean">
+              {% for issue in pdf_integrity.issues %}
+              <li>[{{ issue.severity }}] {{ issue.issue_type }} (p{{ issue.page }}): {{ issue.snippet }}</li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <p class="evidence">No suspicious PDF content detected.</p>
+            {% endif %}
+          </div>
+        </details>
+
+        <details class="accordion level-2">
+          <summary>
+            <span class="summary-left">
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+              GitHub & blog signals
+            </span>
+          </summary>
+          <div class="accordion-body">
+            <ul class="clean">
+              <li>GitHub repos: {{ github_summary.repos }} · followers: {{ github_summary.followers }} · projects analyzed: {{ github_summary.project_count }}</li>
+              <li>Blog posts: {{ blog_summary.count }}{% if blog_summary.score %} (avg {{ blog_summary.score }}/10){% endif %}</li>
+              {% if blog_summary.details %}<li class="evidence">{{ blog_summary.details }}</li>{% endif %}
+            </ul>
+          </div>
+        </details>
+
+        {% if adjustments %}
+        <details class="accordion level-2">
+          <summary>
+            <span class="summary-left">
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+              Score adjustments
+            </span>
+            <span class="summary-meta"><span class="badge-count">{{ adjustments|length }}</span></span>
+          </summary>
+          <div class="accordion-body">
+            <ul class="clean">{% for adj in adjustments %}<li>{{ adj }}</li>{% endfor %}</ul>
+          </div>
+        </details>
+        {% endif %}
+      </div>
+    </details>
+
+    <footer>Generated by Hiring Agent · Explainable resume scoring pipeline</footer>
+  </div>
+
+  <script>
+    const allDetails = () => document.querySelectorAll("details.accordion");
+    document.getElementById("expand-all").addEventListener("click", () => {
+      allDetails().forEach(d => d.open = true);
+    });
+    document.getElementById("collapse-all").addEventListener("click", () => {
+      allDetails().forEach(d => d.open = false);
+      document.querySelector("details.accordion[open]")?.setAttribute("open", "");
+    });
+  </script>
+</body>
+</html>

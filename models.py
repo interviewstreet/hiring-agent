@@ -241,6 +241,52 @@ class EvaluationData(BaseModel):
     areas_for_improvement: List[str] = Field(min_items=1, max_items=5)
 
 
+class PdfIntegrityIssue(BaseModel):
+    page: int
+    issue_type: str
+    snippet: str
+    severity: str
+
+
+class PdfIntegrityReport(BaseModel):
+    issues: List[PdfIntegrityIssue] = Field(default_factory=list)
+    raw_char_count: int = 0
+    visible_char_count: int = 0
+    passed: bool = True
+
+
+class SpellingIssue(BaseModel):
+    word: str
+    suggestion: Optional[str] = None
+    context: str
+
+
+class WritingQualityLLMResponse(BaseModel):
+    grammar_issues: List[str] = Field(default_factory=list)
+    clarity_suggestions: List[str] = Field(default_factory=list)
+
+
+class WritingQualityReport(BaseModel):
+    spelling_issues: List[SpellingIssue] = Field(default_factory=list)
+    grammar_issues: List[str] = Field(default_factory=list)
+    clarity_suggestions: List[str] = Field(default_factory=list)
+
+
+class ReportPointComment(BaseModel):
+    section: str = Field(description="work, project, skills, github, or award")
+    item_title: str = Field(description="Company name, project name, etc.")
+    point_text: str = Field(description="The resume bullet or point being reviewed")
+    grade: str = Field(description="Letter grade A+ through F")
+    score: float = Field(ge=0, le=10, description="Point score out of 10")
+    max_score: float = Field(default=10, gt=0)
+    comment: str = Field(min_length=1, description="Specific feedback on this point")
+
+
+class ReportCommentary(BaseModel):
+    summary: str = Field(description="One-paragraph overall narrative")
+    points: List[ReportPointComment] = Field(default_factory=list)
+
+
 class GitHubProfile(BaseModel):
     """Pydantic model for GitHub profile data."""
 

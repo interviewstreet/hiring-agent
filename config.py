@@ -13,6 +13,37 @@ DEVELOPMENT_MODE = True
 # Load .env before any os.getenv below, so values apply regardless of import order.
 load_dotenv(Path(__file__).parent / ".env")
 
+
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+
+# Phase 0 — PDF integrity
+ENABLE_PDF_INTEGRITY = _env_bool("ENABLE_PDF_INTEGRITY", True)
+BLOCK_ON_PDF_INTEGRITY_FAIL = _env_bool("BLOCK_ON_PDF_INTEGRITY_FAIL", False)
+
+# Phase 1 — Score validation
+ENSEMBLE_RUNS = max(1, int(os.getenv("ENSEMBLE_RUNS", "1")))
+
+# Phase 2 — Writing quality
+ENABLE_WRITING_QUALITY = _env_bool("ENABLE_WRITING_QUALITY", True)
+WRITING_QUALITY_USE_LLM = _env_bool("WRITING_QUALITY_USE_LLM", False)
+
+# Phase 3 — Blog enrichment
+ENABLE_BLOG_ENRICHMENT = _env_bool("ENABLE_BLOG_ENRICHMENT", True)
+ENABLE_BLOG_LLM_SCORING = _env_bool("ENABLE_BLOG_LLM_SCORING", False)
+
+# Phase 4 — Batch ranking
+BATCH_CUTOFF_PERCENTILE = float(os.getenv("BATCH_CUTOFF_PERCENTILE", "15"))
+
+# Web report
+ENABLE_WEB_REPORT = _env_bool("ENABLE_WEB_REPORT", True)
+WEB_REPORT_OUTPUT_DIR = os.getenv("WEB_REPORT_OUTPUT_DIR", "reports")
+ENABLE_REPORT_LLM = _env_bool("ENABLE_REPORT_LLM", False)
+
 _CONFIG_PATH = Path(__file__).parent / "providers.json"
 
 with open(_CONFIG_PATH) as _f:

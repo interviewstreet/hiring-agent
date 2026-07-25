@@ -5,6 +5,7 @@ resume/*.pdf
 run/*.pdf
 test_*.py
 cache/
+reports/
 resume_evaluations.csv
 greenhouse_resumes/*
 

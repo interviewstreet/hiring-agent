@@ -6,3 +6,4 @@ Jinja2==3.1.6
 google-generativeai==0.4.0
 python-dotenv==1.2.2
 black==25.9.0
+pyspellchecker==0.8.1

@@ -1,14 +1,14 @@
 from typing import Dict, List, Optional, Tuple, Any
-from pydantic import BaseModel, Field, field_validator
 from models import JSONResume, EvaluationData
 from llm_utils import initialize_llm_provider, extract_json_from_response
+from score_validation import (
+    ValidatedEvaluation,
+    ensemble_confidence,
+    validate_evaluation,
+)
 import logging
 import json
 import re
-
-MAX_BONUS_POINTS = 20
-MIN_FINAL_SCORE = -20
-MAX_FINAL_SCORE = 120
 
 from prompt import (
     DEFAULT_MODEL,
@@ -87,3 +87,23 @@ class ResumeEvaluator:
         except Exception as e:
             logger.error(f"Error evaluating resume: {str(e)}")
             raise
+
+    def evaluate_resume_validated(
+        self, resume_text: str, ensemble_runs: int = 1
+    ) -> ValidatedEvaluation:
+        runs = max(1, ensemble_runs)
+        if runs == 1:
+            return validate_evaluation(self.evaluate_resume(resume_text))
+
+        final_scores = []
+        primary: Optional[ValidatedEvaluation] = None
+        for _ in range(runs):
+            validated = validate_evaluation(self.evaluate_resume(resume_text))
+            final_scores.append(validated.final_score)
+            if primary is None:
+                primary = validated
+
+        confidence = ensemble_confidence(final_scores)
+        assert primary is not None
+        primary.confidence = confidence
+        return primary

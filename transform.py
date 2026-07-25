@@ -495,15 +495,26 @@ def fetch_profile(profiles, network_names, prefix):
 
 
 def transform_evaluation_response(
-    file_name=None, resume_data=None, github_data=None, evaluation=None
+    file_name=None,
+    resume_data=None,
+    github_data=None,
+    evaluation=None,
+    validated=None,
+    writing_quality=None,
+    blog_data=None,
+    pdf_integrity=None,
 ):
     """
-    Transform the three inputs (resume_data, github_data, evaluation) into the most important columns as a CSV row.
+    Transform inputs into the most important columns as a CSV row.
 
     Args:
         resume_data: JSONResume object containing parsed resume data
         github_data: dict containing GitHub profile data
         evaluation: EvaluationData object containing evaluation results
+        validated: ValidatedEvaluation with normalized final_score
+        writing_quality: WritingQualityReport (optional)
+        blog_data: dict with blog metadata (optional)
+        pdf_integrity: PdfIntegrityReport (optional)
 
     Returns:
         dict: Dictionary with the most important columns for CSV output
@@ -686,21 +697,20 @@ def transform_evaluation_response(
         csv_row["technical_skills_score"] = scores.technical_skills.score
         csv_row["technical_skills_max"] = scores.technical_skills.max
 
-        total_score = (
-            scores.open_source.score
-            + scores.self_projects.score
-            + scores.production.score
-            + scores.technical_skills.score
-        )
-        total_max = (
+        from score_validation import compute_category_total, compute_final_score
+
+        csv_row["total_score"] = compute_category_total(evaluation)
+        csv_row["total_max"] = (
             scores.open_source.max
             + scores.self_projects.max
             + scores.production.max
             + scores.technical_skills.max
         )
-
-        csv_row["total_score"] = total_score
-        csv_row["total_max"] = total_max
+        csv_row["final_score"] = (
+            validated.final_score
+            if validated is not None
+            else compute_final_score(evaluation)
+        )
     else:
         csv_row["open_source_score"] = "N/A"
         csv_row["open_source_max"] = "N/A"
@@ -712,6 +722,55 @@ def transform_evaluation_response(
         csv_row["technical_skills_max"] = "N/A"
         csv_row["total_score"] = "N/A"
         csv_row["total_max"] = "N/A"
+        csv_row["final_score"] = "N/A"
+
+    if validated and validated.confidence:
+        confidence = validated.confidence
+        csv_row["score_std_dev"] = confidence.std_dev
+        csv_row["confidence_level"] = confidence.confidence_level
+        csv_row["unstable_categories"] = "; ".join(confidence.unstable_categories)
+    else:
+        csv_row["score_std_dev"] = "N/A"
+        csv_row["confidence_level"] = "N/A"
+        csv_row["unstable_categories"] = ""
+
+    csv_row["score_adjustments"] = (
+        "; ".join(validated.adjustments) if validated and validated.adjustments else ""
+    )
+
+    if writing_quality:
+        csv_row["spelling_issue_count"] = len(writing_quality.spelling_issues)
+        csv_row["spelling_issues"] = "; ".join(
+            f"{issue.word}->{issue.suggestion or '?'}" for issue in writing_quality.spelling_issues
+        )
+        csv_row["grammar_issues"] = "; ".join(writing_quality.grammar_issues)
+        csv_row["clarity_suggestions"] = "; ".join(writing_quality.clarity_suggestions)
+    else:
+        csv_row["spelling_issue_count"] = 0
+        csv_row["spelling_issues"] = ""
+        csv_row["grammar_issues"] = ""
+        csv_row["clarity_suggestions"] = ""
+
+    if blog_data:
+        csv_row["blog_count"] = blog_data.get("total_blogs", 0)
+        csv_row["blog_score"] = blog_data.get("blog_score", 0)
+        blogs = blog_data.get("blogs", [])
+        csv_row["blog_urls"] = "; ".join(
+            blog.get("url", "") for blog in blogs if blog.get("url")
+        )
+    else:
+        csv_row["blog_count"] = 0
+        csv_row["blog_score"] = 0
+        csv_row["blog_urls"] = ""
+
+    if pdf_integrity:
+        csv_row["pdf_integrity_passed"] = pdf_integrity.passed
+        csv_row["pdf_integrity_issues"] = "; ".join(
+            f"{issue.issue_type}@p{issue.page}" for issue in pdf_integrity.issues
+        )
+    else:
+        csv_row["pdf_integrity_passed"] = "N/A"
+        csv_row["pdf_integrity_issues"] = ""
 
     # Extract bonus points and deductions
     if evaluation and hasattr(evaluation, "bonus_points"):
