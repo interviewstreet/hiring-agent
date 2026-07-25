@@ -1,17 +1,6 @@
 import os
 import sys
 import json
-
-# Fix for Windows Console Unicode errors
-if sys.platform == "win32":
-    try:
-        sys.stdout.reconfigure(encoding='utf-8')
-    except AttributeError:
-        pass
-
-# Fix for Python 3.14 Protobuf TypeError
-os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
-
 import logging
 import csv
 
@@ -35,6 +24,7 @@ from transform import (
     convert_blog_data_to_text,
 )
 from config import DEVELOPMENT_MODE
+from scoring import calculate_total_score
 
 logger = logging.getLogger(__name__)
 
@@ -56,34 +46,18 @@ def print_evaluation_results(
         print("❌ No evaluation data available")
         return
 
-    # Calculate overall score
-    total_score = 0
-    max_score = 0
+    total_score, max_score, capped_scores, capped_at_maximum = calculate_total_score(
+        evaluation
+    )
 
-    if hasattr(evaluation, "scores") and evaluation.scores:
-        for category_name, category_data in evaluation.scores.model_dump().items():
-            category_score = min(category_data["score"], category_data["max"])
-            total_score += category_score
-            max_score += category_data["max"]
+    for category_name, category_data in evaluation.scores.model_dump().items():
+        category_score = capped_scores[category_name]
+        if category_score < category_data["score"]:
+            print(
+                f"⚠️  Warning: {category_name} score capped from {category_data['score']} to {category_score} (max: {category_data['max']})"
+            )
 
-            # Log warning if score was capped
-            if category_score < category_data["score"]:
-                print(
-                    f"⚠️  Warning: {category_name} score capped from {category_data['score']} to {category_score} (max: {category_data['max']})"
-                )
-
-    # Add bonus points
-    if hasattr(evaluation, "bonus_points") and evaluation.bonus_points:
-        total_score += evaluation.bonus_points.total
-
-    # Subtract deductions
-    if hasattr(evaluation, "deductions") and evaluation.deductions:
-        total_score -= evaluation.deductions.total
-
-    # Ensure total score doesn't exceed maximum possible score
-    max_possible_score = max_score + 20  # 120 (100 categories + 20 bonus)
-    if total_score > max_possible_score:
-        total_score = max_possible_score
+    if capped_at_maximum:
         print(f"⚠️  Warning: Total score capped at maximum possible value")
 
     # Overall Score
