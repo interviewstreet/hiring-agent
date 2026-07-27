@@ -902,6 +902,27 @@ def convert_github_data_to_text(github_data: dict) -> str:
                 github_text += f"   Language: {details.get('language', 'N/A')}\n"
             github_text += "\n"
 
+    if github_data.get("external_contributions"):
+        external_contributions = github_data["external_contributions"]
+        total_merged_prs = sum(
+            repo.get("merged_pr_count", 0) for repo in external_contributions
+        )
+        github_text += (
+            f"\nExternal Open Source Contributions "
+            f"({total_merged_prs} merged PRs across {len(external_contributions)} "
+            f"repositories NOT owned by this candidate):\n"
+        )
+        for repo in external_contributions:
+            github_text += (
+                f"- {repo.get('repo', 'N/A')}: "
+                f"{repo.get('merged_pr_count', 0)} merged PR(s)\n"
+            )
+            for pr in repo.get("pull_requests", [])[:5]:
+                github_text += (
+                    f"   • {pr.get('title', 'N/A')} "
+                    f"(merged {pr.get('merged_at', 'N/A')})\n"
+                )
+
     return github_text
 
 
