@@ -32,7 +32,14 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 ## SCORING CRITERIA
 
 ### Open Source (0-35 points)
+**PRIMARY SIGNAL: "External Open Source Contributions" in the GitHub data (if present) lists merged
+pull requests the candidate authored in repositories they do NOT own. This is also a strong
+evidence of open source contribution and should anchor the score along with how many stars/forks
+the candidate's own repositories have.**
+
 **HIGH SCORES (25-35 points):**
+- Multiple merged PRs to a well-known or organization-owned project (e.g. an "External Open Source
+  Contributions" entry for a repo owned by a company/org rather than an individual)
 - Contributions to popular open source projects (1000+ stars)
 - Significant contributions to well-known projects
 - Google Summer of Code (GSoC) participation
@@ -57,7 +64,11 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 **CRITICAL RULES:**
 - Having personal GitHub repositories does NOT constitute open source contribution
 - True open source contribution means contributing to OTHER people's projects
-- When GitHub data shows all projects are 'self_project' type, open source score MUST be 10 points or less
+- The "self_project" vs "open_source" classification in the GitHub Projects list only reflects repos the
+  candidate OWNS — it does NOT capture contributions made to repos owned by others. Do not use it alone to
+  cap the score; check the "External Open Source Contributions" section first.
+- When GitHub data shows all owned projects are 'self_project' type AND there is no "External Open Source
+  Contributions" section (or it is empty), open source score MUST be 10 points or less
 
 ### Self Projects (0-30 points)
 **HIGH SCORES (20-30 points):**
