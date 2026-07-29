@@ -290,7 +290,7 @@ class PDFHandler:
                 logger.warning(f"🔁 Retrying {section_name} section extraction")
                 section_data = self._extract_section_data(text_content, section_name)
 
-            if section_data:
+            if section_data is not None:
                 complete_resume.update(section_data)
                 logger.debug(f"✅ Successfully extracted {section_name} section")
             elif section_data is not None:
