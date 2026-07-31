@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hiring-agent-app
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-gemma3:4b}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - DEVELOPMENT_MODE=${DEVELOPMENT_MODE:-False}
+    volumes:
+      - .:/app
+      - ./cache:/app/cache
+    depends_on:
+      - ollama
+    networks:
+      - hiring-network
+    stdin_open: true
+    tty: true
+    # Override the default command for interactive development
+    command: /bin/bash
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: hiring-agent-ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - hiring-network
+    # Pull and run the default model on startup
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        ollama serve &
+        sleep 10
+        ollama pull ${DEFAULT_MODEL:-gemma3:4b}
+        wait
+
+networks:
+  hiring-network:
+    driver: bridge
+
+volumes:
+  ollama_data:
