@@ -1,0 +1,38 @@
+services:
+  # Main application (CLI tool)
+  app:
+    build: .
+    container_name: hiring-agent
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data  # Persist data if needed
+      - ./resumes:/app/resumes  # Mount resumes directory for evaluation
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    # Support interactive mode
+    stdin_open: true
+    tty: true
+    # Default command (shows help)
+    command: ["python", "evaluator.py", "--help"]
+
+  # Ollama service for local LLM
+  ollama:
+    image: ollama/ollama:latest
+    container_name: hiring-agent-ollama
+    ports:
+      - "11434:11434"  # Ollama API port
+    volumes:
+      - ollama_data:/root/.ollama
+    # Pull a default model on startup
+    command: >
+      sh -c "ollama serve &
+       sleep 5 &&
+       ollama pull llama3 ||
+       true &&
+       wait"
+
+volumes:
+  ollama_data:
