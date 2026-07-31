@@ -43,6 +43,8 @@ class TemplateManager:
             "awards": "awards.jinja",
             "system_message": "system_message.jinja",
             "github_project_selection": "github_project_selection.jinja",
+            "resume_rewrite": "resume_rewrite.jinja",
+            "rewrite_system_message": "rewrite_system_message.jinja",
         }
 
         for section_name, filename in template_files.items():
@@ -94,3 +96,21 @@ class TemplateManager:
         loaded from the role definition rather than the shared templates dir.
         """
         return self.env.from_string(source).render(**kwargs)
+
+    def render_template_by_name(self, template_key: str, **kwargs) -> Optional[str]:
+        """Render a registered template by its key, with arbitrary variables.
+
+        Unlike ``render_template``, the template key is not conflated with a
+        ``section_name`` template variable, so templates may receive their own
+        ``section_name`` (or any other) variable.
+        """
+        template = self._templates.get(template_key)
+        if template is None:
+            print(f"❌ Template not found for: {template_key}")
+            print(f"Available sections: {self.get_available_sections()}")
+            return None
+        try:
+            return template.render(**kwargs)
+        except Exception as e:
+            print(f"❌ Error rendering template {template_key}: {e}")
+            return None

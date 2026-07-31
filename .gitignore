@@ -7,6 +7,8 @@ test_*.py
 cache/
 resume_evaluations.csv
 resume_evaluations_*.csv
+resume_revamped_*.json
+resume_revamped_*.md
 greenhouse_resumes/*
 
 # Byte-compiled / optimized / DLL files
