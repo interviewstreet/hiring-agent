@@ -74,7 +74,12 @@ class ResumeEvaluator:
 
             response_text = response["message"]["content"]
             response_text = extract_json_from_response(response_text)
-            logger.error(f"🔤 Prompt response: {response_text}")
+            
+            if response_text is None:
+                logger.error("❌ Failed to extract valid JSON from LLM response")
+                raise ValueError("Invalid JSON response from LLM")
+            
+            logger.debug(f"🔤 Prompt response: {response_text}")
 
             evaluation_dict = json.loads(response_text)
             evaluation_data = self.evaluation_model(**evaluation_dict)
