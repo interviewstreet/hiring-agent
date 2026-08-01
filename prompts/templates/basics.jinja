@@ -33,12 +33,25 @@ Return ONLY a JSON object with this structure:
 **CRITICAL**: For profiles section:
 - ONLY extract URLs that are EXPLICITLY present in the resume markdown
 - Look for URLs in markdown format [text](url) or plain URLs
+- Determine both the network and username from the URL itself. Do NOT rely on the visible markdown link text.
+- If the URL contains "github.com/", set "network": "GitHub".
+- If the URL contains "linkedin.com/in/" or "linkedin.com/company/", set "network": "LinkedIn".
+- If the URL contains "gitlab.com/", set "network": "GitLab".
+- If the URL contains "leetcode.com/", set "network": "LeetCode".
+- If the URL contains "stackoverflow.com/", set "network": "Stack Overflow".
+- If the URL contains "github.io" or is a personal domain, treat it as a Portfolio website.
+- Extract the username directly from the URL whenever possible (for example, https://github.com/580dhruv → username = "580dhruv").
+- Markdown links may have arbitrary display text such as a person's first name, last name, icon, emoji, or other unrelated text. Ignore the display text and extract the network and username from the URL itself.
+- Determine the network from the URL domain whenever it is explicitly identifiable, even if the visible text does not mention the platform.
+- ALWAYS inspect the URL before deciding whether to include it in the profiles array.
 - DO NOT create any URLs that are not in the original resume
 - DO NOT add generic platform URLs like "https://github.com" or "https://linkedin.com" unless they are actually present in the resume
 - If no URLs are found in the resume, return an empty profiles array: "profiles": []
-- If a URL is present but you cannot determine the network or username, still include it with the available information
-- If the URL is of the format github.io or personal domain, mark the network as "Portfolio"
+{# - If a URL is present but you cannot determine the network or username, still include it with the available information #}
 - If there is any link at the header of the resume or Portfolio link, add that as url in the basics
+- Markdown links may have arbitrary display text such as a person's first name, last name, icon, or emoji. Ignore the display text completely and extract the profile information from the URL itself.
+- If a URL is explicitly present, ALWAYS include it in the profiles array.
+- DO NOT ignore or discard a URL simply because the surrounding text does not mention the platform name.
 
 **EXAMPLES OF WHAT NOT TO DO:**
 - Do NOT add "https://github.com" if GitHub is not mentioned in the resume
