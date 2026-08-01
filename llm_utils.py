@@ -27,6 +27,7 @@ def extract_json_from_response(response_text: str) -> str:
         think_end = response_text.find("</think>")
         if think_start != -1 and think_end != -1:
             response_text = response_text[:think_start] + response_text[think_end + 8 :]
+            response_text = response_text.strip()
 
     # Remove leading ```json if present
     if response_text.startswith("```json"):
