@@ -226,31 +226,49 @@ def refine_boxes(boxes, enlarge=0):
     are not considered as overlapping.
     Use a positive "enlarge" parameter to enlarge rectangle by these many
     points in every direction.
-
-    TODO: Consider using a sweeping line algorithm for this.
     """
+    if not boxes:
+        return []
+
     delta = (-enlarge, -enlarge, enlarge, enlarge)
-    new_rects = []
-    # list of all vector graphic rectangles
-    prects = boxes[:]
+    rects = [+b + delta for b in boxes]
 
-    while prects:  # the algorithm will empty this list
-        r = +prects[0] + delta  # copy of first rectangle
-        repeat = True  # initialize condition
-        while repeat:
-            repeat = False  # set false as default
-            for i in range(len(prects) - 1, 0, -1):  # from back to front
-                if r.intersects(prects[i].irect):  # enlarge first rect with this
-                    r |= prects[i]
-                    del prects[i]  # delete this rect
-                    repeat = True  # indicate must try again
+    while True:
+        # Sort rectangles by left coordinate (x0) to sweep left-to-right
+        rects.sort(key=lambda r: r.x0)
+        merged = []
+        active = []  # Indices of rectangles in merged that are still active
+        changed = False
 
-        # first rect now includes all overlaps
-        new_rects.append(r)
-        del prects[0]
+        for r in rects:
+            # Prune active list: keep only rectangles that extend beyond r.x0
+            active = [idx for idx in active if merged[idx].x1 >= r.x0]
 
-    new_rects = sorted(set(new_rects), key=lambda r: (r.x0, r.y0))
-    return new_rects
+            intersecting_indices = []
+            for idx in active:
+                if merged[idx].intersects(r):
+                    intersecting_indices.append(idx)
+
+            if intersecting_indices:
+                # Merge r into the first intersecting rectangle
+                first_idx = intersecting_indices[0]
+                merged[first_idx] |= r
+                # If r connects multiple rectangles, merge them all into the first
+                for idx in reversed(intersecting_indices[1:]):
+                    merged[first_idx] |= merged[idx]
+                    merged[idx] = None  # Mark as removed
+                    active.remove(idx)
+                changed = True
+            else:
+                merged.append(r)
+                active.append(len(merged) - 1)
+
+        # Filter out removed rectangles
+        rects = [m for m in merged if m is not None]
+        if not changed:
+            break
+
+    return sorted(rects, key=lambda r: (r.x0, r.y0))
 
 
 def is_significant(box, paths):
