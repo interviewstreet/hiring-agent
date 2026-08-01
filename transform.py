@@ -154,21 +154,25 @@ def transform_basics(basics_data: Dict) -> Dict:
 def extract_username_from_url(url: str, domain: str) -> str:
     try:
         path = url.split(domain)[1] if domain in url else ""
+
         if not path:
             return ""
-        path = path.lstrip("/")
 
+        path = path.lstrip("/")
         parts = [part for part in path.split("/") if part]
 
-        if parts:
-            if domain == "linkedin.com":
-                return parts[1]
-            elif domain == "stackoverflow.com":
-                return parts[2]
-            else:
-                return parts[0]
-        return ""
-    except Exception:
+        if not parts:
+            return ""
+
+        if domain == "linkedin.com":
+            return parts[1] if len(parts) > 1 else ""
+
+        elif domain == "stackoverflow.com":
+            return parts[2] if len(parts) > 2 else ""
+
+        return parts[0]
+
+    except IndexError:
         return ""
 
 
