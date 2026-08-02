@@ -53,7 +53,7 @@ Since this was built, HackerRank has also shipped [AI Interviewer (Chakra)](http
 
 **On the default model:**
 
-The repo ships with `gemma4:latest` as the default because it runs locally on most laptops without any cloud API key. Actual intern resumes at HackerRank are evaluated using a top-tier Gemini model. The repo ships with a demo config, not the production one.
+This setup uses Google's rolling `gemini-flash-latest` alias by default, so it tracks the newest Flash release. Use `gemini-pro-latest` when quality matters more than latency or cost. Ollama models such as `gemma4:latest` remain available for fully local, keyless runs. Actual intern resumes at HackerRank are evaluated using a top-tier Gemini model; this repo ships with a demo config, not the production one.
 
 ---
 
@@ -186,7 +186,7 @@ $ cp .env.example .env
 
 | Variable         | Values                                      | Description                                                            |
 | ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `DEFAULT_MODEL`  | for example `gemma4:latest` or `gemini-2.5-pro` | Model to use; must exist in `providers.json` — the provider is inferred from which provider lists it. Defaults to `default_model` in `providers.json`. |
+| `DEFAULT_MODEL`  | for example `gemini-flash-latest`, `gemini-pro-latest`, or `gemma4:latest` | Model to use; must exist in `providers.json` — the provider is inferred from which provider lists it. Defaults to Gemini's rolling `gemini-flash-latest` alias. |
 | `GEMINI_API_KEY` | string                                      | Required when using a Gemini model.                                   |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
 
@@ -198,6 +198,22 @@ DEVELOPMENT_MODE = True  # enables caching and CSV export
 ```
 
 You can leave it on during iteration. See the next section for details.
+
+### Verify the setup
+
+Run the deterministic checks without making network calls or needing an API key:
+
+```bash
+python3 scripts/verify.py
+```
+
+After putting your real key in `.env`, add `--live` to make one small structured-output request to Gemini as well:
+
+```bash
+python3 scripts/verify.py --live
+```
+
+The live check validates authentication, model access, the OpenAI-compatible endpoint, and the JSON response contract. `.env` is ignored by Git; never commit an API key.
 
 ---
 
@@ -325,7 +341,11 @@ role directory instead.
 │       ├── role.json
 │       ├── criteria.jinja
 │       └── system_message.jinja
+├── scripts/
+│   └── verify.py          # offline and optional live validation
 ├── score.py
+├── tests/
+│   └── test_gemini_integration.py
 └── transform.py
 ```
 

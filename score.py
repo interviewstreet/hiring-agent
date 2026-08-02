@@ -30,6 +30,46 @@ from typing import List, Optional, Dict
 from evaluator import ResumeEvaluator
 from roles import Role, load_role, list_available_roles, scaffold_role
 from pathlib import Path
+
+RESUME_DIR = Path(__file__).parent / "resume"
+
+
+def resolve_pdf_path(pdf_path: Optional[str], resume_name: Optional[str] = None) -> str:
+    """Resolve the resume PDF to score. Only ever returns a single path — this
+    never scans/scores more than the one resume that will actually be sent to
+    the LLM.
+
+    - ``pdf_path``, if given, is used as-is (any path on disk).
+    - ``resume_name``, if given, is matched by filename (with or without
+      ``.pdf``) against files in ``resume/``.
+    - Otherwise, a single PDF in ``resume/`` is used automatically; with
+      multiple PDFs there, the user is prompted to pick one by name.
+    """
+    if pdf_path:
+        return pdf_path
+
+    candidates = sorted(RESUME_DIR.glob("*.pdf")) if RESUME_DIR.is_dir() else []
+    if not candidates:
+        print(f"Error: no PDF given and no PDFs found in {RESUME_DIR}/")
+        exit(1)
+
+    if resume_name:
+        stem = Path(resume_name).stem
+        matches = [p for p in candidates if p.stem == stem]
+        if not matches:
+            available = ", ".join(p.stem for p in candidates)
+            print(f"Error: no resume named '{resume_name}' in {RESUME_DIR}/. Available: {available}")
+            exit(1)
+        return str(matches[0])
+
+    if len(candidates) == 1:
+        print(f"Using resume: {candidates[0]}")
+        return str(candidates[0])
+
+    names = ", ".join(p.stem for p in candidates)
+    print(f"Multiple resumes found in {RESUME_DIR}/: {names}")
+    print("Pick one with --resume <name>, or pass a path directly.")
+    exit(1)
 from prompt import DEFAULT_MODEL, MODEL_PARAMETERS
 from transform import (
     transform_evaluation_response,
@@ -368,7 +408,17 @@ if __name__ == "__main__":
         description="Score a resume against a role's rubric."
     )
     parser.add_argument(
-        "pdf_path", nargs="?", help="Path to the resume PDF to evaluate"
+        "pdf_path",
+        nargs="?",
+        help="Path to the resume PDF to evaluate. If omitted, resolved from "
+        f"{RESUME_DIR}/ via --resume (or auto-picked if there's exactly one "
+        "PDF there).",
+    )
+    parser.add_argument(
+        "--resume",
+        metavar="NAME",
+        help=f"Name (filename or stem, no path needed) of a PDF under {RESUME_DIR}/ "
+        "to score, e.g. --resume sample. Ignored if pdf_path is also given.",
     )
     parser.add_argument(
         "--role",
@@ -395,12 +445,14 @@ if __name__ == "__main__":
         print(f"   python score.py <pdf_path> --role {args.init_role}")
         exit(0)
 
-    # Scoring mode: both pdf_path and --role are required.
-    if not args.pdf_path or not args.role:
-        parser.error("pdf_path and --role are required (or use --init-role NAME)")
+    # Scoring mode: --role is required; pdf_path is resolved if omitted.
+    if not args.role:
+        parser.error("--role is required (or use --init-role NAME)")
 
-    if not os.path.exists(args.pdf_path):
-        print(f"Error: File '{args.pdf_path}' does not exist.")
+    pdf_path = resolve_pdf_path(args.pdf_path, args.resume)
+
+    if not os.path.exists(pdf_path):
+        print(f"Error: File '{pdf_path}' does not exist.")
         exit(1)
 
     try:
@@ -409,4 +461,4 @@ if __name__ == "__main__":
         print(f"Error: {e}")
         exit(1)
 
-    main(args.pdf_path, role)
+    main(pdf_path, role)

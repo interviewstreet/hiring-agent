@@ -1,0 +1,12 @@
+{
+  "position_title": "AI Engineer at HackerRank",
+  "categories": [
+    {"key": "production_ai_experience", "label": "Production AI/ML Experience", "max": 40, "icon": "🏢"},
+    {"key": "genai_llm_expertise", "label": "GenAI & LLM Expertise", "max": 30, "icon": "🤖"},
+    {"key": "ml_data_science_fundamentals", "label": "ML & Data Science Fundamentals", "max": 20, "icon": "📊"},
+    {"key": "engineering_mlops", "label": "Engineering & MLOps", "max": 10, "icon": "⚙️"}
+  ],
+  "bonus_max": 15,
+  "min_final_score": -10,
+  "max_final_score": 115
+}

@@ -34,6 +34,11 @@ Thanks for your interest in improving this project. Contributions are welcome, i
 3. Set up the environment and run the pipeline locally to validate changes
 4. Run the CLI on a small sample to verify behavior:
 
+```bash
+python3 scripts/verify.py
+python3 score.py ./resume/sample.pdf --role software_engineering_intern
+```
+
 ### Coding Style
 
 * Use [Black](https://black.readthedocs.io/en/stable/) for formatting.
@@ -46,6 +51,10 @@ Thanks for your interest in improving this project. Contributions are welcome, i
 * Changes to prompts should include short before and after examples in the pull request description.
 
 ### Tests and Smoke Checks
+
+Run the deterministic test suite with `python3 scripts/verify.py`. If you have a
+configured Gemini key, include the live provider check with
+`python3 scripts/verify.py --live`.
 
 * Validate changes with a couple of real resumes under different providers when possible:
 
