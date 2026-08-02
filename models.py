@@ -347,7 +347,10 @@ class OpenAICompatibleProvider:
             if response.status_code == 429 and attempt < MAX_RETRIES - 1:
                 retry_after = response.headers.get("Retry-After")
                 exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
-                delay = float(retry_after) if retry_after else exp_delay
+                try:
+                    delay = float(retry_after) if retry_after else exp_delay
+                except ValueError:
+                    delay = exp_delay
                 sleep_time = round(delay * random.uniform(0.8, 1.2), 2)
                 print(
                     f"[OpenAICompatibleProvider] Rate limit hit "
