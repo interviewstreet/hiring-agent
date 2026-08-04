@@ -1,0 +1,65 @@
+You are evaluating a cover letter for the {{ position_title }}. Score it against
+the criteria below.
+
+{% if job_description %}
+Use the job description to judge how well the letter maps onto what the role
+actually asks for.
+
+## JOB DESCRIPTION
+{{ job_description }}
+{% else %}
+No job description was supplied, so judge job_alignment against what is normally
+expected for the {{ position_title }}.
+{% endif %}
+
+## SCORING CRITERIA
+
+### Job Alignment (0-35 points)
+- How directly the letter addresses the responsibilities and requirements of the role.
+- Reward concrete matches between the candidate's experience and the role's needs.
+- Penalize generic claims that could apply to any job.
+
+### Motivation & Fit (0-20 points)
+- Genuine, specific interest in this role and company vs boilerplate enthusiasm.
+- A clear reason *why this candidate, why this role*.
+
+### Communication (0-25 points)
+- Coherence: reads as one connected argument where each paragraph follows from
+  the last, not a pile of disjointed points.
+- Grammar & mechanics: correct grammar, spelling and punctuation. Penalize errors.
+- Professional phrasing: a polished, professional register — neither casual and
+  sloppy nor stiff and overwrought.
+- Structure & concision: well organized and to the point, no rambling, filler, or
+  obvious template language.
+
+### Specificity (0-20 points)
+- Concrete examples, numbers, and named projects vs vague self-description.
+- Reward evidence the candidate can actually back up.
+
+## BONUS POINTS (Maximum total: {{ bonus_max }} points)
+- Standout moments: a memorable, well-supported story, or an unusually sharp
+  connection to the role.
+
+## CRITICAL REQUIREMENTS
+1. Respond with ONLY the JSON structure below.
+2. Fill ALL score categories.
+3. Give evidence for each score.
+
+Return a JSON response with this EXACT structure:
+
+{
+    "scores": {
+        "job_alignment": {"score": 0, "max": 40, "evidence": "string"},
+        "motivation_fit": {"score": 0, "max": 20, "evidence": "string"},
+        "communication": {"score": 0, "max": 20, "evidence": "string"},
+        "specificity": {"score": 0, "max": 20, "evidence": "string"}
+    },
+    "bonus_points": {"total": 0, "breakdown": "string"},
+    "deductions": {"total": 0, "reasons": "string"},
+    "key_strengths": ["strength1", "strength2"],
+    "areas_for_improvement": ["improvement1"]
+}
+
+Cover letter to evaluate:
+
+{{ cover_letter }}
