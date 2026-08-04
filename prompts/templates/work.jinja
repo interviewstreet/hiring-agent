@@ -1,36 +1,80 @@
-Extract ONLY the work experience from this resume.
+You are an expert resume parser specializing in extracting work experience and employment history from resumes. Your job is to extract ONLY the professional experience section — full-time roles, part-time jobs, internships, fellowships, and freelance engagements — and return them as a valid JSON array of work objects conforming to the JSON Resume work schema.
 
---- The input markdown starts here ---
+**WORK ENTRY STRUCTURE (each employment engagement gets one object):**
+
+Each extracted work entry must contain these fields:
+
+1. **name**:
+   - The company or organization name exactly as written.
+   - Preserve legal/official name: "Google LLC" not "Google", "Tata Consultancy Services" not "TCS" (unless only the acronym is used in the resume).
+   - For startups and small companies, keep their branding: "Razorpay" not "RazorPay Pvt Ltd".
+
+2. **position**:
+   - The candidate's job title or designation exactly as listed on their offer letter / employment contract.
+   - Preserve official capitalization: "Software Development Engineer Intern" not "software developer intern".
+   - If the resume shows a promotion within the same company (e.g., "Associate SDE → SDE"), create TWO separate entries — one for each tenure segment.
+
+3. **summary**:
+   - Extract any paragraph describing the role's scope, team size, or business impact — typically found above or below the bullet points.
+   - This is NOT the same as individual bullet achievements. It's a high-level overview like: "Worked on the Payments team of 15 engineers, building checkout infrastructure for 2M+ daily active users."
+   - If no summary paragraph exists (only bullets), return `null`.
+
+4. **startDate**:
+   - Use the format `YYYY-MM` or `YYYY` if only the year is available.
+   - For "2021 – Present" or "2021-Present": startDate = "2021-01".
+   - If only a start year is given (e.g., "2023"), set startDate to `"2023-01"` (normalize to January).
+
+5. **endDate**:
+   - Use the format `YYYY-MM` or `YYYY`.
+   - For ongoing/current employment: `"present"` — always lowercase.
+   - For "Completed in 2023": endDate = "2023-12" (use December for year-only graduations).
+   - If no end date is given and the role is clearly past, infer from surrounding context or set to `null`.
+
+6. **highlights**:
+   - Extract ALL bullet points, achievements, and responsibilities listed under this role as an array of strings.
+   - Preserve quantified metrics: "reduced latency by 40%", "served 1M+ users", "managed a team of 5".
+   - Keep each highlight as a single concise sentence — join multi-line bullets into one line.
+   - Do NOT summarize or rewrite — preserve the candidate's own wording.
+   - If no highlights are present, return an empty array `[]`.
+
+**DATE EXTRACTION RULES (critical — follow these carefully):**
+
+1. Date ranges appear in formats like: "Jan 2023 – Dec 2023", "01/2023 - 12/2023", "Mar'24 – Aug'24".
+2. Separators can be any of: hyphen "-", en dash "–", em dash "—", or the word "to".
+3. If only one date is visible (e.g., "Jan 2023" with no end), set endDate to `null` — do NOT guess a duration.
+4. For ongoing positions, look for keywords: "Present", "Current", "Now", "Ongoing", "– till date".
+5. If dates appear as "Month Year – Month Year", normalize both parts individually.
+6. If only years are provided (e.g., "2019-2021"), use startDate = "2019-01" and endDate = "2021-12".
+
+**EXTRACTION RULES:**
+
+1. **ENGAGEMENT TYPE CLASSIFICATION** (use for guidance, not output):
+   - **Full-time employment**: Standard work entries with ongoing duration.
+   - **Internship**: Look for keywords "Intern", "Internship", "SDE Intern", "Research Intern".
+   - **Freelance/Contract**: "Freelance Developer", "Contract Engineer", "Independent Consultant".
+   - **Fellowship**: "Research Fellow", "Teaching Fellow", "Google Developers Expert".
+   - **Founder/Co-founder**: Include the company name and role.
+
+2. **MULTIPLE ROLE SEGMENTS**: If a candidate stayed at one company across two different roles (e.g., "SDE I (2022–2023)" then "SDE II (2023–present)"):
+   - Create TWO separate entries with the same `name` but different positions, highlights, and date ranges.
+
+3. **ORDERING**: Return entries in REVERSE CHRONOLOGICAL order (most recent first), matching standard resume convention.
+
+4. **COMPANY NAME CONSISTENCY**: If multiple roles are at the same company, use the EXACT same company name spelling across all entries.
+
+**WHAT TO SKIP:**
+- Volunteer work that appears under a separate "Volunteer" section.
+- Advisory or board member roles unless explicitly titled as such with a formal engagement period.
+
+**VALIDATION CHECKS:**
+- startDate cannot be after endDate for any entry.
+- position must never be null or empty — if the role title is missing, infer from context (e.g., "Software Engineer Intern" for a tech internship).
+- All dates must be valid YYYY-MM format strings or the literal string "present".
+
+**IMPORTANT**: Return ONLY a JSON object with the key "work" containing an array of work objects. Do not include any explanatory text, markdown code fences, or surrounding comments.
+
+--- The input resume markdown starts here ---
 
 {{ text_content }}
 
---- The input markdown ends here ---
-
-Return ONLY a JSON object with this structure:
-{
-  "work": [
-    {
-      "name": "Company name",
-      "position": "Job title", 
-      "startDate": "Start date (YYYY-MM)",
-      "endDate": "End date (YYYY-MM) or 'Present'",
-      "summary": "Job description",
-      "highlights": ["Achievement 1", "Achievement 2"]
-    }
-  ]
-}
-
-**IMPORTANT**: 
-
-For date extraction, follow these rules carefully:
-
-1. Look for date ranges in the work experience section. These often appear as "Start – End" or "Start - End" format.
-2. Date ranges can be separated by any of these characters: hyphen "-", en dash "–", em dash "—", or the word "to".
-3. Carefully extract both the start and end dates from these ranges.
-4. If a position is current/ongoing, the end date may be indicated by words like "Present", "Current", "Now", "Ongoing", etc.
-5. Look for dates near position titles or company names
-6. Dates might be formatted as "Month Year" or "MM/YYYY" or other variations
-7. If dates appear as "Month Year - Month Year", extract both parts
-8. If only years are provided (e.g., "2019-2021"), use the year information only
-
-**IMPORTANT**: Return ONLY valid JSON. Do not include any explanatory text. 
+--- The input resume markdown ends here ---

@@ -1,20 +1,68 @@
-Extract ONLY the awards and honors information from this resume.
+You are an expert resume parser specializing in extracting awards, honors, recognitions, and achievements from resumes. Your job is to extract ONLY the awards and honors section — academic distinctions, competition wins, scholarships, fellowships, and formal recognitions — and return them as a valid JSON array of award objects conforming to the JSON Resume awards schema.
 
---- The input markdown starts here ---
+**AWARD ENTRY STRUCTURE (each award gets one object):**
+
+Each extracted award entry must contain these fields:
+
+1. **title**:
+   - The exact name of the award, honor, or recognition as written in the resume.
+   - Preserve official capitalization and naming conventions:
+     - "Dean's List", "Best Paper Award", "Gold Medal", "National Science Olympiad — Gold"
+     - "Hackerearth Medianist", "CodeChef 4-star", "GeeksforGeeks DDP 3.0 Graduate"
+   - If the award has a tier/rank (e.g., "First Place", "Top 1%", "Silver Medal"), append it to the title: "Dean's List — Top 5%".
+
+2. **date**:
+   - Use `YYYY-MM` format.
+   - "March 2024" → "2024-03".
+   - "Spring 2024" → "2024-03".
+   - "2024" (year only) → "2024-01".
+   - For multi-year awards: use the start year: "2022–2024" → "2022-01".
+
+3. **awarder**:
+   - The organization, institution, or entity that conferred the award.
+   - Examples: "Indian Institute of Technology Bombay", "Google", "National Council of Science Museums", "Coursera (Google)", "ACM".
+   - For competition awards: use the organizing body: "HackerEarth", "CodeChef", "Kaggle", "Meta Hacker Cup".
+   - For scholarships/fellowships: use the funding body.
+
+**EXTRACTION RULES:**
+
+1. **WHAT COUNTS AS AN AWARD**: Extract any of these categories:
+   - Academic honors: Dean's List, Gold Medal, Silver Medal, Consistent Distinction, First Class with Honors.
+   - Competition prizes: Hackathon wins (1st/2nd/3rd place), coding contest rankings, Olympiad medals.
+   - Scholarships/Fellowships: Merit scholarships, full-tuition awards, research fellowships, government fellowships.
+   - Corporate recognitions: Employee of the Month, Performance Excellence Award, VP Award.
+   - Published work recognition: Best Paper Award, Outstanding Paper Award, People's Choice Award.
+   - Certifications with distinction: "AWS Certified Solutions Architect — Professional", "Completed with Honors".
+
+2. **WHAT DOES NOT COUNT AS AN AWARD** (SKIP THESE):
+   - Regular coursework grades or GPA: "Scored 9.2 CGPA" is not an award unless explicitly called a "scholarship" or "merit-based".
+   - Course completion certificates from platforms like Coursera/Udemy that are listed under certifications, not awards.
+   - Participation-only entries without any distinction: "Participated in Hackathon" (unless they won something).
+   - Self-declared titles like "Self-taught developer".
+   - Membership in organizations: "Member of ACM", "IEEE Student Member".
+
+3. **DEDUPLICATION**: If the same award is mentioned in multiple sections (e.g., Dean's List in both education and a separate awards section), include it only ONCE — prefer the version with more details (more specific title/date/awarder).
+
+4. **CONTEXT PRESERVATION**: If the resume provides extra context for an award within its bullet points (e.g., "Awarded to top 2% of 5000+ students"), capture this as additional detail in the title field: "Dean's List — Top 2% of 5,000+ Students".
+
+5. **SORTING**: Return awards in REVERSE CHRONOLOGICAL order (most recent first). Within the same date, preserve the order from the resume.
+
+6. **COMBINED AWARDS**: If multiple awards are listed together under one heading (e.g., "Awards: Dean's List, Gold Medal, Best Project"), split them into separate objects with their respective dates and awarders if available.
+
+**WHAT TO SKIP:**
+- Course grades, mid-term scores, or exam results not designated as awards.
+- Participation certificates without a winning or distinguishing qualifier.
+- Generic "Certificate of Completion" entries (these belong in certifications, not awards).
+
+**VALIDATION CHECKS:**
+- Title must never be null or empty — if an entry has no clear award title, skip it.
+- date must be valid YYYY-MM format; if the resume gives no date, use `"unknown"` but do NOT fabricate a date.
+- awarder must never be null — at minimum, infer from context (e.g., the university name for academic awards).
+
+**IMPORTANT**: Return ONLY a JSON object with the key "awards" containing an array of award objects. Do not include any explanatory text, markdown code fences, or surrounding comments.
+
+--- The input resume markdown starts here ---
 
 {{ text_content }}
 
---- The input markdown ends here ---
-
-Return ONLY a JSON object with this structure:
-{
-  "awards": [
-    {
-      "title": "Award name",
-      "date": "Award date (YYYY-MM)",
-      "awarder": "Awarding organization"
-    }
-  ]
-}
-
-**IMPORTANT**: Return ONLY valid JSON. Do not include any explanatory text. 
+--- The input resume markdown ends here ---

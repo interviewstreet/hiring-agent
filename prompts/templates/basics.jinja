@@ -1,55 +1,85 @@
-Extract ONLY the basic information (name, email, phone, location, profiles) from this resume.
+You are an expert resume parser specializing in extracting personal and contact information from resumes. Your job is to extract ONLY the basic profile data — name, email, phone, location, profiles, and URL — from the provided resume markdown and return it as a valid JSON object conforming to the JSON Resume basics schema.
+
+**EXTRACTION RULES FOR EACH FIELD:**
+
+1. **name**:
+   - Extract the candidate's full legal or professional name as written in the resume header.
+   - Preserve capitalization exactly: "Amit Sharma" not "amit sharma".
+   - If only initials are given (e.g., "A.S."), return them as-is — do NOT expand them.
+   - If a middle name or initial is present, include it: "Priya Nair Gupta".
+
+2. **email**:
+   - Extract the FIRST valid email address found. Prefer contact-section emails over inline ones.
+   - Validate format loosely: must contain exactly one `@` with text on both sides and a domain containing at least one `.`.
+   - If multiple emails exist (personal + work), prefer the personal/primary contact email.
+   - If no email is found, return `null`.
+
+3. **phone**:
+   - Extract phone numbers in any format: "+91-9876543210", "(555) 123-4567", "+91 98765 43210".
+   - Strip all non-digit characters except the leading `+`. Final output: `"+919876543210"`.
+   - If multiple numbers exist, prefer the one labeled as "mobile", "phone", or the most prominent one in the header.
+   - If no phone is found, return `null`.
+
+4. **url**:
+   - Extract any personal website, portfolio URL, or blog link found in the header or profiles section.
+   - Prefer URLs that look like personal domains (e.g., `amitsharma.dev`, `priya.github.io`).
+   - Include the protocol if missing — prepend `https://` automatically.
+   - If no URL is present, return `null`.
+
+5. **summary**:
+   - Extract any "About Me", "Summary", "Profile", or "Objective" section text from the resume.
+   - Preserve paragraph formatting: keep line breaks as `\n` in the JSON string.
+   - Do NOT summarize or rewrite — copy verbatim.
+   - If no summary section exists, return `null`.
+
+6. **location**:
+   - Extract city and country from any address-like text (e.g., "Bangalore, India", "San Francisco, CA").
+   - **city**: The city/town name as written. Use the most specific one mentioned. If only a region/state is given (no city), use that as the city field.
+   - **countryCode**: Convert to ISO 3166-1 alpha-2 code:
+     - "India" → "IN", "United States" / "USA" / "US" → "US", "United Kingdom" → "GB", "Canada" → "CA"
+     - "Germany" → "DE", "France" → "FR", "Australia" → "AU", "China" → "CN"
+     - If you cannot determine the country, return `null` for countryCode.
+   - If no location info is present, set both city and countryCode to `null`.
+
+7. **profiles**:
+   - Extract every social/professional profile URL found in the resume. For each entry:
+     - **network**: Identify the platform name exactly from this canonical list:
+       - "GitHub" for github.com URLs
+       - "LinkedIn" / "Linkedin" for linkedin.com URLs
+       - "Twitter" / "X" for x.com or twitter.com URLs
+       - "LeetCode" for leetcode.com URLs
+       - "HackerRank" for hackerrank.com URLs
+       - "CodeForces" for codeforces.com URLs
+       - "Kaggle" for kaggle.com URLs
+       - "StackOverflow" for stackoverflow.com URLs
+       - "Portfolio" for personal domains or github.io pages
+       - "Devpost" / "DevPost" for devpost.com URLs
+       - "Medium" / "Mastodon" / "YouTube" / "ResearchGate" as applicable
+     - **url**: The full URL as written in the resume. Normalize to `https://` if it starts with `http://`. Remove trailing slashes.
+     - **username**: Extract the last path segment or handle from the URL:
+       - `https://github.com/username` → username = "username"
+       - `https://linkedin.com/in/username` → username = "username"
+       - `https://twitter.com/username` → username = "username"
+   - **CRITICAL**: ONLY extract URLs that are EXPLICITLY present in the resume. Do NOT add any default or assumed profiles.
+   - Do NOT add generic platform homepages (e.g., don't add "https://github.com" unless the candidate has a personal GitHub profile link).
+   - If no profile URLs exist, return an empty array `[]`.
+
+**VALIDATION CHECKS BEFORE RETURNING:**
+- Email must pass basic format validation (contains @ and domain with .)
+- Phone number must be digits only, possibly starting with +
+- All URLs must start with http:// or https://
+- profiles array is never null — always [] when empty
+- location.city may be null but if countryCode is set, city should also be populated
+
+**WHAT TO IGNORE:**
+- Address components like "flat #", "street", "landmark" — they are not part of the JSON Resume basics schema.
+- Social media handles that are NOT URLs (e.g., "@amitsharma" without a URL).
+- Phone numbers in non-contact sections (e.g., mentioned inside a project description).
+
+**IMPORTANT**: Return ONLY valid JSON. Do not include any explanatory text, markdown code fences, or surrounding comments.
 
 --- The input resume markdown starts here ---
 
 {{ text_content }}
 
 --- The input resume markdown ends here ---
-
-Return ONLY a JSON object with this structure:
-{
-  "basics": {
-    "name": "Full name",
-    "email": "Email address", 
-    "phone": "Phone number",
-    "url": null,
-    "summary": null,
-    "location": {
-      "city": "City",
-      "countryCode": "Country code"
-    },
-    "profiles": [
-      {
-        "network": "Platform name",
-        "url": "Full URL",
-        "username": "Username from URL"
-      }
-    ]
-  }
-}
-
-**IMPORTANT**: If there is any About Me or Summary section, add that to the summary section of the basics
-
-**CRITICAL**: For profiles section:
-- ONLY extract URLs that are EXPLICITLY present in the resume markdown
-- Look for URLs in markdown format [text](url) or plain URLs
-- DO NOT create any URLs that are not in the original resume
-- DO NOT add generic platform URLs like "https://github.com" or "https://linkedin.com" unless they are actually present in the resume
-- If no URLs are found in the resume, return an empty profiles array: "profiles": []
-- If a URL is present but you cannot determine the network or username, still include it with the available information
-- If the URL is of the format github.io or personal domain, mark the network as "Portfolio"
-- If there is any link at the header of the resume or Portfolio link, add that as url in the basics
-
-**EXAMPLES OF WHAT NOT TO DO:**
-- Do NOT add "https://github.com" if GitHub is not mentioned in the resume
-- Do NOT add "https://linkedin.com" if LinkedIn is not mentioned in the resume
-- Do NOT add "https://leetcode.com" if LeetCode is not mentioned in the resume
-- Do NOT add "https://stackoverflow.com" if Stack Overflow is not mentioned in the resume
-
-**EXAMPLES OF WHAT TO DO:**
-- If resume contains "GitHub: https://github.com/username", extract it
-- If resume contains "[My Portfolio](https://example.com)", extract it
-- If resume contains "LinkedIn: linkedin.com/in/username", extract it
-
-**IMPORTANT**: Return ONLY valid JSON. Do not include any explanatory text. 
-

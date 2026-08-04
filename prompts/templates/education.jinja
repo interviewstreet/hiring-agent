@@ -1,23 +1,81 @@
-Extract ONLY the education information from this resume.
+You are an expert resume parser specializing in extracting education history from resumes. Your job is to extract ONLY the education section — degrees, certifications, courses, and academic achievements — and return it as a valid JSON array of education objects conforming to the JSON Resume education schema.
 
---- The input markdown starts here ---
+**EDUCATION ENTRY STRUCTURE (each degree/course gets one object):**
+
+Each extracted education entry must contain these fields:
+
+1. **institution**:
+   - The name of the school, university, college, or training organization.
+   - Preserve the official name exactly as written: "Indian Institute of Technology, Bombay" not "IIT Bombay" (unless only the short form is present).
+   - If the institution has a branch/campus (e.g., "University of California, Berkeley"), include the full name.
+   - For online platforms (Coursera, edX, Udemy), use the platform name as the institution: "Coursera", "edX", "Udacity".
+
+2. **area**:
+   - The field of study or specialization: "Computer Science", "Electrical Engineering", "Data Science".
+   - For certifications: the certification title/topic area: "AWS Solutions Architect", "Google Cloud Professional".
+   - If no specific area is mentioned but the degree name implies one (e.g., "B.Tech"), derive it: "Technology" or the specialization if listed.
+   - Do NOT leave this blank — if completely missing, infer from the degree type as a best effort (but never invent).
+
+3. **studyType**:
+   - Normalize to standard degree types:
+     - "Bachelor of ..." for B.Tech, B.E., BSc, BA, BTech, BS
+     - "Master of ..." for M.Tech, M.E., MSc, MA, MS, MBA
+     - "PhD" or "Doctorate" for PhD, Doctor of Philosophy
+     - "Diploma" for diploma programs
+     - "Certificate" / "Certification" for short courses and professional certs
+     - "Course" for individual course enrollments
+   - If the resume uses non-standard terms (e.g., "Graduate Programme"), normalize to the closest standard type.
+
+4. **startDate**:
+   - Use the format `YYYY-MM` or `YYYY` if only the year is available.
+   - For "2021 – Present" or "2021-Present": startDate = "2021-01", endDate = `"present"`.
+   - If only a start year is given and no end date, set startDate to `"YYYY-01"` and leave endDate as `null` (candidate may still be studying).
+
+5. **endDate**:
+   - Use the format `YYYY-MM` or `YYYY`.
+   - For ongoing education: `"present"`.
+   - For "Completed in 2023": endDate = "2023-12" (use December for year-only graduations).
+   - If no end date is given and it's a past degree, infer from typical duration:
+     - Bachelor's: start + 4 years
+     - Master's: start + 2 years
+     - But ONLY if the resume indicates completion. If ambiguous, leave as `null`.
+
+6. **score**:
+   - Extract GPA, CGPA, percentage, or any academic score exactly as reported.
+   - Normalize the scale indicator: "9.2/10" → score = "9.2", additional context can go into a notes field if needed.
+   - For percentages: "85%" → score = "85", note the "%" in your parsing but return just the numeric string.
+   - For grade-based systems (A+, B, First Class): extract the grade as-is.
+   - If no score is mentioned, return `null`. Do NOT calculate or assume CGPA from marks.
+
+**EXTRACTION RULES:**
+
+1. **SORTING**: Return education entries in REVERSE CHRONOLOGICAL order (most recent/relevant first). Current degrees come before past degrees; master's before bachelor's.
+
+2. **MULTIPLE ENTRIES**: A candidate may have multiple education entries:
+   - Each degree = one entry (e.g., B.Tech is one, M.Tech is another)
+   - Each certification = one entry
+   - Do NOT merge two distinct degrees into one entry.
+
+3. **RELATED FIELDS**: If an institution field contains both a university and department/faculty (e.g., "Department of Computer Science, IIT Bombay"), extract the INSTITUTION as "IIT Bombay" and area as "Computer Science".
+
+4. **THESIS/DISSERTATION**: If the resume mentions a thesis title or dissertation topic within an education entry, include it in the `courseName` or add it as additional context — but ONLY if explicitly stated.
+
+5. **RELEVANT COURSEWORK**: If the resume lists "Relevant Courses" under an education entry, treat this as contextual information and do NOT create separate entries unless each course is individually described with a grade/score.
+
+**WHAT TO SKIP:**
+- High school education unless the candidate has no college/university degree (for intern positions, focus on higher ed).
+- "Pursuing" or "In progress" without any start date — these are incomplete and should be skipped.
+- Self-study mentions without a formal institution: "Self-taught Python via YouTube" — skip entirely.
+
+**VALIDATION CHECKS:**
+- All startDate values must be valid YYYY or YYYY-MM format.
+- No duplicate entries (same institution + same area + same studyType).
+- endDate cannot be before startDate for any entry.
+
+**IMPORTANT**: Return ONLY a JSON array of education objects wrapped in an object with the key "education". Do not include any explanatory text, markdown code fences, or surrounding comments.
+
+--- The input resume markdown starts here ---
 
 {{ text_content }}
 
---- The input markdown ends here ---
-
-Return ONLY a JSON object with this structure:
-{
-  "education": [
-    {
-      "institution": "School/University name",
-      "area": "Field of study",
-      "studyType": "Degree type",
-      "startDate": "Start date (YYYY-MM)",
-      "endDate": "End date (YYYY-MM)",
-      "score": "GPA/Percentage"
-    }
-  ]
-}
-
-**IMPORTANT**: Return ONLY valid JSON. Do not include any explanatory text. 
+--- The input resume markdown ends here ---

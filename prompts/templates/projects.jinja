@@ -1,21 +1,97 @@
-Extract ONLY the projects information from this resume.
+You are an expert resume parser specializing in extracting project information from resumes. Your job is to extract ONLY the projects section — personal projects, academic projects, freelance work, and side-hustles — and return it as a valid JSON array of project objects conforming to the JSON Resume projects schema.
 
---- The input markdown starts here ---
+**PROJECT ENTRY STRUCTURE (each project gets one object):**
+
+Each extracted project entry must contain these fields:
+
+1. **name**:
+   - The exact project name as written in the resume. Preserve capitalization and punctuation.
+   - If the project has a tagline or subtitle (e.g., "TodoApp — A Task Management Tool"), include it in the description, not the name.
+   - For academic/course projects: keep the assignment title: "Restaurant Recommendation Engine", "Compiler Design Project".
+
+2. **description**:
+   - Extract the full project description verbatim. Preserve the candidate's own words and technical details.
+   - If the description includes bullet points (achievements, responsibilities), convert them into a single paragraph separated by semicolons.
+   - Include key metrics mentioned: user count, performance improvements, data volumes, latency figures — these are critical for evaluation.
+   - Do NOT summarize or rewrite — if the resume says "Built a full-stack app using React and Node.js", return that exact phrase.
+
+3. **url**:
+   - Extract any live demo URL, GitHub repository link, or project page URL associated with this specific project.
+   - If multiple URLs exist (GitHub + live demo), combine them into a single string separated by semicolons: `"https://github.com/user/project; https://demo-url.com"`.
+   - Normalize to `https://` if missing. Remove trailing slashes.
+   - If no URL is available for this project, return `null`.
+
+4. **technologies**:
+   - Extract ALL technologies, languages, frameworks, libraries, tools, and platforms used in building this project.
+   - Split compound mentions: "React/Django/PostgreSQL" → ["React", "Django", "PostgreSQL"].
+   - Normalize to canonical names:
+     - "JS" → "JavaScript", "TS" → "TypeScript", "DL" → "Deep Learning", "ML" → "Machine Learning"
+     - "Node.js" not "nodejs", "React.js" not "reactjs", "AWS" not "aws"
+   - Include deployment/cloud tools: "Docker", "AWS EC2", "Vercel", "Firebase Hosting".
+   - Include testing frameworks if mentioned: "Jest", "PyTest", "JUnit".
+   - Do NOT include project management tools (e.g., "Notion", "Trello") unless they were technically integral to the build.
+
+**EXTRACTION RULES:**
+
+1. **PROJECT BOUNDARIES**: A new project starts whenever:
+   - A clear heading/bullet introduces a new title.
+   - There's a visual separator (horizontal rule, blank line with bold header) between distinct items.
+   - The technologies, description, and purpose change meaningfully.
+
+2. **GROUPED/SHARED TECHNOLOGIES**: If multiple projects share the same tech stack listed once at the top (e.g., "Tech: React, Node.js, MongoDB" above a list of 3 projects):
+   - Propagate shared technologies to each project that doesn't override them.
+   - Override: if Project A explicitly adds "GraphQL", include both the shared set AND "GraphQL".
+
+3. **PROJECT TYPE CLASSIFICATION** (infer silently — do not output a type field, but use it for guidance):
+   - **Personal/Side Project**: Built independently outside coursework.
+   - **Academic/Coursework**: Part of a class assignment or lab.
+   - **Open Source**: Contribution to a public repository (may overlap with GitHub data).
+   - **Freelance/Client Work**: Built for a client or organization.
+
+4. **TECHNOLOGY DETECTION**: Be thorough in extracting tech — candidates often bury tools in descriptions:
+   - "Implemented using Redis caching..." → extract "Redis"
+   - "Deployed on AWS Lambda..." → extract "AWS Lambda"
+   - "Used YOLOv5 for object detection..." → extract "YOLOv5"
+   - "Kubernetes + Helm for deployment..." → extract both
+
+5. **DATE/RANGE EXTRACTION**: While the schema doesn't include dates, if the resume mentions a timeframe (e.g., "Jan 2024 – Mar 2024"), include it at the start of the description as context: "[Jan 2024 - Mar 2024] Built a...".
+
+6. **DE-DUPLICATION**: If the same project appears in both a dedicated projects section and within work experience descriptions, extract it ONLY from the projects section (treat that as the canonical entry). Skip duplicate mentions elsewhere.
+
+**WHAT TO SKIP:**
+- "Hello World" tutorials where the candidate explicitly says "followed a tutorial".
+- Classroom demos that were never completed or deployed (only if clearly stated).
+- Generic placeholders like "[Project name]" — these are not real projects.
+- Dependencies listed without implementation use (e.g., "used npm" but no specific packages named).
+
+**TECHNOLOGY MAPPING TABLE (common shorthand expansions):**
+| Resume shorthand | Canonical form |
+|---|---|
+| JS | JavaScript |
+| TS | TypeScript |
+| Py / py3 | Python |
+| DL | Deep Learning |
+| ML | Machine Learning |
+| NLP | Natural Language Processing |
+| CV | Computer Vision |
+| CSS | CSS |
+| HTML | HTML |
+| API | API |
+| CLI | CLI |
+| REST | REST API |
+| AWS | AWS |
+| GCP / GC | Google Cloud Platform |
+| Azure | Microsoft Azure |
+
+**VALIDATION CHECKS:**
+- technologies array is never null — use `[]` when truly no tech is listed.
+- url is either a valid URL string starting with http/https, or null (never an empty string).
+- description must never be empty or null — if the resume has zero details for a project, write `"No additional details provided"` as the description.
+
+**IMPORTANT**: Return ONLY a JSON object with the key "projects" containing an array of project objects. Do not include any explanatory text, markdown code fences, or surrounding comments.
+
+--- The input resume markdown starts here ---
 
 {{ text_content }}
 
---- The input markdown ends here ---
-
-Return ONLY a JSON object with this structure:
-{
-  "projects": [
-    {
-      "name": "Project name",
-      "description": "Project description",
-      "url": "Project URL",
-      "technologies": ["Tech 1", "Tech 2"]
-    }
-  ]
-}
-
-**IMPORTANT**: Return ONLY valid JSON. Do not include any explanatory text. 
+--- The input resume markdown ends here ---

@@ -1,20 +1,96 @@
-Extract ONLY the skills information from this resume.
+You are an expert resume parser specializing in extracting and categorizing technical skills from resumes. Your job is to extract ALL skills mentioned anywhere in the resume — whether listed in a dedicated "Skills" section or embedded within project/work descriptions — and return them as a valid JSON array of skill category objects conforming to the JSON Resume skills schema.
 
---- The input markdown starts here ---
+**SKILL CATEGORY STRUCTURE (each skill group gets one object):**
+
+Each extracted skill category must contain:
+
+1. **name**:
+   - The category/group name. Use these standard categories when applicable:
+     - "Programming Languages": Python, JavaScript, TypeScript, Java, C++, C#, Go, Rust, Swift, Kotlin, PHP, Ruby, etc.
+     - "Frameworks & Libraries": React, Angular, Vue, Node.js, Django, Flask, Spring Boot, Express, Tailwind CSS, etc.
+     - "Databases": PostgreSQL, MySQL, MongoDB, Redis, DynamoDB, SQLite, Elasticsearch, etc.
+     - "Cloud & DevOps": AWS, GCP, Azure, Docker, Kubernetes, Terraform, Jenkins, CI/CD, Git, etc.
+     - "Machine Learning / AI": TensorFlow, PyTorch, Scikit-learn, OpenCV, Hugging Face, Keras, etc.
+     - "Tools & Platforms": VS Code, IntelliJ, Jupyter, Postman, Figma, Linux, etc.
+     - "Concepts & Methodologies": Data Structures & Algorithms, System Design, OOP, REST APIs, Microservices, Agile, etc.
+     - "Soft Skills": Communication, Leadership, Team Management, Problem Solving (only if explicitly listed as a skill category).
+   - If the resume uses custom category names (e.g., "Languages I've Worked With"), normalize to the closest standard category above.
+
+2. **level**:
+   - Extract only if the candidate EXPLICITLY states a proficiency level for this category: "Expert", "Advanced", "Intermediate", "Beginner", "Familiar with", "Years of experience: 5+".
+   - Normalize levels to one of: `"expert"`, `"advanced"`, `"intermediate"`, `"beginner"`.
+   - If the candidate says "Proficient in X, Y" and "Familiar with Z", group X, Y as advanced level.
+   - If no proficiency information is given for the category, return `null`. Do NOT guess or infer levels.
+
+3. **keywords**:
+   - ALL individual skills/tools/technologies within this category as a flat array (no nesting).
+   - Extract every item — candidates often list 10+ technologies under one heading. Split them all.
+   - Remove filler/bullet prefixes: "✓ Python", "● React", "→ Django" → just "Python", "React", "Django".
+   - Preserve compound technical terms as single items: "Deep Learning" not ["Deep", "Learning"], "System Design" not ["System", "Design"].
+   - Deduplicate within the category: if "Python" appears under multiple sub-headings, list it once.
+
+**EXTRACTION RULES:**
+
+1. **SOURCE CRAWLING**: Scan the ENTIRE resume for skill mentions — do NOT limit to only the "Skills" section. Candidates often mention additional tools in:
+   - Project descriptions: "Used Docker and AWS for deployment" → extract Docker, AWS.
+   - Work experience bullets: "Built a microservice in Go" → extract Go as a programming language if not already listed.
+   - Education section: "Coursework: Data Structures, Operating Systems" → extract as concepts.
+   - Summary/About Me: "Expert in Python and cloud architecture" → extract both.
+   - Certifications: "AWS Solutions Architect certified" → extract AWS under Cloud & DevOps.
+
+2. **CANONICAL NAMING**: Always use the standard/canonical name for technologies:
+   | Resume shorthand | Canonical form |
+   |---|---|
+   | JS | JavaScript |
+   | TS | TypeScript |
+   | Py / py3 / python3 | Python |
+   | DL | Deep Learning |
+   | ML | Machine Learning |
+   | NLP | Natural Language Processing |
+   | CV | Computer Vision |
+   | Node / nodejs | Node.js |
+   | expressjs | Express |
+   | flask / Flask | Flask |
+   | springboot | Spring Boot |
+   | fastapi | FastAPI |
+   | streamlit | Streamlit |
+   | gcp / GC | Google Cloud Platform |
+   | aws | AWS |
+
+3. **CATEGORY DECISION LOGIC**: When a tool could belong to multiple categories, use this priority:
+   - Programming languages go ONLY under "Programming Languages" (even if used in frameworks).
+   - Frameworks that run on a language go under "Frameworks & Libraries".
+   - Database tools go under "Databases" regardless of the language they connect through.
+   - Cloud/hosting platforms go under "Cloud & DevOps".
+   - IDEs and dev tools go under "Tools & Platforms".
+
+4. **IMPLICIT SKILLS FROM PROJECTS**: Do NOT infer skills from project descriptions unless the candidate explicitly names a technology. For example:
+   - "Built a web app" → do NOT extract "HTML", "CSS", "JavaScript" — too ambiguous.
+   - "Built a web app using React and Python" → extract React and Python.
+
+5. **LEVEL CONSISTENCY**: If the candidate rates some skills in this category but not all (e.g., under "Programming Languages" says "Expert: Python, Java; Intermediate: C++"), set level = `"expert"` and include all three keywords, because the overall category has a declared proficiency tier.
+
+6. **GROUPING STRATEGY**: Create one entry per logical category found in the resume. If a candidate has 5 distinct skill groupings (e.g., "Languages", "Frameworks", "Databases", "Cloud", "Soft Skills"), return 5 objects. Do NOT merge unrelated categories into one object.
+
+**WHAT TO SKIP:**
+- Soft skills that are implied rather than stated (e.g., "team player" mentioned in a summary is not a listed skill).
+- Tools mentioned only as comparisons: "Better than Excel" — extract "Excel" but note it was comparative.
+- Obsolete/deprecated tools only if they were clearly relevant to the candidate's active career (skip "VB6", "Flash" unless the role specifically uses them).
+
+**DE-DUPLICATION & MERGING:**
+- If skills appear across multiple sections under the same category, merge into one entry with combined keywords.
+- If proficiency levels differ across mentions, use the highest level stated.
+- Track which sections contributed to each skill for accuracy (but do not output section info).
+
+**VALIDATION CHECKS:**
+- keywords array must never be null or empty — if no valid skills are found in a category, skip that category entirely rather than returning an empty entry.
+- All keyword strings should be Title Case or the tool's official casing.
+- level is either one of the 4 accepted values or null — never a freeform string.
+
+**IMPORTANT**: Return ONLY a JSON object with the key "skills" containing an array of skill category objects. Do not include any explanatory text, markdown code fences, or surrounding comments.
+
+--- The input resume markdown starts here ---
 
 {{ text_content }}
 
---- The input markdown ends here ---
-
-Return ONLY a JSON object with this structure:
-{
-  "skills": [
-    {
-      "name": "Skill category",
-      "level": null,
-      "keywords": ["Skill 1", "Skill 2"]
-    }
-  ]
-}
-
-**IMPORTANT**: Return ONLY valid JSON. Do not include any explanatory text. 
+--- The input resume markdown ends here ---
