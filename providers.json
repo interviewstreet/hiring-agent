@@ -28,6 +28,16 @@
         "gemini-2.5-pro":        { "temperature": 0.1, "top_p": 0.9 }
       }
     },
+    "groq": {
+      "base_url": "https://api.groq.com/openai/v1",
+      "api_key_env": "GROQ_API_KEY",
+      "structured_output": "json_object",
+      "models": {
+        "llama-3.3-70b-versatile": { "temperature": 0.1, "top_p": 0.9 },
+        "llama-3.1-8b-instant":    { "temperature": 0.1, "top_p": 0.9 },
+        "gemma2-9b-it":            { "temperature": 0.1, "top_p": 0.9 }
+      }
+    },
     "anthropic": {
       "base_url": "https://api.anthropic.com/v1",
       "api_key_env": "ANTHROPIC_API_KEY",
