@@ -215,6 +215,38 @@ def fetch_repo_contributors(owner: str, repo_name: str) -> list[dict]:
         return []
 
 
+def fetch_upstream_prs(username: str) -> List[Dict]:
+    """Fetch PRs the user has submitted to repos they don't own."""
+    try:
+        api_url = "https://api.github.com/search/issues"
+        params = {
+            "q": f"author:{username} type:pr -user:{username}",
+            "per_page": 30,
+            "sort": "created",
+            "order": "desc",
+        }
+        status_code, data = _fetch_github_api(api_url, params=params)
+        if status_code != 200:
+            return []
+
+        prs = []
+        for item in data.get("items", []):
+            repo_url = item.get("repository_url", "")
+            repo_full_name = "/".join(repo_url.split("/")[-2:]) if repo_url else ""
+            prs.append({
+                "title": item.get("title"),
+                "state": item.get("state"),
+                "repo": repo_full_name,
+                "html_url": item.get("html_url"),
+                "created_at": item.get("created_at"),
+                "merged": item.get("pull_request", {}).get("merged_at") is not None,
+            })
+        return prs
+    except Exception as e:
+        logger.error(f"Error fetching upstream PRs for {username}: {e}")
+        return []
+
+
 def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
     try:
         username = extract_github_username(github_url)
@@ -478,10 +510,30 @@ def fetch_and_display_github_info(
     profile_json = generate_profile_json(github_profile)
     projects_json = generate_projects_json(projects, position_title=position_title)
 
+    print("🔍 Fetching upstream pull requests...")
+    upstream_prs = fetch_upstream_prs(github_profile.username)
+    if upstream_prs:
+        unique_repos = set(pr["repo"] for pr in upstream_prs)
+        merged_count = sum(1 for pr in upstream_prs if pr["merged"])
+        open_count = sum(1 for pr in upstream_prs if pr["state"] == "open")
+        print(
+            f"✅ Found {len(upstream_prs)} PRs to {len(unique_repos)} external repos "
+            f"({merged_count} merged, {open_count} open)"
+        )
+    else:
+        print("ℹ️  No upstream pull requests found")
+
     result = {
         "profile": profile_json,
         "projects": projects_json,
         "total_projects": len(projects_json),
+        "upstream_pull_requests": upstream_prs,
+        "upstream_pr_summary": {
+            "total_prs": len(upstream_prs),
+            "merged": sum(1 for pr in upstream_prs if pr["merged"]),
+            "open": sum(1 for pr in upstream_prs if pr["state"] == "open"),
+            "target_repos": list(set(pr["repo"] for pr in upstream_prs)),
+        } if upstream_prs else None,
     }
 
     return result

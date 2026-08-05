@@ -902,6 +902,18 @@ def convert_github_data_to_text(github_data: dict) -> str:
                 github_text += f"   Language: {details.get('language', 'N/A')}\n"
             github_text += "\n"
 
+    if "upstream_pull_requests" in github_data and github_data["upstream_pull_requests"]:
+        prs = github_data["upstream_pull_requests"]
+        summary = github_data.get("upstream_pr_summary", {})
+        github_text += f"\nUpstream Pull Requests (contributions to OTHER people's repositories):\n"
+        github_text += f"- Total PRs submitted: {summary.get('total_prs', len(prs))}\n"
+        github_text += f"- Merged PRs: {summary.get('merged', 0)}\n"
+        github_text += f"- Open PRs: {summary.get('open', 0)}\n"
+        github_text += f"- Target repositories: {', '.join(summary.get('target_repos', []))}\n\n"
+        for i, pr in enumerate(prs, 1):
+            status = "MERGED" if pr.get("merged") else pr.get("state", "unknown").upper()
+            github_text += f"{i}. [{status}] {pr.get('repo', 'N/A')}: {pr.get('title', 'N/A')}\n"
+
     return github_text
 
 
