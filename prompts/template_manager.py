@@ -43,8 +43,6 @@ class TemplateManager:
             "awards": "awards.jinja",
             "system_message": "system_message.jinja",
             "github_project_selection": "github_project_selection.jinja",
-            "resume_evaluation_criteria": "resume_evaluation_criteria.jinja",
-            "resume_evaluation_system_message": "resume_evaluation_system_message.jinja",
         }
 
         for section_name, filename in template_files.items():
@@ -88,3 +86,11 @@ class TemplateManager:
         except Exception as e:
             print(f"❌ Error rendering template for {section_name}: {e}")
             return None
+
+    def render_string(self, source: str, **kwargs) -> str:
+        """Render a raw Jinja template string.
+
+        Used for role prompt templates (criteria, system message) whose source is
+        loaded from the role definition rather than the shared templates dir.
+        """
+        return self.env.from_string(source).render(**kwargs)

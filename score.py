@@ -1,14 +1,34 @@
 import os
 import sys
 import json
+
+# Fix for Windows Console Unicode errors
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass
+
+# Fix for Python 3.14 Protobuf TypeError
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
 import logging
 import csv
+
+if sys.platform == "win32":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")
+
+import argparse
+
 from pdf import PDFHandler
 from github import fetch_and_display_github_info
-from blog import fetch_and_display_blog_info
-from models import JSONResume, EvaluationData
+from models import JSONResume, build_evaluation_model
 from typing import List, Optional, Dict
 from evaluator import ResumeEvaluator
+from roles import Role, load_role, list_available_roles, scaffold_role
 from pathlib import Path
 from prompt import DEFAULT_MODEL, MODEL_PARAMETERS
 from transform import (
@@ -28,7 +48,7 @@ logging.basicConfig(
 
 
 def print_evaluation_results(
-    evaluation: EvaluationData, candidate_name: str = "Candidate"
+    evaluation, role: Role, candidate_name: str = "Candidate"
 ):
     """Print evaluation results in a readable format."""
     print("\n" + "=" * 80)
@@ -64,7 +84,7 @@ def print_evaluation_results(
         total_score -= evaluation.deductions.total
 
     # Ensure total score doesn't exceed maximum possible score
-    max_possible_score = max_score + 20  # 120 (100 categories + 20 bonus)
+    max_possible_score = max_score + role.bonus_max
     if total_score > max_possible_score:
         total_score = max_possible_score
         print(f"⚠️  Warning: Total score capped at maximum possible value")
@@ -77,50 +97,13 @@ def print_evaluation_results(
     print("-" * 60)
 
     if hasattr(evaluation, "scores") and evaluation.scores:
-        # Define category maximums
-        category_maxes = {
-            "open_source": 35,
-            "self_projects": 30,
-            "production": 25,
-            "technical_skills": 10,
-        }
-
-        # Open Source
-        if hasattr(evaluation.scores, "open_source") and evaluation.scores.open_source:
-            os_score = evaluation.scores.open_source
-            capped_score = min(os_score.score, category_maxes["open_source"])
-            print(f"🌐 Open Source:          {capped_score}/{os_score.max}")
-            print(f"   Evidence: {os_score.evidence}")
-            print()
-
-        # Self Projects
-        if (
-            hasattr(evaluation.scores, "self_projects")
-            and evaluation.scores.self_projects
-        ):
-            sp_score = evaluation.scores.self_projects
-            capped_score = min(sp_score.score, category_maxes["self_projects"])
-            print(f"🚀 Self Projects:        {capped_score}/{sp_score.max}")
-            print(f"   Evidence: {sp_score.evidence}")
-            print()
-
-        # Production Experience
-        if hasattr(evaluation.scores, "production") and evaluation.scores.production:
-            prod_score = evaluation.scores.production
-            capped_score = min(prod_score.score, category_maxes["production"])
-            print(f"🏢 Production Experience: {capped_score}/{prod_score.max}")
-            print(f"   Evidence: {prod_score.evidence}")
-            print()
-
-        # Technical Skills
-        if (
-            hasattr(evaluation.scores, "technical_skills")
-            and evaluation.scores.technical_skills
-        ):
-            tech_score = evaluation.scores.technical_skills
-            capped_score = min(tech_score.score, category_maxes["technical_skills"])
-            print(f"💻 Technical Skills:     {capped_score}/{tech_score.max}")
-            print(f"   Evidence: {tech_score.evidence}")
+        for category in role.categories:
+            cat_score = getattr(evaluation.scores, category.key, None)
+            if not cat_score:
+                continue
+            capped_score = min(cat_score.score, category.max)
+            print(f"{category.icon} {category.label}: {capped_score}/{cat_score.max}")
+            print(f"   Evidence: {cat_score.evidence}")
             print()
 
     # Bonus Points
@@ -161,12 +144,21 @@ def print_evaluation_results(
 
 
 def _evaluate_resume(
-    resume_data: JSONResume, github_data: dict = None, blog_data: dict = None
-) -> Optional[EvaluationData]:
+    resume_data: JSONResume,
+    role: Role,
+    evaluation_model,
+    github_data: dict = None,
+    blog_data: dict = None,
+):
     """Evaluate the resume using AI and display results."""
 
     model_params = MODEL_PARAMETERS.get(DEFAULT_MODEL)
-    evaluator = ResumeEvaluator(model_name=DEFAULT_MODEL, model_params=model_params)
+    evaluator = ResumeEvaluator(
+        role=role,
+        evaluation_model=evaluation_model,
+        model_name=DEFAULT_MODEL,
+        model_params=model_params,
+    )
 
     # Convert JSON resume data to text
     resume_text = convert_json_resume_to_text(resume_data)
@@ -189,6 +181,20 @@ def _evaluate_resume(
     return evaluation_result
 
 
+def is_valid_resume_data(resume_data: JSONResume) -> bool:
+    """Check if the resume data has at least some extracted core content."""
+    if not resume_data:
+        return False
+    core_sections = [
+        resume_data.basics,
+        resume_data.work,
+        resume_data.education,
+        resume_data.skills,
+        resume_data.projects,
+    ]
+    return any(section is not None for section in core_sections)
+
+
 def find_profile(profiles, network):
     if not profiles:
         return None
@@ -198,7 +204,9 @@ def find_profile(profiles, network):
     )
 
 
-def main(pdf_path):
+def main(pdf_path, role: Role):
+    evaluation_model = build_evaluation_model(role)
+
     # Create cache filename based on PDF path
     cache_filename = (
         f"cache/resumecache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
@@ -210,12 +218,30 @@ def main(pdf_path):
         f"cache/blogcache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
     )
 
+    resume_data = None
+    cache_loaded = False
+
     # Check if cache exists and we're in development mode
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
         print(f"Loading cached data from {cache_filename}")
-        cached_data = json.loads(Path(cache_filename).read_text())
-        resume_data = JSONResume(**cached_data)
-    else:
+        try:
+            cached_data = json.loads(Path(cache_filename).read_text(encoding="utf-8"))
+            loaded_resume = JSONResume(**cached_data)
+            if not is_valid_resume_data(loaded_resume):
+                raise ValueError("Cached resume data contains no core content")
+            resume_data = loaded_resume
+            cache_loaded = True
+        except Exception as e:
+            print(f"⚠️ Warning: Invalid cache file {cache_filename}: {e}")
+            print("Ignoring cache and reprocessing PDF...")
+            try:
+                os.remove(cache_filename)
+            except Exception as delete_err:
+                print(
+                    f"Failed to delete invalid cache file {cache_filename}: {delete_err}"
+                )
+
+    if not cache_loaded:
         logger.debug(
             f"Extracting data from PDF"
             + (" and caching to " + cache_filename if DEVELOPMENT_MODE else "")
@@ -227,23 +253,45 @@ def main(pdf_path):
             return None
 
         if DEVELOPMENT_MODE:
-            os.makedirs(os.path.dirname(cache_filename), exist_ok=True)
-            Path(cache_filename).write_text(
-                json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False),
-                encoding='utf-8'
-            )
+            if is_valid_resume_data(resume_data):
+                os.makedirs(os.path.dirname(cache_filename), exist_ok=True)
+                Path(cache_filename).write_text(
+                    json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+            else:
+                logger.warning(
+                    "Newly extracted resume data is empty/invalid. Skipping cache write."
+                )
 
     # Check if cache exists and we're in development mode
     github_data = {}
+    github_cache_loaded = False
     if DEVELOPMENT_MODE and os.path.exists(github_cache_filename):
         print(f"Loading cached data from {github_cache_filename}")
-        github_data = json.loads(Path(github_cache_filename).read_text())
-    else:
-        print(
-            f"Fetching GitHub data"
-            + (" and caching to " + github_cache_filename if DEVELOPMENT_MODE else "")
-        )
+        try:
+            loaded_github = json.loads(
+                Path(github_cache_filename).read_text(encoding="utf-8")
+            )
+            if (
+                not isinstance(loaded_github, dict)
+                or not loaded_github
+                or "profile" not in loaded_github
+            ):
+                raise ValueError("Cached GitHub data is invalid or empty")
+            github_data = loaded_github
+            github_cache_loaded = True
+        except Exception as e:
+            print(f"⚠️ Warning: Invalid GitHub cache file {github_cache_filename}: {e}")
+            print("Ignoring GitHub cache and refetching...")
+            try:
+                os.remove(github_cache_filename)
+            except Exception as delete_err:
+                print(
+                    f"Failed to delete invalid GitHub cache file {github_cache_filename}: {delete_err}"
+                )
 
+    if not github_cache_loaded:
         # Add validation to handle None values
         profiles = []
         if resume_data and hasattr(resume_data, "basics") and resume_data.basics:
@@ -251,12 +299,16 @@ def main(pdf_path):
         github_profile = find_profile(profiles, "Github")
 
         if github_profile:
-            github_data = fetch_and_display_github_info(github_profile.url)
-        if DEVELOPMENT_MODE:
-            os.makedirs(os.path.dirname(github_cache_filename), exist_ok=True)
-            Path(github_cache_filename).write_text(
-                json.dumps(github_data, indent=2, ensure_ascii=False),
-                encoding='utf-8'
+            print(
+                f"Fetching GitHub data"
+                + (
+                    " and caching to " + github_cache_filename
+                    if DEVELOPMENT_MODE
+                    else ""
+                )
+            )
+            github_data = fetch_and_display_github_info(
+                github_profile.url, position_title=role.position_title
             )
 
     blog_data = {}
@@ -309,7 +361,7 @@ def main(pdf_path):
         candidate_name = resume_data.basics.name
 
     # Print evaluation results in readable format
-    print_evaluation_results(score, candidate_name)
+    print_evaluation_results(score, role, candidate_name)
 
     if DEVELOPMENT_MODE:
         csv_row = transform_evaluation_response(
@@ -317,10 +369,11 @@ def main(pdf_path):
             evaluation=score,
             resume_data=resume_data,
             github_data=github_data,
+            role=role,
         )
 
-        # Write CSV row to file
-        csv_path = "resume_evaluations.csv"
+        # Write CSV row to a role-specific file, since each role's columns differ.
+        csv_path = f"resume_evaluations_{role.name}.csv"
         file_exists = os.path.exists(csv_path)
 
         with open(csv_path, "a", newline="", encoding="utf-8") as csvfile:
@@ -338,13 +391,50 @@ def main(pdf_path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python score.py <pdf_path>")
-        exit(1)
-    pdf_path = sys.argv[1]
+    available_roles = list_available_roles()
+    parser = argparse.ArgumentParser(
+        description="Score a resume against a role's rubric."
+    )
+    parser.add_argument(
+        "pdf_path", nargs="?", help="Path to the resume PDF to evaluate"
+    )
+    parser.add_argument(
+        "--role",
+        help="Role to score against (a directory name under roles/). "
+        + (f"Available: {', '.join(available_roles)}" if available_roles else ""),
+    )
+    parser.add_argument(
+        "--init-role",
+        metavar="NAME",
+        help="Scaffold a new role directory under roles/ with basic template "
+        "files, then exit (does not score a resume).",
+    )
+    args = parser.parse_args()
 
-    if not os.path.exists(pdf_path):
-        print(f"Error: File '{pdf_path}' does not exist.")
+    # Scaffold mode: create a new role and exit.
+    if args.init_role:
+        try:
+            role_dir = scaffold_role(args.init_role)
+        except ValueError as e:
+            print(f"Error: {e}")
+            exit(1)
+        print(f"✅ Created role '{args.init_role}' at {role_dir}")
+        print("   Edit role.json, criteria.jinja and system_message.jinja, then run:")
+        print(f"   python score.py <pdf_path> --role {args.init_role}")
+        exit(0)
+
+    # Scoring mode: both pdf_path and --role are required.
+    if not args.pdf_path or not args.role:
+        parser.error("pdf_path and --role are required (or use --init-role NAME)")
+
+    if not os.path.exists(args.pdf_path):
+        print(f"Error: File '{args.pdf_path}' does not exist.")
         exit(1)
 
-    main(pdf_path)
+    try:
+        role = load_role(args.role)
+    except ValueError as e:
+        print(f"Error: {e}")
+        exit(1)
+
+    main(args.pdf_path, role)

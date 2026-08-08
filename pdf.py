@@ -26,8 +26,6 @@ from typing import List, Optional, Dict, Any
 from prompt import (
     DEFAULT_MODEL,
     MODEL_PARAMETERS,
-    MODEL_PROVIDER_MAPPING,
-    GEMINI_API_KEY,
 )
 from prompts.template_manager import TemplateManager
 from transform import transform_parsed_data
@@ -36,7 +34,6 @@ logger = logging.getLogger(__name__)
 
 
 class PDFHandler:
-
     def __init__(self):
         self.template_manager = TemplateManager()
         self._initialize_llm_provider()
@@ -289,12 +286,21 @@ class PDFHandler:
 
         for section_name in sections:
             section_data = self._extract_section_data(text_content, section_name)
+            if section_data is None:
+                logger.warning(f"🔁 Retrying {section_name} section extraction")
+                section_data = self._extract_section_data(text_content, section_name)
 
             if section_data:
                 complete_resume.update(section_data)
                 logger.debug(f"✅ Successfully extracted {section_name} section")
+            elif section_data is not None:
+                # Valid response with no content for this section (e.g. no awards)
+                logger.warning(f"⚠️ {section_name} section empty; continuing")
             else:
-                logger.error(f"⚠️ Failed to extract {section_name} section")
+                logger.error(
+                    f"⚠️ Failed to extract {section_name} section. Aborting extraction to prevent partial/invalid resume data."
+                )
+                return None
 
         try:
             if complete_resume.get("basics") and isinstance(

@@ -495,7 +495,7 @@ def fetch_profile(profiles, network_names, prefix):
 
 
 def transform_evaluation_response(
-    file_name=None, resume_data=None, github_data=None, evaluation=None
+    file_name=None, resume_data=None, github_data=None, evaluation=None, role=None
 ):
     """
     Transform the three inputs (resume_data, github_data, evaluation) into the most important columns as a CSV row.
@@ -657,11 +657,12 @@ def transform_evaluation_response(
 
     # Extract GitHub data
     if github_data:
-        csv_row["github_repos"] = github_data.get("public_repos", 0)
-        csv_row["github_followers"] = github_data.get("followers", 0)
-        csv_row["github_following"] = github_data.get("following", 0)
-        csv_row["github_created_at"] = github_data.get("created_at", "")
-        csv_row["github_bio"] = github_data.get("bio", "")
+        profile = github_data.get("profile", {})
+        csv_row["github_repos"] = profile.get("public_repos", 0)
+        csv_row["github_followers"] = profile.get("followers", 0)
+        csv_row["github_following"] = profile.get("following", 0)
+        csv_row["github_created_at"] = profile.get("created_at", "")
+        csv_row["github_bio"] = profile.get("bio", "")
     else:
         csv_row["github_repos"] = 0
         csv_row["github_followers"] = 0
@@ -669,46 +670,29 @@ def transform_evaluation_response(
         csv_row["github_created_at"] = ""
         csv_row["github_bio"] = ""
 
-    # Extract evaluation scores
+    # Extract evaluation scores (one pair of columns per role category)
+    category_keys = [c.key for c in role.categories] if role else []
     if evaluation and hasattr(evaluation, "scores"):
         scores = evaluation.scores
-
-        csv_row["open_source_score"] = scores.open_source.score
-        csv_row["open_source_max"] = scores.open_source.max
-
-        csv_row["self_projects_score"] = scores.self_projects.score
-        csv_row["self_projects_max"] = scores.self_projects.max
-
-        csv_row["production_score"] = scores.production.score
-        csv_row["production_max"] = scores.production.max
-
-        csv_row["technical_skills_score"] = scores.technical_skills.score
-        csv_row["technical_skills_max"] = scores.technical_skills.max
-
-        total_score = (
-            scores.open_source.score
-            + scores.self_projects.score
-            + scores.production.score
-            + scores.technical_skills.score
-        )
-        total_max = (
-            scores.open_source.max
-            + scores.self_projects.max
-            + scores.production.max
-            + scores.technical_skills.max
-        )
+        total_score = 0
+        total_max = 0
+        for key in category_keys:
+            cat = getattr(scores, key, None)
+            if cat is None:
+                csv_row[f"{key}_score"] = "N/A"
+                csv_row[f"{key}_max"] = "N/A"
+                continue
+            csv_row[f"{key}_score"] = cat.score
+            csv_row[f"{key}_max"] = cat.max
+            total_score += cat.score
+            total_max += cat.max
 
         csv_row["total_score"] = total_score
         csv_row["total_max"] = total_max
     else:
-        csv_row["open_source_score"] = "N/A"
-        csv_row["open_source_max"] = "N/A"
-        csv_row["self_projects_score"] = "N/A"
-        csv_row["self_projects_max"] = "N/A"
-        csv_row["production_score"] = "N/A"
-        csv_row["production_max"] = "N/A"
-        csv_row["technical_skills_score"] = "N/A"
-        csv_row["technical_skills_max"] = "N/A"
+        for key in category_keys:
+            csv_row[f"{key}_score"] = "N/A"
+            csv_row[f"{key}_max"] = "N/A"
         csv_row["total_score"] = "N/A"
         csv_row["total_max"] = "N/A"
 
