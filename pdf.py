@@ -91,8 +91,13 @@ class PDFHandler:
                 ],
                 "options": {
                     "stream": False,
-                    "temperature": model_params["temperature"],
-                    "top_p": model_params["top_p"],
+                    # Only forward what the model actually configures. Indexing here
+                    # raised KeyError for any model with no sampling params set.
+                    **{
+                        k: model_params[k]
+                        for k in ("temperature", "top_p")
+                        if k in model_params
+                    },
                 },
             }
 

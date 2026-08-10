@@ -311,10 +311,15 @@ class OpenAICompatibleProvider:
 
         options = options or {}
         body: Dict[str, Any] = {"model": model, "messages": messages, "stream": False}
-        if "temperature" in options:
-            body["temperature"] = options["temperature"]
-        if "top_p" in options:
-            body["top_p"] = options["top_p"]
+        sampling = {k: options[k] for k in ("temperature", "top_p") if k in options}
+        # Anthropic's OpenAI-compatible endpoint 400s when temperature and top_p are
+        # both set ("cannot both be specified for this model"). Every other provider
+        # here accepts the pair. Dropping one where the body is actually assembled
+        # means no call site can reintroduce it by defaulting, and top_p is the one
+        # to drop: temperature is what keeps scoring runs reproducible.
+        if len(sampling) == 2 and "api.anthropic.com" in self.base_url:
+            sampling.pop("top_p")
+        body.update(sampling)
 
         # Structured-output translation: evaluator passes format=<json schema>.
         if "format" in kwargs and self.structured_output != "none":
