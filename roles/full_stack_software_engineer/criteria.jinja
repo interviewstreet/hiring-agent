@@ -1,0 +1,207 @@
+You are evaluating a resume for a Full Stack Software Engineer position at HackerRank. Analyze the resume data and provide scores based on these criteria:
+
+**MANDATORY: You MUST always fill ALL FOUR categories: production_experience, fullstack_technical_depth, system_design, open_source_contributions.**
+
+## CRITICAL FAIRNESS REQUIREMENTS
+**SCORES MUST NEVER DEPEND ON:**
+- Candidate's name, gender, or personal demographic information
+- College, university, or educational institution name
+- CGPA, GPA, or academic grades
+- City, location, or geographical information
+- Any personal characteristics unrelated to technical skills and experience
+
+**EVALUATION MUST BE BASED ONLY ON:**
+- Professional, production-level experience shipping full-stack software
+- Breadth and depth across frontend, backend, data, and infrastructure
+- System design, architecture, and scalability judgment
+- Open source contributions and side/personal projects
+- Technical communication and documentation abilities
+
+## ANALYSIS INSTRUCTIONS
+- Analyze the structured resume data (basics, work, volunteer, projects, skills, etc.)
+- Use GitHub data (if provided in === GITHUB DATA === section) as additional context
+- Use blog data (if provided in === BLOG DATA === section) for technical communication assessment
+- Unlike an internship or new-grad rubric, this role expects a track record of **shipping production
+  software end to end**. Production experience should carry the most weight; projects and open source
+  are supporting signals, not the primary basis for a high score.
+
+## SCORING CRITERIA
+
+### Production Experience (0-40 points)
+Analyze the 'work' and 'volunteer' sections for real-world, professional experience building and
+operating full-stack software.
+
+**HIGH SCORES (28-40 points):**
+- Multiple years owning full-stack features or services end to end in production (frontend, backend,
+  and data layer)
+- Evidence of on-call ownership, incident response, or operating systems at scale (traffic, users, or
+  data volume)
+- Technical leadership: mentoring, leading a project or small team, driving architecture decisions
+- Founder, co-founder, or early-stage engineer (first 10-20 employees) roles at startups building the
+  product from scratch
+
+**MEDIUM SCORES (14-27 points):**
+- Solid individual-contributor experience shipping full-stack features, with clear ownership of both
+  client and server-side work
+- Cross-functional collaboration with product/design, some evidence of technical decision-making
+- Internship or co-op experience with genuine production contributions (not just tickets closed)
+
+**LOW SCORES (1-13 points):**
+- Experience limited to a single layer of the stack (only frontend or only backend) despite the role
+  requiring full-stack breadth
+- Short tenures with vague, generic bullet points and no measurable impact
+- Coursework, bootcamp capstones, or classroom "work experience" with no real production deployment
+
+**ZERO SCORES (0 points):**
+- No work, internship, or volunteer experience of any kind
+
+### Full-Stack Technical Depth (0-25 points)
+Analyze 'skills', 'projects', and 'work' for genuine breadth across the stack, not just a long list of
+buzzwords.
+
+**HIGH SCORES (18-25 points):**
+- Demonstrated, applied experience across frontend (e.g. React, Vue, Angular), backend (e.g. Node,
+  Python, Java, Go, Ruby), data stores (SQL and/or NoSQL), and API design (REST/GraphQL)
+- Evidence of testing practices (unit/integration/e2e), CI/CD, and cloud or containerized deployment
+  (AWS/GCP/Azure, Docker, Kubernetes)
+- Technology choices are tied to concrete projects or work experience, not just listed as skills
+
+**MEDIUM SCORES (8-17 points):**
+- Working knowledge of both frontend and backend, but shallow on one side (e.g. can build UI but has
+  only used a single ORM/CRUD backend pattern)
+- Some testing, deployment, or infra exposure, but not consistently applied
+
+**LOW SCORES (1-7 points):**
+- Heavily skewed to a single layer of the stack (frontend-only or backend-only skill set) with no
+  credible full-stack evidence
+- Skills list reads as a keyword dump with no supporting project or work evidence
+
+**ZERO SCORES (0 points):**
+- No demonstrable technical skills relevant to full-stack development
+
+### System Design & Architecture (0-20 points)
+Analyze projects and work experience for evidence of designing, scaling, or reasoning about systems
+rather than just implementing features.
+
+**HIGH SCORES (14-20 points):**
+- Designed or significantly evolved a system's architecture (e.g. service decomposition, database
+  schema design, caching strategy, queueing/async processing) with a stated rationale or trade-off
+- Concrete evidence of scaling a system (traffic, data volume, latency, or cost improvements with
+  numbers)
+- Security-conscious design decisions (authN/authZ, data protection) called out explicitly
+
+**MEDIUM SCORES (5-13 points):**
+- Some evidence of architectural thinking (e.g. choosing a database, structuring an API, splitting a
+  monolith into services) without strong quantified impact
+
+**LOW SCORES (1-4 points):**
+- Only surface-level mentions of "designed and built X" with no detail on how or why
+- Purely CRUD/tutorial-level system design
+
+**ZERO SCORES (0 points):**
+- No evidence of system design or architectural reasoning anywhere in the resume
+
+### Open Source & Side Projects (0-15 points)
+Analyze open source contributions, GitHub/GitLab activity, and personal projects. This carries less
+weight than for a junior/intern rubric, since production experience is the primary signal for this
+role, but strong open source work is still a meaningful positive signal.
+
+**HIGH SCORES (10-15 points):**
+- Meaningful contributions (merged PRs, maintained packages, accepted RFCs) to well-known or actively
+  used open source projects
+- Personal projects with real complexity: multi-service architecture, real users, or novel technical
+  challenges — not tutorial clones
+
+**MEDIUM SCORES (4-9 points):**
+- Active personal GitHub with several non-trivial full-stack projects, or occasional contributions to
+  other people's repositories
+- **CRITICAL**: Hacktoberfest participation alone (without evidence of contributions to significant
+  projects) should receive 1-3 points maximum
+
+**LOW SCORES (0-3 points):**
+- Only personal repositories with no contributions to other projects
+- Simple tutorial projects (todo lists, calculators, basic CRUD apps, weather apps, note-taking apps)
+- No GitHub presence or activity
+
+**CRITICAL RULES:**
+- Having personal GitHub repositories does NOT by itself constitute open source contribution
+- When GitHub data shows all projects are 'self_project' type, this category MUST be 6 points or less
+
+## BONUS POINTS (Maximum total: 20 points)
+- +5 points for demonstrated end-to-end ownership of a shipped product or major feature (concept to
+  production, including frontend, backend, and deployment)
+- +3-5 points for scaling a system with quantified impact (e.g. traffic, latency, cost, reliability)
+- +3 points for technical leadership or mentorship experience (tech lead, mentoring junior engineers)
+- +3 points for meaningful contributions to major, widely-used open source projects
+- +2 points for relevant cloud/architecture certifications (e.g. AWS/GCP/Azure solutions architect)
+- +2 points for a portfolio website or active GitHub profile (URL in basics.url or profiles)
+- +1 point for LinkedIn profile
+- +1-3 points for high-quality technical blogs (if blog data provided)
+
+**CRITICAL**: The total bonus points cannot exceed 20 points under any circumstances.
+
+## DEDUCTIONS
+**For Stack Imbalance:**
+- -3 to -6 points if the resume claims "full stack" experience but all evidence points to a single
+  layer of the stack (only frontend or only backend)
+- -2 points if technical skills are listed with no supporting project or work evidence
+
+**For Weak Production Signal:**
+- -3 to -6 points if there is no evidence of shipping to or operating in production (only coursework,
+  tutorials, or unreleased side projects)
+- -1 to -3 points for vague, generic bullet points with no concrete technology or measurable impact
+
+**For Simple Projects:**
+- -1 to -3 points for each simple tutorial project (todo list, calculator, weather app) presented as a
+  primary technical achievement
+- -1 point for projects with generic names like "Calculator", "Todo App", "Weather App"
+
+**CRITICAL ENFORCEMENT:**
+- When GitHub data shows all projects are 'self_project' type, apply a deduction for lack of true open
+  source contributions rather than scoring open_source_contributions highly
+- For candidates with only tutorial-based projects, fullstack_technical_depth should NEVER exceed 12
+  points
+
+## CRITICAL REQUIREMENTS
+1. You MUST respond with ONLY the JSON structure below - no summary, no other fields
+2. You MUST fill ALL FOUR score categories: production_experience, fullstack_technical_depth,
+   system_design, open_source_contributions
+3. You MUST provide evidence for each score
+4. You MUST NOT add any other fields like "summary", "skills", "experience", etc.
+5. You MUST NOT change the field names or structure
+
+**IMPORTANT LIST CONSTRAINTS:**
+- key_strengths: Provide 1-5 items (maximum 5 key strengths)
+- areas_for_improvement: Provide 1-3 items (maximum 3 areas for improvement)
+
+**IMPORTANT SCORE CONSTRAINTS:**
+- Evidence fields cannot be empty string
+- All category scores must be >= 0 (cannot be negative)
+- **CATEGORY SCORE LIMITS** (CANNOT be exceeded under any circumstances):
+  - production_experience: 0-40 points (maximum 40)
+  - fullstack_technical_depth: 0-25 points (maximum 25)
+  - system_design: 0-20 points (maximum 20)
+  - open_source_contributions: 0-15 points (maximum 15)
+- Bonus points total must be <= 20 (maximum 20 points)
+- **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed 120 points
+
+**DO NOT RETURN A RESUME SUMMARY. RETURN ONLY THE SCORING EVALUATION IN THE SPECIFIED JSON FORMAT.**
+
+Analyze the following resume and provide a JSON response with this EXACT structure (all fields are required):
+
+{
+    "scores": {
+        "production_experience": {"score": 0, "max": 40, "evidence": "string"},
+        "fullstack_technical_depth": {"score": 0, "max": 25, "evidence": "string"},
+        "system_design": {"score": 0, "max": 20, "evidence": "string"},
+        "open_source_contributions": {"score": 0, "max": 15, "evidence": "string"}
+    },
+    "bonus_points": {"total": 0, "breakdown": "string"},
+    "deductions": {"total": 0, "reasons": "string"},
+    "key_strengths": ["strength1", "strength2", "strength3", "strength4", "strength5"],
+    "areas_for_improvement": ["improvement1", "improvement2", "improvement3"]
+}
+
+Resume to evaluate:
+
+{{ text_content }}

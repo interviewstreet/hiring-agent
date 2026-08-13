@@ -1,0 +1,12 @@
+{
+  "position_title": "Full Stack Software Engineer position at HackerRank",
+  "categories": [
+    {"key": "production_experience", "label": "Production Experience", "max": 40, "icon": "🏢"},
+    {"key": "fullstack_technical_depth", "label": "Full-Stack Technical Depth", "max": 25, "icon": "💻"},
+    {"key": "system_design", "label": "System Design & Architecture", "max": 20, "icon": "🏗️"},
+    {"key": "open_source_contributions", "label": "Open Source & Side Projects", "max": 15, "icon": "🌐"}
+  ],
+  "bonus_max": 20,
+  "min_final_score": -20,
+  "max_final_score": 120
+}

@@ -233,7 +233,7 @@ You can leave it on during iteration. See the next section for details.
 
 - `evaluator.py` scores the resume against the **role** selected on the command line.
 - Each role lives in `roles/<role_name>/` and defines its own scoring categories and weights in `role.json`, plus its own `criteria.jinja` and `system_message.jinja` prompts (encoding fairness and scoring rules).
-- The shipped `software_engineering_intern` role scores `open_source`, `self_projects`, `production`, and `technical_skills`, plus bonus and deductions, with evidence for each. Other roles can define entirely different categories.
+- The shipped `software_engineering_intern` role scores `open_source`, `self_projects`, `production`, and `technical_skills`, plus bonus and deductions, with evidence for each. The shipped `full_stack_software_engineer` role instead weights `production_experience` most heavily, alongside `fullstack_technical_depth`, `system_design`, and `open_source_contributions` — reflecting that a full-time full-stack hire is judged primarily on a production track record rather than projects. Other roles can define entirely different categories.
 
 </details>
 
@@ -321,7 +321,11 @@ role directory instead.
 ├── requirements.txt
 ├── roles.py
 ├── roles/
-│   └── software_engineering_intern/
+│   ├── software_engineering_intern/
+│   │   ├── role.json
+│   │   ├── criteria.jinja
+│   │   └── system_message.jinja
+│   └── full_stack_software_engineer/
 │       ├── role.json
 │       ├── criteria.jinja
 │       └── system_message.jinja
