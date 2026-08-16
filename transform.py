@@ -870,6 +870,21 @@ def convert_json_resume_to_text(resume_data: JSONResume) -> str:
                 for highlight in volunteer.highlights:
                     text_parts.append(f"    • {highlight}")
 
+    if resume_data.open_source_contributions:
+        text_parts.append("\n=== OPEN SOURCE CONTRIBUTIONS ===")
+        for i, contrib in enumerate(resume_data.open_source_contributions, 1):
+            text_parts.append(f"{i}. {contrib.project}")
+            if contrib.organization:
+                text_parts.append(f"   Organization: {contrib.organization}")
+            if contrib.stars:
+                text_parts.append(f"   Stars: {contrib.stars}")
+            if contrib.description:
+                text_parts.append(f"   Description: {contrib.description}")
+            if contrib.url:
+                text_parts.append(f"   URL: {contrib.url}")
+            if contrib.status:
+                text_parts.append(f"   Status: {contrib.status}")
+
     return "\n".join(text_parts)
 
 
