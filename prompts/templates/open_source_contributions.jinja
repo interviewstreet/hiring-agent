@@ -1,0 +1,27 @@
+Extract ONLY the open source contributions information from this resume.
+This includes contributions to external/third-party open source projects (e.g., merged pull requests, issues filed, patches submitted to repositories the candidate does not own).
+Do NOT include the candidate's own personal projects here.
+
+--- The input markdown starts here ---
+
+{{ text_content }}
+
+--- The input markdown ends here ---
+
+Return ONLY a JSON object with this structure:
+{
+  "open_source_contributions": [
+    {
+      "project": "Name of the open source project contributed to",
+      "organization": "Organization or owner of the project (e.g., 'BerriAI', 'run-llama')",
+      "url": "URL to the pull request, issue, or contribution",
+      "description": "Brief description of what the contribution did",
+      "stars": "Star count of the project if mentioned (e.g., '50k')",
+      "status": "Status of the contribution (e.g., 'Merged', 'Open', 'Accepted')"
+    }
+  ]
+}
+
+If no open source contributions to external projects are found, return: {"open_source_contributions": []}
+
+**IMPORTANT**: Return ONLY valid JSON. Do not include any explanatory text.

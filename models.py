@@ -11,7 +11,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -154,6 +154,17 @@ class Project(BaseModel):
     skills: Optional[List[str]] = None
 
 
+class OpenSourceContribution(BaseModel):
+    """Open source contribution for JSON Resume format."""
+
+    project: Optional[str] = None
+    organization: Optional[str] = None
+    url: Optional[str] = None
+    description: Optional[str] = None
+    stars: Optional[str] = None
+    status: Optional[str] = None
+
+
 class BasicsSection(BaseModel):
     """Basics section containing basic information."""
 
@@ -190,6 +201,12 @@ class AwardsSection(BaseModel):
     awards: Optional[List[Award]] = None
 
 
+class OpenSourceSection(BaseModel):
+    """Open source contributions section containing a list of contributions."""
+
+    open_source_contributions: Optional[List[OpenSourceContribution]] = None
+
+
 class JSONResume(BaseModel):
     """Complete JSON Resume format model."""
 
@@ -205,6 +222,7 @@ class JSONResume(BaseModel):
     interests: Optional[List[Interest]] = None
     references: Optional[List[Reference]] = None
     projects: Optional[List[Project]] = None
+    open_source_contributions: Optional[List[OpenSourceContribution]] = None
 
 
 class CategoryScore(BaseModel):
@@ -303,7 +321,7 @@ class OpenAICompatibleProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         import requests
         import time
@@ -346,7 +364,7 @@ class OpenAICompatibleProvider:
 
             if response.status_code == 429 and attempt < MAX_RETRIES - 1:
                 retry_after = response.headers.get("Retry-After")
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
                 delay = float(retry_after) if retry_after else exp_delay
                 sleep_time = round(delay * random.uniform(0.8, 1.2), 2)
                 print(
@@ -360,7 +378,7 @@ class OpenAICompatibleProvider:
                 response.status_code in RETRYABLE_SERVER_ERRORS
                 and attempt < MAX_RETRIES - 1
             ):
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
                 sleep_time = round(exp_delay * random.uniform(0.8, 1.2), 2)
                 print(
                     f"[OpenAICompatibleProvider] Transient server error "
