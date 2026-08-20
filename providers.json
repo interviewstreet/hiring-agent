@@ -37,6 +37,17 @@
         "claude-sonnet-5":  { "temperature": 0.1, "top_p": 0.9 },
         "claude-haiku-4-5": { "temperature": 0.1, "top_p": 0.9 }
       }
+    },
+    "orcarouter": {
+      "base_url": "https://api.orcarouter.ai/v1",
+      "api_key_env": "ORCAROUTER_API_KEY",
+      "structured_output": "json_object",
+      "models": {
+        "orcarouter/auto":         { "temperature": 0.1, "top_p": 0.9 },
+        "orcarouter/fusion":       { "temperature": 0.1, "top_p": 0.9 },
+        "orcarouter/fusion-flash": { "temperature": 0.1, "top_p": 0.9 },
+        "orcarouter/fusion-mini":  { "temperature": 0.1, "top_p": 0.9 }
+      }
     }
   }
 }
