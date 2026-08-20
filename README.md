@@ -138,6 +138,7 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
   - **Ollama** for local models
     Install from the [official site](https://ollama.com/), then run `ollama serve`.
   - **Google Gemini** if you have an API key, get it from [here](https://aistudio.google.com/api-keys).
+  - **[OrcaRouter](https://www.orcarouter.ai)** if you have an API key, get it from [here](https://www.orcarouter.ai).
 
 ### Quick setup with pip
 
@@ -188,6 +189,7 @@ $ cp .env.example .env
 | ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
 | `DEFAULT_MODEL`  | for example `gemma4:latest` or `gemini-2.5-pro` | Model to use; must exist in `providers.json` — the provider is inferred from which provider lists it. Defaults to `default_model` in `providers.json`. |
 | `GEMINI_API_KEY` | string                                      | Required when using a Gemini model.                                   |
+| `ORCAROUTER_API_KEY` | string                                 | Required when using an OrcaRouter model.                              |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
 
 Provider mapping lives in `providers.json` — each provider declares its `base_url`, an optional API-key env var, and per-model parameters; `config.py` loads it and resolves the provider for a model. `config.py` also has a flag:
@@ -343,6 +345,13 @@ role directory instead.
 - Set `DEFAULT_MODEL` to a Gemini model listed in `providers.json`, for example `gemini-2.0-flash`
 - Provide `GEMINI_API_KEY`
 - The same `models.OpenAICompatibleProvider` wrapper is used, pointed at Gemini's OpenAI-compatible endpoint
+
+### OrcaRouter
+
+- Set `DEFAULT_MODEL` to an OrcaRouter gateway model listed in `providers.json`, for example `orcarouter/auto` (smart routing) or `orcarouter/fusion`
+- Provide `ORCAROUTER_API_KEY`
+- The same `models.OpenAICompatibleProvider` wrapper is used, pointed at [OrcaRouter](https://www.orcarouter.ai)'s OpenAI-compatible endpoint (`https://api.orcarouter.ai/v1`)
+- It also runs gateway-level, zero-trust security for AI agents on the same endpoint — screening every prompt/response and governing every tool call on a default-deny basis, with no application code changes.
 
 ---
 
