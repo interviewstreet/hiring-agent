@@ -1,0 +1,12 @@
+{
+  "position_title": "Cybersecurity / Security Analyst position",
+  "categories": [
+    {"key": "security_operations", "label": "Security Operations & Incident Response", "max": 30, "icon": "🛡️"},
+    {"key": "security_engineering", "label": "Security Engineering & DevSecOps", "max": 30, "icon": "🔐"},
+    {"key": "hands_on_projects", "label": "Hands-On Projects & Research", "max": 20, "icon": "🧪"},
+    {"key": "certifications_skills", "label": "Certifications & Technical Skills", "max": 20, "icon": "🎓"}
+  ],
+  "bonus_max": 15,
+  "min_final_score": -15,
+  "max_final_score": 115
+}
