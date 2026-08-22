@@ -195,6 +195,158 @@ def test_tool_use_payload_is_returned_as_a_json_string():
     assert result["message"]["role"] == "assistant"
 
 
+# --- tool-input normalization: both quirks captured from the live API ---
+
+EVAL_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "scores": {"type": "object"},
+        "bonus_points": {"type": "object"},
+        "key_strengths": {"type": "array"},
+    },
+    "required": ["scores", "bonus_points", "key_strengths"],
+}
+
+
+@pytest.mark.parametrize("envelope", ["parameter_name", "response"])
+def test_single_key_envelope_is_unwrapped(envelope):
+    """claude-opus-5 nests the whole object under one arbitrary key."""
+    inner = {
+        "scores": {"open_source": {"score": 12}},
+        "bonus_points": {"total": 4},
+        "key_strengths": ["a"],
+    }
+    provider = make_provider(tool_response({envelope: inner}))
+    result = provider.chat(
+        model="us.anthropic.claude-opus-5",
+        messages=[{"role": "user", "content": "score"}],
+        format=EVAL_SCHEMA,
+    )
+    assert json.loads(result["message"]["content"]) == inner
+
+
+def test_stringified_nested_object_is_parsed_back():
+    """claude-haiku-4-5 emits nested objects as JSON strings."""
+    provider = make_provider(
+        tool_response(
+            {
+                "scores": {"open_source": {"score": 8}},
+                "bonus_points": '{"total": 3, "breakdown": "LinkedIn +1"}',
+                "key_strengths": '["backend depth"]',
+            }
+        )
+    )
+    result = provider.chat(
+        model="us.anthropic.claude-haiku-4-5-20251001-v1:0",
+        messages=[{"role": "user", "content": "score"}],
+        format=EVAL_SCHEMA,
+    )
+    payload = json.loads(result["message"]["content"])
+    assert payload["bonus_points"] == {"total": 3, "breakdown": "LinkedIn +1"}
+    assert payload["key_strengths"] == ["backend depth"]
+
+
+def test_stringified_object_with_one_extra_closing_brace_is_recovered():
+    """Exact shape captured from claude-haiku-4-5: complete object, stray '}'."""
+    provider = make_provider(
+        tool_response(
+            {
+                "scores": '{"open_source": {"score": 8, "max": 35}}}',
+                "bonus_points": '{"total": 3, "breakdown": "LinkedIn +1."}}',
+                "key_strengths": '["backend depth"]]',
+            }
+        )
+    )
+    result = provider.chat(
+        model="us.anthropic.claude-haiku-4-5-20251001-v1:0",
+        messages=[{"role": "user", "content": "score"}],
+        format=EVAL_SCHEMA,
+    )
+    payload = json.loads(result["message"]["content"])
+    assert payload["scores"] == {"open_source": {"score": 8, "max": 35}}
+    assert payload["bonus_points"] == {"total": 3, "breakdown": "LinkedIn +1."}
+    assert payload["key_strengths"] == ["backend depth"]
+
+
+def test_trailing_real_content_is_refused_rather_than_silently_truncated():
+    """Dropping real content would silently corrupt a score. Leave it invalid
+    so the caller's validation fails loudly instead."""
+    corrupt = '{"total": 3} {"total": 99}'
+    provider = make_provider(
+        tool_response({"scores": {}, "bonus_points": corrupt, "key_strengths": ["a"]})
+    )
+    result = provider.chat(
+        model="us.anthropic.claude-haiku-4-5-20251001-v1:0",
+        messages=[{"role": "user", "content": "score"}],
+        format=EVAL_SCHEMA,
+    )
+    assert json.loads(result["message"]["content"])["bonus_points"] == corrupt
+
+
+def test_dollar_parameter_name_envelope_from_sonnet_5_is_unwrapped():
+    """Literal template placeholder observed leaking as the envelope key."""
+    inner = {
+        "scores": {"open_source": {"score": 8}},
+        "bonus_points": {"total": 4},
+        "key_strengths": ["a"],
+    }
+    provider = make_provider(tool_response({"$PARAMETER_NAME": inner}))
+    result = provider.chat(
+        model="us.anthropic.claude-sonnet-5",
+        messages=[{"role": "user", "content": "score"}],
+        format=EVAL_SCHEMA,
+    )
+    assert json.loads(result["message"]["content"]) == inner
+
+
+def test_prose_strings_are_never_reinterpreted_as_json():
+    """evidence/breakdown are prose and must survive untouched."""
+    payload_in = {
+        "scores": {
+            "open_source": {
+                "score": 8,
+                "evidence": "Uses {braces} mid-sentence [and brackets] here.",
+            }
+        },
+        "bonus_points": {"total": 1, "breakdown": "LinkedIn profile: +1 point."},
+        "key_strengths": ["Scaled throughput 10x"],
+    }
+    provider = make_provider(tool_response(payload_in))
+    result = provider.chat(
+        model="amazon.nova-pro-v1:0",
+        messages=[{"role": "user", "content": "score"}],
+        format=EVAL_SCHEMA,
+    )
+    assert json.loads(result["message"]["content"]) == payload_in
+
+
+def test_legitimate_single_property_response_is_not_unwrapped():
+    """A schema with one property must not be mistaken for an envelope."""
+    schema = {
+        "type": "object",
+        "properties": {"scores": {"type": "object"}},
+        "required": ["scores"],
+    }
+    payload_in = {"scores": {"open_source": {"score": 8}}}
+    provider = make_provider(tool_response(payload_in))
+    result = provider.chat(
+        model="amazon.nova-pro-v1:0",
+        messages=[{"role": "user", "content": "score"}],
+        format=schema,
+    )
+    assert json.loads(result["message"]["content"]) == payload_in
+
+
+def test_normalization_is_a_noop_without_a_schema():
+    """No format kwarg means no properties to reason about; pass through."""
+    payload_in = {"anything": {"nested": 1}}
+    provider = make_provider(tool_response(payload_in))
+    result = provider.chat(
+        model="amazon.nova-pro-v1:0", messages=[{"role": "user", "content": "hi"}]
+    )
+    assert json.loads(result["message"]["content"]) == payload_in
+
+
 def test_structured_output_none_sends_no_tool_config():
     """google.gemma-3-* ignores toolConfig, so it is declared structured_output=none."""
     provider = make_provider(text_response('{"score": 1}'), structured_output="none")

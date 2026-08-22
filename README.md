@@ -383,6 +383,45 @@ Claude models are served through cross-region inference profiles, which is why t
 model IDs carry a `us.` prefix. `aws bedrock list-foundation-models --by-provider
 anthropic` shows `INFERENCE_PROFILE` for these.
 
+#### Sampling parameters differ per model, in three regimes
+
+Bedrock rejects deprecated sampling parameters with a `ValidationException`, so
+`providers.json` declares only what each model accepts:
+
+| Models | Accepts |
+| --- | --- |
+| `nova-pro`, `qwen3-32b`, `gemma-3-*` | `temperature` + `top_p` |
+| `claude-haiku-4-5`, `claude-sonnet-4-5`, `claude-sonnet-4-6` | `temperature` only |
+| `claude-opus-5`, `claude-sonnet-5`, `claude-opus-4-8` | **neither** — both deprecated |
+
+This is why `pdf.py` and `evaluator.py` spread the resolved params instead of naming
+them: a model declaring `{}` must have nothing sent. Note that you therefore
+**cannot** pin `temperature=0` on the newest models to reduce score variance.
+
+#### Which model to score with
+
+Measured with `scripts/compare_models.py` — 6 runs of one real resume, reusing the
+cached extraction so each run is exactly one scoring call:
+
+| Model | Valid schema | Median total | Spread | Median latency |
+| --- | --- | --- | --- | --- |
+| `claude-opus-5` | **6/6** | 74 | ±5 | 33s |
+| `claude-sonnet-4-6` | **6/6** | 68 | **±3** | 29s |
+| `claude-sonnet-5` | 4/6 | 69 | ±7 | 22s |
+| `claude-haiku-4-5` | **2/6** | 74 | ±0 | 15s |
+
+- **`claude-opus-5`** for judgement quality. Perfect schema compliance, and the only
+  model with ±0 on `open_source`, the highest-weighted and hardest category.
+- **`claude-sonnet-4-6`** for volume. Also 6/6, the tightest total spread, and about
+  5× cheaper.
+- **`claude-haiku-4-5` is not recommended for scoring.** It emits nested objects as
+  JSON strings with a stray trailing brace and fails schema validation about two runs
+  in three on this rubric's schema. `BedrockConverseProvider` repairs what it safely
+  can (see `_normalize_tool_input`); the remainder is genuinely malformed.
+
+Cross-model spread is 68–75, comparable to within-model spread, so treat any single
+number as one sample from a distribution rather than a score.
+
 ```bash
 $ pip install -r requirements.txt          # brings in boto3
 $ aws configure                            # or export AWS_PROFILE

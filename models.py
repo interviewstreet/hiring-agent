@@ -466,6 +466,80 @@ class BedrockConverseProvider:
             converse = [{"role": "user", "content": [{"text": ""}]}]
         return system_blocks, converse
 
+    @staticmethod
+    def _parse_embedded_json(value, _depth=0):
+        """Recursively parse values that are JSON objects/arrays sent as strings.
+
+        Some models serialize nested tool-call fields as strings, e.g.
+        ``{"bonus_points": "{\\"total\\": 3}"}`` instead of a nested object
+        (observed on claude-haiku-4-5). Only strings that begin with ``{`` or
+        ``[`` are considered, so prose fields such as ``evidence`` and
+        ``breakdown`` are never touched.
+        """
+        import json as _json
+
+        if _depth > 6:
+            return value
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped[:1] in ("{", "["):
+                # raw_decode rather than loads: claude-haiku-4-5 appends one
+                # spurious closing brace to these strings, so the object is
+                # complete but json.loads rejects the trailing character. Accept
+                # the decoded prefix only when what follows is pure punctuation
+                # noise — never when real content was dropped, which would mean
+                # silently discarding part of a score.
+                try:
+                    parsed, end = _json.JSONDecoder().raw_decode(stripped)
+                except ValueError:
+                    return value
+                if stripped[end:].strip(" \t\r\n,}]"):
+                    return value
+                return BedrockConverseProvider._parse_embedded_json(parsed, _depth + 1)
+            return value
+        if isinstance(value, dict):
+            return {
+                k: BedrockConverseProvider._parse_embedded_json(v, _depth + 1)
+                for k, v in value.items()
+            }
+        if isinstance(value, list):
+            return [
+                BedrockConverseProvider._parse_embedded_json(v, _depth + 1)
+                for v in value
+            ]
+        return value
+
+    @staticmethod
+    def _normalize_tool_input(payload, schema):
+        """Repair two tool-input serialization quirks seen on Bedrock.
+
+        Both were observed against the live API while scoring a real resume, and
+        in both cases the model's *content* was correct — only its envelope was
+        wrong, so repairing here is lossless rather than a guess:
+
+        1. Envelope wrapping. claude-opus-5 returns the entire object nested
+           under a single arbitrary key, e.g. ``{"parameter_name": {...}}`` or
+           ``{"response": {...}}``. Unwrapped only when that lone key is not
+           itself a schema property and the nested dict does contain schema
+           properties, so a legitimate single-property response is left alone.
+
+        2. Stringified nested values, handled by :meth:`_parse_embedded_json`.
+        """
+        if not isinstance(payload, dict):
+            return payload
+
+        properties = set((schema or {}).get("properties") or ())
+        if properties and len(payload) == 1:
+            (only_key,), (inner,) = payload.keys(), payload.values()
+            if (
+                only_key not in properties
+                and isinstance(inner, dict)
+                and properties & set(inner)
+            ):
+                payload = inner
+
+        return BedrockConverseProvider._parse_embedded_json(payload)
+
     def chat(
         self,
         model: str,
@@ -521,10 +595,13 @@ class BedrockConverseProvider:
         # the shared JSON-extraction path can handle.
         for block in blocks:
             if "toolUse" in block:
+                payload = self._normalize_tool_input(
+                    block["toolUse"]["input"], kwargs.get("format")
+                )
                 return {
                     "message": {
                         "role": "assistant",
-                        "content": _json.dumps(block["toolUse"]["input"]),
+                        "content": _json.dumps(payload),
                     }
                 }
 
