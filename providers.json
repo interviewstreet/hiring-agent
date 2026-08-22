@@ -37,6 +37,20 @@
         "claude-sonnet-5":  { "temperature": 0.1, "top_p": 0.9 },
         "claude-haiku-4-5": { "temperature": 0.1, "top_p": 0.9 }
       }
+    },
+    "bedrock": {
+      "transport": "bedrock",
+      "region": "us-east-1",
+      "api_key_env": null,
+      "structured_output": "bedrock_tool",
+      "max_tokens": 8192,
+      "models": {
+        "us.anthropic.claude-haiku-4-5-20251001-v1:0": { "temperature": 0.1 },
+        "amazon.nova-pro-v1:0":                        { "temperature": 0.1, "top_p": 0.9 },
+        "qwen.qwen3-32b-v1:0":                         { "temperature": 0.1, "top_p": 0.9 },
+        "google.gemma-3-12b-it":                       { "temperature": 0.1, "top_p": 0.9, "structured_output": "none" },
+        "google.gemma-3-27b-it":                       { "temperature": 0.1, "top_p": 0.9, "structured_output": "none" }
+      }
     }
   }
 }

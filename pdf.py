@@ -89,10 +89,12 @@ class PDFHandler:
                     {"role": "system", "content": section_system_message},
                     {"role": "user", "content": prompt},
                 ],
+                # Spread the resolved params rather than naming them, so a model
+                # that declares only one sampling parameter sends only that one.
+                # Bedrock's Anthropic models reject temperature and top_p together.
                 "options": {
                     "stream": False,
-                    "temperature": model_params["temperature"],
-                    "top_p": model_params["top_p"],
+                    **model_params,
                 },
             }
 

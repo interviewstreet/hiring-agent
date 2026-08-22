@@ -5,7 +5,7 @@ Utility functions for LLM providers.
 import logging
 from typing import Any, Dict, Optional
 from config import provider_for
-from models import OpenAICompatibleProvider
+from models import BedrockConverseProvider, OpenAICompatibleProvider
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +39,29 @@ def extract_json_from_response(response_text: str) -> str:
 
 def initialize_llm_provider(model_name: str) -> Any:
     """
-    Initialize an OpenAI-compatible LLM provider for the given model,
-    resolving base_url / api_key / structured-output mode from providers.json.
+    Initialize an LLM provider for the given model, resolving transport /
+    base_url / api_key / structured-output mode from providers.json.
+
+    Dispatches on the provider's declared ``transport``. Providers omit it and
+    default to "openai", so every existing entry keeps working unchanged.
     """
     cfg = provider_for(model_name)
+
+    if cfg["transport"] == "bedrock":
+        if not cfg["region"]:
+            raise ValueError(
+                f"Model '{model_name}' uses the bedrock transport, which needs a "
+                f'region. Set AWS_REGION or add "region" to the provider in '
+                f"providers.json."
+            )
+        logger.info(f"🔄 Using model {model_name} via AWS Bedrock ({cfg['region']})")
+        return BedrockConverseProvider(
+            region=cfg["region"],
+            structured_output=cfg["structured_output"],
+            max_tokens=cfg["max_tokens"],
+            extra_body=cfg["extra_body"],
+        )
+
     logger.info(f"🔄 Using model {model_name} via {cfg['base_url']}")
     return OpenAICompatibleProvider(
         base_url=cfg["base_url"],
