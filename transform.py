@@ -891,10 +891,28 @@ def convert_github_data_to_text(github_data: dict) -> str:
     if "projects" in github_data:
         projects = github_data["projects"]
         github_text += f"\nGitHub Projects ({len(projects)} total):\n"
+        # project_type / contributor_count / author_commit_count are computed in
+        # github.py at the cost of one API call per repository, and both
+        # criteria.jinja and system_message.jinja instruct the model to branch on
+        # them. Without emitting them here the model has to guess, and it does —
+        # it will assert every project is a self_project regardless of the
+        # classification. live_url is emitted because a working demo is the
+        # largest single modifier in the rubric.
         for i, project in enumerate(projects[:10], 1):
             github_text += f"{i}. {project.get('name', 'N/A')}\n"
             github_text += f"   Description: {project.get('description', 'N/A')}\n"
             github_text += f"   URL: {project.get('github_url', 'N/A')}\n"
+            github_text += f"   Live Demo URL: {project.get('live_url') or 'None'}\n"
+            github_text += (
+                f"   Project Type: {project.get('project_type', 'unknown')}\n"
+            )
+            github_text += (
+                f"   Contributors: {project.get('contributor_count', 'N/A')}\n"
+            )
+            github_text += (
+                f"   Author Commits: {project.get('author_commit_count', 'N/A')}"
+                f" of {project.get('total_commit_count', 'N/A')} total\n"
+            )
             if "github_details" in project:
                 details = project["github_details"]
                 github_text += f"   Stars: {details.get('stars', 'N/A')}\n"
