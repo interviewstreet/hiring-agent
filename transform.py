@@ -199,7 +199,9 @@ def transform_work_experience(work_list: List) -> List[Dict]:
                     "Dec",
                 ]
             ):
-                start_date, end_date = parse_date_range(start_date_input)
+                parsed_start, parsed_end = parse_date_range(start_date_input)
+                start_date = parsed_start
+                end_date = parsed_end if parsed_end else item.get("endDate")
             else:
                 # Use existing startDate and endDate values
                 start_date = item.get("startDate")
@@ -425,62 +427,27 @@ def parse_date_range(date_range: str) -> tuple:
             return start_part, "Present"
         return None, "Present"
 
-    # Handle format like "Jan-Mar 2021"
-    if " " in date_range and any(
-        month in date_range
-        for month in [
-            "Jan",
-            "Feb",
-            "Mar",
-            "Apr",
-            "May",
-            "Jun",
-            "Jul",
-            "Aug",
-            "Sep",
-            "Oct",
-            "Nov",
-            "Dec",
-        ]
-    ):
-        parts = date_range.split(" ")
-        if len(parts) >= 2:
-            year = parts[-1]
-            month_map = {
-                "Jan": "Jan",
-                "Feb": "Feb",
-                "Mar": "Mar",
-                "Apr": "Apr",
-                "May": "May",
-                "Jun": "Jun",
-                "Jul": "Jul",
-                "Aug": "Aug",
-                "Sep": "Sep",
-                "Oct": "Oct",
-                "Nov": "Nov",
-                "Dec": "Dec",
-            }
+    # Normalize hyphens and spaces
+    normalized_range = date_range.replace(" - ", "-").replace(" – ", "-").replace("–", "-")
 
-            # Check if it's a range like "Jan-Mar 2021"
-            if "-" in parts[0] and len(parts[0].split("-")) == 2:
-                start_month, end_month = parts[0].split("-")
-                start_date = f"{month_map.get(start_month, start_month)} {year}"
-                end_date = f"{month_map.get(end_month, end_month)} {year}"
-                return start_date, end_date
-            else:
-                # Single month format like "Jan 2021"
-                month = month_map.get(parts[0], parts[0])
-                start_date = f"{month} {year}"
-                return start_date, None
+    if "-" in normalized_range and len(normalized_range.split("-")) == 2:
+        start_part, end_part = normalized_range.split("-")
+        start_part = start_part.strip()
+        end_part = end_part.strip()
 
-    # Handle year range like "2020-2021"
-    if "-" in date_range and len(date_range.split("-")) == 2:
-        start_year, end_year = date_range.split("-")
-        start_date = f"{start_year}-01"
-        end_date = f"{end_year}-12"
-        return start_date, end_date
+        # If start part is just a month (e.g. "Jan") and end part has a year (e.g. "Mar 2021")
+        if len(start_part.split()) == 1 and len(end_part.split()) == 2:
+            year = end_part.split()[1]
+            start_part = f"{start_part} {year}"
+            
+        # Handle year range like "2020-2021"
+        if start_part.isdigit() and end_part.isdigit() and len(start_part) == 4 and len(end_part) == 4:
+            return f"{start_part}-01", f"{end_part}-12"
+            
+        return start_part, end_part
 
-    return None, None
+    # Single date like "Jan 2021"
+    return date_range, None
 
 
 def fetch_profile(profiles, network_names, prefix):
