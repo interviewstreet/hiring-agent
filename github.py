@@ -215,6 +215,84 @@ def fetch_repo_contributors(owner: str, repo_name: str) -> list[dict]:
         return []
 
 
+def fetch_pr_contributed_repos(username: str) -> List[Dict]:
+    github_token = os.environ.get("GITHUB_TOKEN")
+    headers = {}
+    if github_token:
+        headers["Authorization"] = f"token {github_token}"
+
+    try:
+        resp = requests.get(
+            "https://api.github.com/search/issues",
+            params={"q": f"author:{username} type:pr is:merged", "per_page": 100},
+            headers=headers,
+            timeout=15,
+        )
+    except Exception as e:
+        logger.error(f"PR search API failed for {username}: {e}")
+        return []
+
+    if resp.status_code != 200:
+        logger.warning(f"PR search API returned {resp.status_code} for {username}")
+        return []
+
+    external_repos: Dict[str, None] = {}
+    for item in resp.json().get("items", []):
+        repo_url = item.get("repository_url", "")
+        full_name = repo_url.replace("https://api.github.com/repos/", "")
+        if full_name and full_name.split("/")[0].lower() != username.lower():
+            external_repos[full_name] = None
+
+    if not external_repos:
+        return []
+
+    print(f"\U0001f517 Found {len(external_repos)} external repo(s) with merged PRs")
+
+    contributed = []
+    for full_name in external_repos:
+        try:
+            r_status, r_data = _fetch_github_api(f"https://api.github.com/repos/{full_name}")
+            if r_status != 200 or not isinstance(r_data, dict):
+                continue
+            owner, repo_name = full_name.split("/", 1)
+            contributors_data = fetch_repo_contributors(owner, repo_name)
+            user_contributions, total_contributions = fetch_contributions_count(
+                username, contributors_data
+            )
+            contributed.append({
+                "name": r_data.get("name"),
+                "description": r_data.get("description"),
+                "github_url": r_data.get("html_url"),
+                "live_url": r_data.get("homepage") or None,
+                "technologies": (
+                    [r_data.get("language")] if r_data.get("language") else []
+                ),
+                "project_type": "open_source",
+                "contributor_count": len(contributors_data),
+                "author_commit_count": user_contributions,
+                "total_commit_count": total_contributions,
+                "github_details": {
+                    "stars": r_data.get("stargazers_count", 0),
+                    "forks": r_data.get("forks_count", 0),
+                    "language": r_data.get("language"),
+                    "description": r_data.get("description"),
+                    "created_at": r_data.get("created_at"),
+                    "updated_at": r_data.get("updated_at"),
+                    "topics": r_data.get("topics", []),
+                    "open_issues": r_data.get("open_issues_count", 0),
+                    "size": r_data.get("size", 0),
+                    "fork": r_data.get("fork", False),
+                    "archived": r_data.get("archived", False),
+                    "default_branch": r_data.get("default_branch"),
+                    "contributors": len(contributors_data),
+                },
+            })
+        except Exception as e:
+            logger.warning(f"Skipping PR-contributed repo {full_name}: {e}")
+
+    return contributed
+
+
 def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
     try:
         username = extract_github_username(github_url)
@@ -276,6 +354,11 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                     },
                 }
                 projects.append(project)
+
+            owned_names = {p["name"] for p in projects}
+            for contrib in fetch_pr_contributed_repos(username):
+                if contrib.get("name") not in owned_names:
+                    projects.append(contrib)
 
             projects.sort(key=lambda x: x["github_details"]["stars"], reverse=True)
 
@@ -340,7 +423,7 @@ def generate_projects_json(
     try:
         projects_data = []
         for project in projects:
-            if project.get("author_commit_count") == 0:
+            if project.get("author_commit_count") == 0 and project.get("project_type") != "open_source":
                 continue
 
             project_data = {
@@ -411,26 +494,41 @@ def generate_projects_json(
                     unique_projects.append(project)
                     seen_names.add(project_name)
 
-            if len(unique_projects) < 7:
-                print(
-                    f"⚠️ LLM selected {len(selected_projects)} projects but {len(unique_projects)} are unique"
-                )
+            open_source_pinned = [
+                p for p in projects_data if p.get("project_type") == "open_source"
+            ]
+            open_source_pinned.sort(
+                key=lambda p: p.get("github_details", {}).get("stars", 0), reverse=True
+            )
+            open_source_pinned = open_source_pinned[:3]
+            pinned_names = {p["name"] for p in open_source_pinned}
 
-                for project in projects_data:
-                    if len(unique_projects) >= 7:
-                        break
-                    project_name = project.get("name", "")
-                    if project_name and project_name not in seen_names:
-                        unique_projects.append(project)
-                        seen_names.add(project_name)
+            final_projects = list(open_source_pinned)
+            final_seen = set(pinned_names)
+
+            for project in unique_projects:
+                if len(final_projects) >= 7:
+                    break
+                pname = project.get("name", "")
+                if pname and pname not in final_seen:
+                    final_projects.append(project)
+                    final_seen.add(pname)
+
+            for project in projects_data:
+                if len(final_projects) >= 7:
+                    break
+                pname = project.get("name", "")
+                if pname and pname not in final_seen:
+                    final_projects.append(project)
+                    final_seen.add(pname)
 
             project_names = ", ".join(
-                [proj.get("name", "N/A") for proj in unique_projects]
+                [proj.get("name", "N/A") for proj in final_projects]
             )
             print(
-                f"✅ LLM selected {len(unique_projects)} unique top projects: {project_names}"
+                f"✅ LLM selected {len(final_projects)} unique top projects: {project_names}"
             )
-            return unique_projects
+            return final_projects
 
         except json.JSONDecodeError as e:
             print(f"ERROR: Error parsing LLM response: {e}")
