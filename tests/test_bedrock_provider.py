@@ -2,7 +2,7 @@
 
 These are offline: the Bedrock client is replaced with a fake that records the
 request, so the whole translation layer is covered without AWS credentials or
-network access. A separate live smoke test lives in test_bedrock_live.py.
+network access.
 """
 
 import json
