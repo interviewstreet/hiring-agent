@@ -11,7 +11,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -303,7 +303,7 @@ class OpenAICompatibleProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         import requests
         import time
@@ -346,7 +346,7 @@ class OpenAICompatibleProvider:
 
             if response.status_code == 429 and attempt < MAX_RETRIES - 1:
                 retry_after = response.headers.get("Retry-After")
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
                 delay = float(retry_after) if retry_after else exp_delay
                 sleep_time = round(delay * random.uniform(0.8, 1.2), 2)
                 print(
@@ -360,7 +360,7 @@ class OpenAICompatibleProvider:
                 response.status_code in RETRYABLE_SERVER_ERRORS
                 and attempt < MAX_RETRIES - 1
             ):
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
                 sleep_time = round(exp_delay * random.uniform(0.8, 1.2), 2)
                 print(
                     f"[OpenAICompatibleProvider] Transient server error "
@@ -377,3 +377,238 @@ class OpenAICompatibleProvider:
             except (KeyError, IndexError, TypeError):
                 raise ValueError(f"Unexpected response shape from {url}: {data}")
             return {"message": {"role": "assistant", "content": content}}
+
+
+class BedrockConverseProvider:
+    """AWS Bedrock provider using the Converse API.
+
+    Bedrock is not OpenAI-compatible over SigV4, so it needs its own transport
+    rather than a different base_url. Three differences drive this class:
+
+    1. Auth is SigV4, handled by botocore from the standard credential chain
+       (env vars, ~/.aws/credentials, instance/task role). There is no API key,
+       which is why providers.json declares no ``api_key_env`` for bedrock.
+    2. ``system`` is a top-level parameter, not a message with role="system".
+    3. There is no ``response_format``. Structured output is obtained by
+       declaring a tool whose ``inputSchema.json`` is the caller's JSON schema
+       and forcing ``toolChoice``, so the model must answer through it.
+
+    Returns the same ``{"message": {"content": ...}}`` shape as
+    OpenAICompatibleProvider, so pdf.py / evaluator.py / github.py are unchanged.
+    In structured mode the tool input is serialized back to a JSON string, which
+    keeps ``extract_json_from_response`` + ``json.loads`` working as-is.
+    """
+
+    #: Name of the synthetic tool used to carry structured output.
+    TOOL_NAME = "emit_structured_response"
+
+    def __init__(
+        self,
+        region: str,
+        structured_output: str = "bedrock_tool",
+        max_tokens: int = 8192,
+        extra_body: Optional[Dict[str, Any]] = None,
+    ):
+        self.region = region
+        self.structured_output = structured_output
+        self.max_tokens = max_tokens
+        self.extra_body = extra_body or {}
+        self._client = None
+
+    @property
+    def client(self):
+        """Lazily build the boto3 client so importing this module never needs boto3."""
+        if self._client is None:
+            try:
+                import boto3
+                from botocore.config import Config
+            except ImportError as exc:  # pragma: no cover - dependency guard
+                raise ImportError(
+                    "The bedrock provider requires boto3. Install it with "
+                    "`pip install boto3` (it is pinned in requirements.txt)."
+                ) from exc
+            # Adaptive mode retries ThrottlingException with client-side rate
+            # limiting, which is what Bedrock returns under on-demand pressure.
+            self._client = boto3.client(
+                "bedrock-runtime",
+                region_name=self.region,
+                config=Config(
+                    retries={"max_attempts": 5, "mode": "adaptive"},
+                    read_timeout=300,
+                    connect_timeout=10,
+                ),
+            )
+        return self._client
+
+    @staticmethod
+    def _split_messages(messages: List[Dict[str, str]]):
+        """Split OpenAI-style messages into (system_blocks, converse_messages).
+
+        Converse requires system prompts out-of-band and rejects consecutive
+        messages with the same role, so same-role runs are merged.
+        """
+        system_blocks = []
+        converse: List[Dict[str, Any]] = []
+        for msg in messages:
+            role = msg.get("role")
+            text = msg.get("content") or ""
+            if role == "system":
+                if text:
+                    system_blocks.append({"text": text})
+                continue
+            role = "assistant" if role == "assistant" else "user"
+            if converse and converse[-1]["role"] == role:
+                converse[-1]["content"][0]["text"] += "\n\n" + text
+            else:
+                converse.append({"role": role, "content": [{"text": text}]})
+        # Converse requires the first message to be from the user.
+        if not converse:
+            converse = [{"role": "user", "content": [{"text": ""}]}]
+        return system_blocks, converse
+
+    @staticmethod
+    def _parse_embedded_json(value, _depth=0):
+        """Recursively parse values that are JSON objects/arrays sent as strings.
+
+        Some models serialize nested tool-call fields as strings, e.g.
+        ``{"bonus_points": "{\\"total\\": 3}"}`` instead of a nested object
+        (observed on claude-haiku-4-5). Only strings that begin with ``{`` or
+        ``[`` are considered, so prose fields such as ``evidence`` and
+        ``breakdown`` are never touched.
+        """
+        import json as _json
+
+        if _depth > 6:
+            return value
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped[:1] in ("{", "["):
+                # raw_decode rather than loads: claude-haiku-4-5 appends one
+                # spurious closing brace to these strings, so the object is
+                # complete but json.loads rejects the trailing character. Accept
+                # the decoded prefix only when what follows is pure punctuation
+                # noise — never when real content was dropped, which would mean
+                # silently discarding part of a score.
+                try:
+                    parsed, end = _json.JSONDecoder().raw_decode(stripped)
+                except ValueError:
+                    return value
+                if stripped[end:].strip(" \t\r\n,}]"):
+                    return value
+                return BedrockConverseProvider._parse_embedded_json(parsed, _depth + 1)
+            return value
+        if isinstance(value, dict):
+            return {
+                k: BedrockConverseProvider._parse_embedded_json(v, _depth + 1)
+                for k, v in value.items()
+            }
+        if isinstance(value, list):
+            return [
+                BedrockConverseProvider._parse_embedded_json(v, _depth + 1)
+                for v in value
+            ]
+        return value
+
+    @staticmethod
+    def _normalize_tool_input(payload, schema):
+        """Repair two tool-input serialization quirks seen on Bedrock.
+
+        Both were observed against the live API while scoring a real resume, and
+        in both cases the model's *content* was correct — only its envelope was
+        wrong, so repairing here is lossless rather than a guess:
+
+        1. Envelope wrapping. claude-opus-5 returns the entire object nested
+           under a single arbitrary key, e.g. ``{"parameter_name": {...}}`` or
+           ``{"response": {...}}``. Unwrapped only when that lone key is not
+           itself a schema property and the nested dict does contain schema
+           properties, so a legitimate single-property response is left alone.
+
+        2. Stringified nested values, handled by :meth:`_parse_embedded_json`.
+        """
+        if not isinstance(payload, dict):
+            return payload
+
+        properties = set((schema or {}).get("properties") or ())
+        if properties and len(payload) == 1:
+            (only_key,), (inner,) = payload.keys(), payload.values()
+            if (
+                only_key not in properties
+                and isinstance(inner, dict)
+                and properties & set(inner)
+            ):
+                payload = inner
+
+        return BedrockConverseProvider._parse_embedded_json(payload)
+
+    def chat(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        import json as _json
+
+        options = options or {}
+        system_blocks, converse_messages = self._split_messages(messages)
+
+        inference_config: Dict[str, Any] = {"maxTokens": self.max_tokens}
+        if "temperature" in options:
+            inference_config["temperature"] = options["temperature"]
+        if "top_p" in options:
+            inference_config["topP"] = options["top_p"]
+
+        request: Dict[str, Any] = {
+            "modelId": model,
+            "messages": converse_messages,
+            "inferenceConfig": inference_config,
+        }
+        if system_blocks:
+            request["system"] = system_blocks
+
+        # Structured output: the caller's JSON schema becomes a forced tool call.
+        wants_tool = "format" in kwargs and self.structured_output == "bedrock_tool"
+        if wants_tool:
+            request["toolConfig"] = {
+                "tools": [
+                    {
+                        "toolSpec": {
+                            "name": self.TOOL_NAME,
+                            "description": (
+                                "Return the response as structured data matching "
+                                "the provided schema."
+                            ),
+                            "inputSchema": {"json": kwargs["format"]},
+                        }
+                    }
+                ],
+                "toolChoice": {"tool": {"name": self.TOOL_NAME}},
+            }
+
+        request.update(self.extra_body)
+
+        response = self.client.converse(**request)
+        blocks = response.get("output", {}).get("message", {}).get("content", [])
+
+        # Prefer the tool payload; fall back to concatenated text so that models
+        # which ignore toolConfig (e.g. google.gemma-3-*) still return something
+        # the shared JSON-extraction path can handle.
+        for block in blocks:
+            if "toolUse" in block:
+                payload = self._normalize_tool_input(
+                    block["toolUse"]["input"], kwargs.get("format")
+                )
+                return {
+                    "message": {
+                        "role": "assistant",
+                        "content": _json.dumps(payload),
+                    }
+                }
+
+        text = "".join(b["text"] for b in blocks if "text" in b)
+        if not text:
+            raise ValueError(
+                f"Bedrock returned no text or toolUse content for model "
+                f"'{model}'. stopReason={response.get('stopReason')!r}"
+            )
+        return {"message": {"role": "assistant", "content": text}}

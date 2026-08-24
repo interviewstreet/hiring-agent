@@ -188,6 +188,7 @@ $ cp .env.example .env
 | ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
 | `DEFAULT_MODEL`  | for example `gemma4:latest` or `gemini-2.5-pro` | Model to use; must exist in `providers.json` — the provider is inferred from which provider lists it. Defaults to `default_model` in `providers.json`. |
 | `GEMINI_API_KEY` | string                                      | Required when using a Gemini model.                                   |
+| `AWS_REGION`     | for example `us-east-1`                     | Region for Bedrock models. Overrides the provider's `region` in `providers.json`. Bedrock uses SigV4 from the standard AWS credential chain, so no API key is read. |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
 
 Provider mapping lives in `providers.json` — each provider declares its `base_url`, an optional API-key env var, and per-model parameters; `config.py` loads it and resolves the provider for a model. `config.py` also has a flag:
@@ -343,6 +344,91 @@ role directory instead.
 - Set `DEFAULT_MODEL` to a Gemini model listed in `providers.json`, for example `gemini-2.0-flash`
 - Provide `GEMINI_API_KEY`
 - The same `models.OpenAICompatibleProvider` wrapper is used, pointed at Gemini's OpenAI-compatible endpoint
+
+### AWS Bedrock
+
+Bedrock is the one provider that is **not** OpenAI-compatible, so it declares
+`"transport": "bedrock"` in `providers.json` and is served by
+`models.BedrockConverseProvider` instead of `OpenAICompatibleProvider`. Providers
+that omit `transport` default to `"openai"`, so every other entry is unchanged.
+
+- Set `DEFAULT_MODEL` to a Bedrock model listed in `providers.json`, for example
+  `us.anthropic.claude-haiku-4-5-20251001-v1:0`
+- **No API key.** Auth is SigV4 from the standard credential chain — `aws configure`,
+  `AWS_PROFILE`, or an instance/task role. Only `AWS_REGION` is read.
+- Requires `boto3` (pinned in `requirements.txt`).
+
+Three differences from the OpenAI-compatible path are handled by the provider:
+
+| Concern | OpenAI-compatible | Bedrock Converse |
+| --- | --- | --- |
+| System prompt | a message with `role: "system"` | top-level `system` parameter |
+| Structured output | `response_format.json_schema` | a tool whose `inputSchema.json` is the schema, with `toolChoice` forced |
+| Retries | hand-rolled loop in `OpenAICompatibleProvider` | botocore `retries={"mode": "adaptive"}` |
+
+Both return `{"message": {"content": ...}}`, so `pdf.py`, `evaluator.py` and
+`github.py` are identical across providers. In structured mode the tool payload is
+serialized back to a JSON string, which keeps `extract_json_from_response` working.
+
+**Two capability notes, both verified against the live API:**
+
+- `structured_output` can be set **per model**, not just per provider. Claude and Nova
+  honour a forced `toolConfig`; `google.gemma-3-*` silently ignores it and answers in
+  prose, so those models declare `"structured_output": "none"`.
+- Bedrock's Anthropic models reject `temperature` and `top_p` together
+  (`ValidationException`), so they declare only `temperature`. `tests/` asserts this
+  invariant so a future addition fails a test rather than a scoring run.
+
+Claude models are served through cross-region inference profiles, which is why the
+model IDs carry a `us.` prefix. `aws bedrock list-foundation-models --by-provider
+anthropic` shows `INFERENCE_PROFILE` for these.
+
+#### Sampling parameters differ per model, in three regimes
+
+Bedrock rejects deprecated sampling parameters with a `ValidationException`, so
+`providers.json` declares only what each model accepts:
+
+| Models | Accepts |
+| --- | --- |
+| `nova-pro`, `qwen3-32b`, `gemma-3-*` | `temperature` + `top_p` |
+| `claude-haiku-4-5`, `claude-sonnet-4-5`, `claude-sonnet-4-6` | `temperature` only |
+| `claude-opus-5`, `claude-sonnet-5`, `claude-opus-4-8` | **neither** — both deprecated |
+
+This is why `pdf.py` and `evaluator.py` spread the resolved params instead of naming
+them: a model declaring `{}` must have nothing sent. Note that you therefore
+**cannot** pin `temperature=0` on the newest models to reduce score variance.
+
+#### Which model to score with
+
+Measured with `scripts/compare_models.py` — 6 runs of one real resume, reusing the
+cached extraction so each run is exactly one scoring call:
+
+| Model | Valid schema | Median total | Spread | Median latency |
+| --- | --- | --- | --- | --- |
+| `claude-opus-5` | **6/6** | 74 | ±5 | 33s |
+| `claude-sonnet-4-6` | **6/6** | 68 | **±3** | 29s |
+| `claude-sonnet-5` | 4/6 | 69 | ±7 | 22s |
+| `claude-haiku-4-5` | **2/6** | 74 | ±0 | 15s |
+
+- **`claude-opus-5`** for judgement quality. Perfect schema compliance, and the only
+  model with ±0 on `open_source`, the highest-weighted and hardest category.
+- **`claude-sonnet-4-6`** for volume. Also 6/6, the tightest total spread, and about
+  5× cheaper.
+- **`claude-haiku-4-5` is not recommended for scoring.** It emits nested objects as
+  JSON strings with a stray trailing brace and fails schema validation about two runs
+  in three on this rubric's schema. `BedrockConverseProvider` repairs what it safely
+  can (see `_normalize_tool_input`); the remainder is genuinely malformed.
+
+Cross-model spread is 68–75, comparable to within-model spread, so treat any single
+number as one sample from a distribution rather than a score.
+
+```bash
+$ pip install -r requirements.txt          # brings in boto3
+$ aws configure                            # or export AWS_PROFILE
+$ echo 'DEFAULT_MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0' >> .env
+$ echo 'AWS_REGION=us-east-1' >> .env
+$ python score.py ./resume/sample.pdf --role software_engineering_intern
+```
 
 ---
 

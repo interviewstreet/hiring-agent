@@ -60,10 +60,12 @@ class ResumeEvaluator:
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": full_prompt},
                 ],
+                # Spread the resolved params rather than naming them, so a model
+                # that declares only one sampling parameter sends only that one.
+                # Bedrock's Anthropic models reject temperature and top_p together.
                 "options": {
                     "stream": False,
-                    "temperature": self.model_params.get("temperature", 0.5),
-                    "top_p": self.model_params.get("top_p", 0.9),
+                    **self.model_params,
                 },
             }
 

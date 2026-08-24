@@ -6,7 +6,7 @@ import datetime
 import time
 from pathlib import Path
 
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 from models import GitHubProfile
 from pdf import logger
 from prompts.template_manager import TemplateManager
@@ -331,6 +331,49 @@ def generate_profile_json(profile: GitHubProfile) -> Dict:
     return profile_data
 
 
+def resolve_selected_projects(
+    selected_projects: List[Dict], projects_data: List[Dict]
+) -> Tuple[List[Dict], set]:
+    """Resolve the LLM's project selection back to the fetched records.
+
+    The model is trusted to *choose* which projects matter, never to restate
+    their facts. Its echoed dict silently drops ``project_type`` and
+    ``contributor_count`` — the two fields ``criteria.jinja`` branches on — and
+    re-types stars and commit counts from memory, so a hallucinated number would
+    otherwise reach the scoring prompt as if it had been fetched.
+
+    Every factual field therefore comes from ``projects_data``, keyed by name.
+    Only ``reason_for_project_selection`` is carried over, since that is the
+    model's own contribution rather than a restatement. A selection naming a
+    repository that was never fetched is dropped with a warning.
+
+    Returns ``(resolved_projects, seen_names)``.
+    """
+    authoritative = {p.get("name"): p for p in projects_data if p.get("name")}
+    resolved: List[Dict] = []
+    seen_names: set = set()
+
+    for project in selected_projects:
+        name = project.get("name", "")
+        if not name or name in seen_names:
+            continue
+        source = authoritative.get(name)
+        if source is None:
+            print(
+                f"⚠️ LLM selected unknown project '{name}'; skipping "
+                f"(not in fetched repositories)"
+            )
+            continue
+        merged = dict(source)
+        reason = project.get("reason_for_project_selection")
+        if reason:
+            merged["reason_for_project_selection"] = reason
+        resolved.append(merged)
+        seen_names.add(name)
+
+    return resolved, seen_names
+
+
 def generate_projects_json(
     projects: List[Dict], position_title: str = "software engineering position"
 ) -> List[Dict]:
@@ -402,14 +445,9 @@ def generate_projects_json(
 
             selected_projects = json.loads(response_text)
 
-            unique_projects = []
-            seen_names = set()
-
-            for project in selected_projects:
-                project_name = project.get("name", "")
-                if project_name and project_name not in seen_names:
-                    unique_projects.append(project)
-                    seen_names.add(project_name)
+            unique_projects, seen_names = resolve_selected_projects(
+                selected_projects, projects_data
+            )
 
             if len(unique_projects) < 7:
                 print(
