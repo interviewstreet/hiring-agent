@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict, Tuple, Any, Type, Protocol, runtime_checkable
-from pydantic import BaseModel, Field, create_model, field_validator
+from pydantic import BaseModel, Field, create_model, field_validator, model_validator
 
 
 @runtime_checkable
@@ -218,7 +218,14 @@ class Deductions(BaseModel):
         ge=0,
         description="Total deduction points (stored as positive, applied as negative)",
     )
-    reasons: str = Field(description="Reasons for deductions")
+    reasons: str = Field(default="", description="Reasons for deductions")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_reasons_key(cls, data):
+        if isinstance(data, dict) and "deductions" in data and "reasons" not in data:
+            data["reasons"] = data.pop("deductions")
+        return data
 
 
 def build_scores_model(categories) -> Type[BaseModel]:
@@ -254,8 +261,8 @@ def build_evaluation_model(role) -> Type[BaseModel]:
         scores=(scores_model, ...),
         bonus_points=(bonus_model, ...),
         deductions=(Deductions, ...),
-        key_strengths=(List[str], Field(min_items=1, max_items=5)),
-        areas_for_improvement=(List[str], Field(min_items=1, max_items=5)),
+        key_strengths=(List[str], Field(min_length=1, max_length=5)),
+        areas_for_improvement=(List[str], Field(min_length=1, max_length=5)),
     )
 
 
