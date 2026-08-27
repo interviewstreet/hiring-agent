@@ -298,6 +298,22 @@ class OpenAICompatibleProvider:
         self.structured_output = structured_output
         self.extra_body = extra_body or {}
 
+    @staticmethod
+    def _parse_retry_after(header_value: str) -> Optional[float]:
+        """Parse a Retry-After header value (seconds or HTTP-date) into a delay in seconds."""
+        try:
+            return float(header_value)
+        except (ValueError, TypeError):
+            pass
+        from email.utils import parsedate_to_datetime
+        try:
+            retry_date = parsedate_to_datetime(header_value)
+            from datetime import datetime, timezone
+            delay = (retry_date - datetime.now(timezone.utc)).total_seconds()
+            return max(delay, 0)
+        except (ValueError, TypeError):
+            return None
+
     def chat(
         self,
         model: str,
@@ -347,7 +363,8 @@ class OpenAICompatibleProvider:
             if response.status_code == 429 and attempt < MAX_RETRIES - 1:
                 retry_after = response.headers.get("Retry-After")
                 exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
-                delay = float(retry_after) if retry_after else exp_delay
+                parsed = self._parse_retry_after(retry_after) if retry_after else None
+                delay = min(parsed, MAX_DELAY) if parsed is not None else exp_delay
                 sleep_time = round(delay * random.uniform(0.8, 1.2), 2)
                 print(
                     f"[OpenAICompatibleProvider] Rate limit hit "
