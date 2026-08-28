@@ -367,7 +367,7 @@ def generate_projects_json(
         )
 
         print(
-            f"🤖 Using LLM to select top 5 projects from {len(projects)} repositories..."
+            f"🤖 Using LLM to select top 7 projects from {len(projects)} repositories..."
         )
 
         # Initialize the LLM provider
