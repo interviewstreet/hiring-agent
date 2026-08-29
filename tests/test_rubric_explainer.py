@@ -47,3 +47,9 @@ def test_role_loads_explanation_bands():
     category = get_open_source_category()
 
     assert len(category.explanation_bands) == 4
+
+
+def test_category_remains_hashable():
+    category = get_open_source_category()
+
+    assert hash(category) is not None

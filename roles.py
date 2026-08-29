@@ -11,7 +11,7 @@ printout, the CSV columns and the score-cap math, so every role can score agains
 its own rubric.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
 import json
@@ -27,7 +27,7 @@ class Category:
     label: str
     max: int
     icon: str = "•"
-    explanation_bands: tuple = ()
+    explanation_bands: tuple = field(default=(), hash=False)
 
 
 @dataclass(frozen=True)
