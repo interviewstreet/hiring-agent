@@ -1,10 +1,60 @@
 {
   "position_title": "Software Intern position at HackerRank",
   "categories": [
-    {"key": "open_source", "label": "Open Source", "max": 35, "icon": "🌐"},
-    {"key": "self_projects", "label": "Self Projects", "max": 30, "icon": "🚀"},
-    {"key": "production", "label": "Production Experience", "max": 25, "icon": "🏢"},
-    {"key": "technical_skills", "label": "Technical Skills", "max": 10, "icon": "💻"}
+    {
+      "key": "open_source",
+      "label": "Open Source",
+      "max": 35,
+      "icon": "🌐",
+      "explanation_bands": [
+        {
+          "name": "VERY LOW",
+          "min": 0,
+          "max": 4,
+          "description": "No GitHub presence or only very basic repositories.",
+          "improvement": "Build meaningful contributions to other people's projects."
+        },
+        {
+          "name": "LOW",
+          "min": 5,
+          "max": 10,
+          "description": "Minimal open-source activity or only a basic GitHub presence.",
+          "improvement": "Make meaningful contributions to external open-source projects."
+        },
+        {
+          "name": "MEDIUM",
+          "min": 15,
+          "max": 24,
+          "description": "Contributions to smaller open-source projects or meaningful open-source activity.",
+          "improvement": "Increase the depth, consistency, and impact of contributions."
+        },
+        {
+          "name": "HIGH",
+          "min": 25,
+          "max": 35,
+          "description": "Significant contributions to established open-source projects or substantial community involvement.",
+          "improvement": "Demonstrate sustained, substantial contributions and greater community impact."
+        }
+      ]
+    },
+    {
+      "key": "self_projects",
+      "label": "Self Projects",
+      "max": 30,
+      "icon": "🚀"
+    },
+    {
+      "key": "production",
+      "label": "Production Experience",
+      "max": 25,
+      "icon": "🏢"
+    },
+    {
+      "key": "technical_skills",
+      "label": "Technical Skills",
+      "max": 10,
+      "icon": "💻"
+    }
   ],
   "bonus_max": 20,
   "min_final_score": -20,

@@ -27,6 +27,7 @@ class Category:
     label: str
     max: int
     icon: str = "•"
+    explanation_bands: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -215,6 +216,7 @@ def load_role(name: str) -> Role:
                 label=raw.get("label", key),
                 max=int(max_score),
                 icon=raw.get("icon", "•"),
+                explanation_bands=tuple(raw.get("explanation_bands", [])),
             )
         )
 
