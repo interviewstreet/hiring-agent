@@ -201,6 +201,10 @@ def load_role(name: str) -> Role:
     categories: List[Category] = []
     seen_keys = set()
     for raw in raw_categories:
+        raw_bands = raw.get("explanation_bands")
+        if not isinstance(raw_bands, list):
+            raw_bands = []
+
         key = raw.get("key")
         max_score = raw.get("max")
         if not key or max_score is None:
@@ -216,7 +220,7 @@ def load_role(name: str) -> Role:
                 label=raw.get("label", key),
                 max=int(max_score),
                 icon=raw.get("icon", "•"),
-                explanation_bands=tuple(raw.get("explanation_bands", [])),
+                explanation_bands=tuple(raw_bands),
             )
         )
 

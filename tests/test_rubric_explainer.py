@@ -1,3 +1,6 @@
+import json
+
+import roles
 from roles import load_role
 from rubric_explainer import explain_score
 
@@ -89,3 +92,58 @@ def test_invalid_bands_are_ignored():
     )
 
     assert explain_score(category, 25)["band"] == "HIGH"
+
+
+def test_invalid_band_fields_are_ignored():
+    category = FakeCategory(
+        [
+            {
+                "name": "INVALID",
+                "min": "25",
+                "max": 35,
+                "description": "invalid",
+                "improvement": "invalid",
+            },
+            {
+                "name": "MISSING",
+                "min": 25,
+                "max": 35,
+            },
+            {
+                "name": "HIGH",
+                "min": 25,
+                "max": 35,
+                "description": "high",
+                "improvement": "improve",
+            },
+        ]
+    )
+
+    assert explain_score(category, 25)["band"] == "HIGH"
+
+
+def test_non_list_explanation_bands_are_normalized(tmp_path, monkeypatch):
+    role_dir = tmp_path / "null_bands"
+    role_dir.mkdir()
+    (role_dir / "role.json").write_text(
+        json.dumps(
+            {
+                "position_title": "Test Role",
+                "categories": [
+                    {"key": "test", "label": "Test", "max": 10,
+                     "explanation_bands": None}
+                ],
+                "bonus_max": 0,
+                "min_final_score": 0,
+                "max_final_score": 10,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (role_dir / "criteria.jinja").write_text("criteria", encoding="utf-8")
+    (role_dir / "system_message.jinja").write_text("system", encoding="utf-8")
+    monkeypatch.setattr(roles, "ROLES_DIR", tmp_path)
+
+    role = load_role("null_bands")
+
+    assert role.categories[0].explanation_bands == ()
