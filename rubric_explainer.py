@@ -37,7 +37,13 @@ def explain_score(category, score: float) -> Optional[dict]:
 
         bands.append(band)
 
-    bands.sort(key=lambda band: (band["min"], band["max"]))
+    bands.sort(
+        key=lambda band: (
+            band["min"],
+            band["max"],
+            band["name"],
+        )
+    )
 
     for band in bands:
         if band["min"] <= score <= band["max"]:

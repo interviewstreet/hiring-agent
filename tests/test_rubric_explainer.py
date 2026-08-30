@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 import roles
 from roles import load_role
 from rubric_explainer import explain_score
@@ -122,6 +124,29 @@ def test_invalid_band_fields_are_ignored():
     assert explain_score(category, 25)["band"] == "HIGH"
 
 
+def test_same_range_uses_deterministic_tiebreaker():
+    category = FakeCategory(
+        [
+            {
+                "name": "ZETA",
+                "min": 25,
+                "max": 35,
+                "description": "zeta",
+                "improvement": "improve",
+            },
+            {
+                "name": "ALPHA",
+                "min": 25,
+                "max": 35,
+                "description": "alpha",
+                "improvement": "improve",
+            },
+        ]
+    )
+
+    assert explain_score(category, 25)["band"] == "ALPHA"
+
+
 def test_non_list_explanation_bands_are_normalized(tmp_path, monkeypatch):
     role_dir = tmp_path / "null_bands"
     role_dir.mkdir()
@@ -147,3 +172,24 @@ def test_non_list_explanation_bands_are_normalized(tmp_path, monkeypatch):
     role = load_role("null_bands")
 
     assert role.categories[0].explanation_bands == ()
+
+
+def test_non_object_category_raises_value_error(tmp_path, monkeypatch):
+    role_dir = tmp_path / "invalid_category"
+    role_dir.mkdir()
+    (role_dir / "role.json").write_text(
+        json.dumps(
+            {
+                "position_title": "Test Role",
+                "categories": ["invalid"],
+                "bonus_max": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (role_dir / "criteria.jinja").write_text("criteria", encoding="utf-8")
+    (role_dir / "system_message.jinja").write_text("system", encoding="utf-8")
+    monkeypatch.setattr(roles, "ROLES_DIR", tmp_path)
+
+    with pytest.raises(ValueError):
+        load_role("invalid_category")
