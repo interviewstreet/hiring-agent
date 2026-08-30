@@ -11,7 +11,7 @@ printout, the CSV columns and the score-cap math, so every role can score agains
 its own rubric.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
 import json
@@ -27,6 +27,7 @@ class Category:
     label: str
     max: int
     icon: str = "•"
+    explanation_bands: tuple = field(default=(), hash=False, compare=False)
 
 
 @dataclass(frozen=True)
@@ -200,6 +201,16 @@ def load_role(name: str) -> Role:
     categories: List[Category] = []
     seen_keys = set()
     for raw in raw_categories:
+        if not isinstance(raw, dict):
+            raise ValueError(
+                f"Invalid category in role {name!r}: "
+                f"expected a JSON object, got {raw!r}"
+            )
+
+        raw_bands = raw.get("explanation_bands")
+        if not isinstance(raw_bands, list):
+            raw_bands = []
+
         key = raw.get("key")
         max_score = raw.get("max")
         if not key or max_score is None:
@@ -215,6 +226,7 @@ def load_role(name: str) -> Role:
                 label=raw.get("label", key),
                 max=int(max_score),
                 icon=raw.get("icon", "•"),
+                explanation_bands=tuple(raw_bands),
             )
         )
 

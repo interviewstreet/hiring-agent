@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+from rubric_explainer import explain_score
 
 # Fix for Windows Console Unicode errors
 if sys.platform == "win32":
@@ -104,6 +105,15 @@ def print_evaluation_results(
             capped_score = min(cat_score.score, category.max)
             print(f"{category.icon} {category.label}: {capped_score}/{cat_score.max}")
             print(f"   Evidence: {cat_score.evidence}")
+
+            explanation = explain_score(category, capped_score)
+
+            if explanation:
+                print(f"   Band: {explanation['band']}")
+                print(f"   Range: {explanation['range']}")
+                print(f"   Why: {explanation['description']}")
+                print(f"   Improve: {explanation['improvement']}")
+
             print()
 
     # Bonus Points
