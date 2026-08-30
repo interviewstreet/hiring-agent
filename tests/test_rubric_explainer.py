@@ -2,6 +2,11 @@ from roles import load_role
 from rubric_explainer import explain_score
 
 
+class FakeCategory:
+    def __init__(self, explanation_bands):
+        self.explanation_bands = explanation_bands
+
+
 def get_open_source_category():
     role = load_role("software_engineering_intern")
 
@@ -53,3 +58,34 @@ def test_category_remains_hashable():
     category = get_open_source_category()
 
     assert hash(category) is not None
+
+
+def test_explanation_mapping_is_independent_of_band_order():
+    category = FakeCategory(
+        [
+            {"name": "HIGH", "min": 25, "max": 35,
+             "description": "high", "improvement": "improve"},
+            {"name": "VERY LOW", "min": 0, "max": 4,
+             "description": "very low", "improvement": "improve"},
+            {"name": "MEDIUM", "min": 15, "max": 24,
+             "description": "medium", "improvement": "improve"},
+            {"name": "LOW", "min": 5, "max": 10,
+             "description": "low", "improvement": "improve"},
+        ]
+    )
+
+    assert explain_score(category, 25)["band"] == "HIGH"
+
+
+def test_invalid_bands_are_ignored():
+    category = FakeCategory(
+        [
+            None,
+            "invalid",
+            {"name": "BROKEN"},
+            {"name": "HIGH", "min": 25, "max": 35,
+             "description": "high", "improvement": "improve"},
+        ]
+    )
+
+    assert explain_score(category, 25)["band"] == "HIGH"

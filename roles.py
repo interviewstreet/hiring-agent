@@ -27,7 +27,7 @@ class Category:
     label: str
     max: int
     icon: str = "•"
-    explanation_bands: tuple = field(default=(), hash=False)
+    explanation_bands: tuple = field(default=(), hash=False, compare=False)
 
 
 @dataclass(frozen=True)
