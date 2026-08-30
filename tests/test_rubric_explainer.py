@@ -41,6 +41,16 @@ def test_unmapped_score_returns_none():
     assert explain_score(category, 12) is None
 
 
+def test_invalid_scores_return_none():
+    category = get_open_source_category()
+
+    assert explain_score(category, None) is None
+    assert explain_score(category, "25") is None
+    assert explain_score(category, True) is None
+    assert explain_score(category, float("nan")) is None
+    assert explain_score(category, float("inf")) is None
+
+
 def test_category_without_bands_returns_none():
     role = load_role("software_engineering_intern")
 
@@ -100,16 +110,18 @@ def test_invalid_band_fields_are_ignored():
     category = FakeCategory(
         [
             {
-                "name": "INVALID",
-                "min": "25",
-                "max": 35,
-                "description": "invalid",
-                "improvement": "invalid",
-            },
-            {
-                "name": "MISSING",
+                "name": 123,
                 "min": 25,
                 "max": 35,
+                "description": "invalid name",
+                "improvement": "improve",
+            },
+            {
+                "name": "REVERSED",
+                "min": 35,
+                "max": 25,
+                "description": "reversed range",
+                "improvement": "improve",
             },
             {
                 "name": "HIGH",
@@ -191,5 +203,8 @@ def test_non_object_category_raises_value_error(tmp_path, monkeypatch):
     (role_dir / "system_message.jinja").write_text("system", encoding="utf-8")
     monkeypatch.setattr(roles, "ROLES_DIR", tmp_path)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match=r"Invalid category in role 'invalid_category'.*'invalid'",
+    ):
         load_role("invalid_category")

@@ -202,7 +202,10 @@ def load_role(name: str) -> Role:
     seen_keys = set()
     for raw in raw_categories:
         if not isinstance(raw, dict):
-            raise ValueError("Each category must be a JSON object")
+            raise ValueError(
+                f"Invalid category in role {name!r}: "
+                f"expected a JSON object, got {raw!r}"
+            )
 
         raw_bands = raw.get("explanation_bands")
         if not isinstance(raw_bands, list):
