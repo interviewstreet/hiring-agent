@@ -31,7 +31,7 @@
     "anthropic": {
       "base_url": "https://api.anthropic.com/v1",
       "api_key_env": "ANTHROPIC_API_KEY",
-      "structured_output": "json_object",
+      "structured_output": "json_schema_strict",
       "models": {
         "claude-opus-4-8":  { "temperature": 0.1, "top_p": 0.9 },
         "claude-sonnet-5":  { "temperature": 0.1, "top_p": 0.9 },
