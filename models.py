@@ -369,7 +369,11 @@ class OpenAICompatibleProvider:
                 )
                 time.sleep(sleep_time)
                 continue
-
+            if response.status_code >= 400:
+                print(
+                    f"[OpenAICompatibleProvider] HTTP {response.status_code} error: "
+                    f"{response.text[:600]}"
+                )
             response.raise_for_status()
             data = response.json()
             try:
