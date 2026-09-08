@@ -149,14 +149,17 @@ def _evaluate_resume(
     evaluation_model,
     github_data: dict = None,
     blog_data: dict = None,
+    model_name: str = DEFAULT_MODEL,
 ):
     """Evaluate the resume using AI and display results."""
 
-    model_params = MODEL_PARAMETERS.get(DEFAULT_MODEL)
+    model_params = MODEL_PARAMETERS.get(
+        model_name, {"temperature": 0.1, "top_p": 0.9}
+    )
     evaluator = ResumeEvaluator(
         role=role,
         evaluation_model=evaluation_model,
-        model_name=DEFAULT_MODEL,
+        model_name=model_name,
         model_params=model_params,
     )
 
@@ -179,6 +182,7 @@ def _evaluate_resume(
     # print(evaluation_result)
 
     return evaluation_result
+
 
 
 def is_valid_resume_data(resume_data: JSONResume) -> bool:
@@ -204,9 +208,8 @@ def find_profile(profiles, network):
     )
 
 
-def main(pdf_path, role: Role):
+def main(pdf_path, role: Role, model_name: str = DEFAULT_MODEL):
     evaluation_model = build_evaluation_model(role)
-
     # Create cache filename based on PDF path
     cache_filename = (
         f"cache/resumecache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
@@ -320,7 +323,13 @@ def main(pdf_path, role: Role):
                     encoding="utf-8",
                 )
 
-    score = _evaluate_resume(resume_data, role, evaluation_model, github_data)
+    score = _evaluate_resume(
+        resume_data,
+        role,
+        evaluation_model,
+        github_data,
+        model_name=model_name,
+    )
 
     # Get candidate name for display
     candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
@@ -333,6 +342,7 @@ def main(pdf_path, role: Role):
         candidate_name = resume_data.basics.name
 
     # Print evaluation results in readable format
+    print(f"\n[Model Used: {model_name}]")
     print_evaluation_results(score, role, candidate_name)
 
     if DEVELOPMENT_MODE:
@@ -343,6 +353,7 @@ def main(pdf_path, role: Role):
             github_data=github_data,
             role=role,
         )
+        csv_row["model_name"] = model_name
 
         # Write CSV row to a role-specific file, since each role's columns differ.
         csv_path = f"resume_evaluations_{role.name}.csv"
@@ -374,6 +385,11 @@ if __name__ == "__main__":
         "--role",
         help="Role to score against (a directory name under roles/). "
         + (f"Available: {', '.join(available_roles)}" if available_roles else ""),
+    )
+    parser.add_argument(
+        "--model",
+        default=DEFAULT_MODEL,
+        help=f"Model to use for evaluation (default: {DEFAULT_MODEL}).",
     )
     parser.add_argument(
         "--init-role",
@@ -409,4 +425,4 @@ if __name__ == "__main__":
         print(f"Error: {e}")
         exit(1)
 
-    main(args.pdf_path, role)
+    main(args.pdf_path, role, model_name=args.model)
