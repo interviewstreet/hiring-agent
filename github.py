@@ -331,6 +331,35 @@ def generate_profile_json(profile: GitHubProfile) -> Dict:
     return profile_data
 
 
+# Fields the selection prompt's output schema omits but the evaluator prompt scores by.
+REPO_METADATA_KEYS = (
+    "project_type",
+    "contributor_count",
+    "author_commit_count",
+    "total_commit_count",
+)
+
+
+def restore_repo_metadata(
+    selected_projects: List[Dict], projects_data: List[Dict]
+) -> List[Dict]:
+    """Copy classification fields back onto LLM-selected projects, matched by repo name.
+
+    github_project_selection.jinja asks the model to echo name/description/URL/stars, so
+    project_type and the commit counts are lost on the way to the evaluator, which is
+    explicitly told to score self_project vs open_source differently.
+    """
+    by_name = {p.get("name"): p for p in projects_data if isinstance(p, dict)}
+    for project in selected_projects:
+        if not isinstance(project, dict):
+            continue
+        source = by_name.get(project.get("name"), {})
+        for key in REPO_METADATA_KEYS:
+            if key in source:
+                project[key] = source[key]
+    return selected_projects
+
+
 def generate_projects_json(
     projects: List[Dict], position_title: str = "software engineering position"
 ) -> List[Dict]:
@@ -401,6 +430,7 @@ def generate_projects_json(
             response_text = extract_json_from_response(response_text)
 
             selected_projects = json.loads(response_text)
+            selected_projects = restore_repo_metadata(selected_projects, projects_data)
 
             unique_projects = []
             seen_names = set()
