@@ -33,8 +33,8 @@
       "api_key_env": "ANTHROPIC_API_KEY",
       "structured_output": "none",
       "models": {
-        "claude-opus-4-8":  { "temperature": 0.1 },
-        "claude-sonnet-5":  { "temperature": 0.1 },
+        "claude-opus-4-8":  { },
+        "claude-sonnet-5":  { },
         "claude-haiku-4-5": { "temperature": 0.1 }
       }
     }
