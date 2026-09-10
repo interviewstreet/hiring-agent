@@ -62,8 +62,13 @@ class ResumeEvaluator:
                 ],
                 "options": {
                     "stream": False,
-                    "temperature": self.model_params.get("temperature", 0.5),
-                    "top_p": self.model_params.get("top_p", 0.9),
+                    # Defaults here silently re-added sampling params that
+                    # providers.json had deliberately left out.
+                    **{
+                        k: self.model_params[k]
+                        for k in ("temperature", "top_p")
+                        if k in self.model_params
+                    },
                 },
             }
 
