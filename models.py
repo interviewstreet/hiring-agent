@@ -373,7 +373,21 @@ class OpenAICompatibleProvider:
             response.raise_for_status()
             data = response.json()
             try:
-                content = data["choices"][0]["message"]["content"]
+                choice = data["choices"][0]
+                content = choice["message"]["content"]
             except (KeyError, IndexError, TypeError):
                 raise ValueError(f"Unexpected response shape from {url}: {data}")
+
+            finish_reason = choice.get("finish_reason")
+            # content is null on e.g. safety/content-filter blocks or refusals.
+            if content is None:
+                raise ValueError(
+                    f"Empty response content from {url} "
+                    f"(model={model}, finish_reason={finish_reason})"
+                )
+            if finish_reason == "length":
+                print(
+                    f"[OpenAICompatibleProvider] Response from {model} was truncated "
+                    f"(finish_reason=length); JSON output may be incomplete."
+                )
             return {"message": {"role": "assistant", "content": content}}
