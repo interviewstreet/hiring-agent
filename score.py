@@ -14,6 +14,7 @@ os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
 import logging
 import csv
+import hashlib
 
 if sys.platform == "win32":
     if hasattr(sys.stdout, "reconfigure"):
@@ -204,16 +205,23 @@ def find_profile(profiles, network):
     )
 
 
+def cache_key_for(pdf_path: str) -> str:
+    """Build a cache key from the file name and its content hash.
+
+    Keying on the basename alone made different candidates' "resume.pdf"
+    files share (and silently reuse) each other's cached data.
+    """
+    digest = hashlib.sha256(Path(pdf_path).read_bytes()).hexdigest()[:16]
+    return f"{Path(pdf_path).stem}_{digest}"
+
+
 def main(pdf_path, role: Role):
     evaluation_model = build_evaluation_model(role)
 
-    # Create cache filename based on PDF path
-    cache_filename = (
-        f"cache/resumecache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
-    )
-    github_cache_filename = (
-        f"cache/githubcache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
-    )
+    # Create cache filenames unique to this PDF's content
+    cache_key = cache_key_for(pdf_path)
+    cache_filename = f"cache/resumecache_{cache_key}.json"
+    github_cache_filename = f"cache/githubcache_{cache_key}.json"
 
     resume_data = None
     cache_loaded = False
@@ -323,7 +331,7 @@ def main(pdf_path, role: Role):
     score = _evaluate_resume(resume_data, role, evaluation_model, github_data)
 
     # Get candidate name for display
-    candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
+    candidate_name = Path(pdf_path).stem
     if (
         resume_data
         and hasattr(resume_data, "basics")
