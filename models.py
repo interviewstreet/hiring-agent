@@ -38,7 +38,7 @@ class Profile(BaseModel):
 class Basics(BaseModel):
     """Basic information for JSON Resume format."""
 
-    name: str
+    name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     url: Optional[str] = None
