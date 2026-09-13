@@ -809,6 +809,16 @@ def convert_json_resume_to_text(resume_data: JSONResume) -> str:
                 text_parts.append(f"   Description: {project.description}")
             if project.url:
                 text_parts.append(f"   URL: {project.url}")
+            if project.technologies:
+                text_parts.append(f"   Technologies: {', '.join(project.technologies)}")
+            # skills defaults to a copy of technologies; only print what's extra.
+            extra_skills = [
+                s
+                for s in (project.skills or [])
+                if s not in (project.technologies or [])
+            ]
+            if extra_skills:
+                text_parts.append(f"   Skills: {', '.join(extra_skills)}")
             if project.highlights:
                 text_parts.append("   Highlights:")
                 for highlight in project.highlights:
