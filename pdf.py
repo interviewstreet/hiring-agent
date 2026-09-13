@@ -4,10 +4,12 @@ import json
 import time
 import logging
 import pymupdf
+from pydantic import ValidationError
 
 from models import (
     JSONResume,
     Basics,
+    Profile,
     Work,
     Education,
     Skill,
@@ -303,16 +305,7 @@ class PDFHandler:
                 return None
 
         try:
-            if complete_resume.get("basics") and isinstance(
-                complete_resume["basics"], dict
-            ):
-                try:
-                    complete_resume["basics"] = Basics(**complete_resume["basics"])
-                except Exception as e:
-                    logger.error(f"❌ Error creating Basics object: {e}")
-                    complete_resume["basics"] = None
-
-            json_resume = JSONResume(**complete_resume)
+            json_resume = self._build_json_resume(complete_resume)
 
             end_time = time.time()
             total_time = end_time - start_time
@@ -325,3 +318,48 @@ class PDFHandler:
         except Exception as e:
             logger.error(f"❌ Error creating JSONResume object: {e}")
             return None
+
+    def _build_basics(self, basics_data: Dict) -> Optional[Basics]:
+        """Build Basics, dropping individual invalid profiles instead of the whole section."""
+        valid_profiles = []
+        for profile in basics_data.get("profiles") or []:
+            try:
+                valid_profiles.append(Profile(**profile))
+            except (ValidationError, TypeError) as e:
+                logger.warning(f"⚠️ Dropping invalid profile {profile!r}: {e}")
+
+        try:
+            return Basics(**{**basics_data, "profiles": valid_profiles})
+        except ValidationError as e:
+            logger.error(f"❌ Error creating Basics object: {e}")
+            return None
+
+    def _build_json_resume(self, complete_resume: Dict) -> JSONResume:
+        """Validate each section item independently so one malformed field
+        doesn't discard the rest of the resume."""
+        valid_sections = {}
+        for section, value in complete_resume.items():
+            if value is None:
+                continue
+            if section == "basics" and isinstance(value, dict):
+                valid_sections[section] = self._build_basics(value)
+                continue
+            if isinstance(value, list):
+                valid_items = []
+                for item in value:
+                    try:
+                        JSONResume(**{section: [item]})
+                        valid_items.append(item)
+                    except ValidationError as e:
+                        logger.warning(
+                            f"⚠️ Dropping invalid {section} entry {item!r}: {e}"
+                        )
+                valid_sections[section] = valid_items
+                continue
+            try:
+                JSONResume(**{section: value})
+                valid_sections[section] = value
+            except ValidationError as e:
+                logger.warning(f"⚠️ Dropping invalid {section} section: {e}")
+
+        return JSONResume(**valid_sections)
