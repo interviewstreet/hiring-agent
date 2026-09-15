@@ -66,6 +66,52 @@ bullet = tuple(
 
 GRAPHICS_TEXT = "\n![](%s)\n"
 
+# Text color within this many 0-255 sRGB units of the detected page
+# background, on every channel, is treated as invisible-by-color (see
+# is_hidden_by_bg_color). PDF viewers render such text imperceptibly, but
+# a naive text extractor -- including this one, before this check existed
+# -- copies it verbatim into whatever consumes the extracted text.
+HIDDEN_TEXT_COLOR_TOLERANCE = 12
+
+
+def is_hidden_by_bg_color(span_color, bg_color, tolerance=HIDDEN_TEXT_COLOR_TOLERANCE):
+    """True if a text span's color is indistinguishable from the page background.
+
+    This is the "white text on a white background" trick: a span can carry
+    perfectly normal text (right font size, normal render mode, on-page
+    position) that is nonetheless invisible to a human reading the
+    rendered page, because its fill color matches the background it sits
+    on. A plain text/markdown extractor has no visual rendering step to
+    catch this, so without this check such a span is extracted exactly
+    like ordinary visible text -- which matters for any pipeline (this one
+    included) that feeds the extracted text to something that treats it as
+    trustworthy content, such as an LLM prompt.
+
+    ``bg_color`` is the page's background color as an (r, g, b) triple with
+    each channel in [0, 1] (see get_bg_color), or None when the page
+    background could not be reliably determined (e.g. it is not a single
+    uniform color). Deliberately does nothing in that case: this is a
+    narrow, conservative check against one specific, common trick, not a
+    general invisible-text detector, and it must never hide legitimate
+    text on a page it cannot confidently reason about. It also only
+    catches this one page-wide background; a span sitting on a locally
+    different-colored region (e.g. a colored banner) is not covered.
+
+    ``span_color`` is a span's "color" field: a text color packed into a
+    single sRGB integer, as returned in span dicts by PyMuPDF/pymupdf4llm.
+    """
+    if bg_color is None or span_color is None:
+        return False
+
+    text_r, text_g, text_b = pymupdf.sRGB_to_rgb(span_color)
+    bg_r, bg_g, bg_b = (round(c * 255) for c in bg_color)
+
+    return (
+        abs(text_r - bg_r) <= tolerance
+        and abs(text_g - bg_g) <= tolerance
+        and abs(text_b - bg_b) <= tolerance
+    )
+
 
 class IdentifyHeaders:
     """Compute data for identifying header text.
@@ -637,6 +683,17 @@ def to_markdown(
         prev_hdr_string = None
 
         for lrect, spans in nlines:
+            # Drop spans whose text color matches the page background before
+            # anything below reads their text: a span surviving this filter
+            # is, as far as this function is concerned, actually visible.
+            spans = [
+                s
+                for s in spans
+                if not is_hidden_by_bg_color(s.get("color"), parms.bg_color)
+            ]
+            if not spans:
+                continue
+
             # there may be tables or images inside the text block: skip them
             if intersects_rects(lrect, parms.img_rects):
                 continue
