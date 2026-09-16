@@ -29,8 +29,10 @@ class ResumeEvaluator:
         self.role = role
         self.evaluation_model = evaluation_model
         self.model_name = model_name
-        self.model_params = model_params or MODEL_PARAMETERS.get(
-            model_name, {"temperature": 0.5, "top_p": 0.9}
+        self.model_params = (
+            model_params
+            if model_params is not None
+            else MODEL_PARAMETERS.get(model_name, {"temperature": 0.5, "top_p": 0.9})
         )
         self.template_manager = TemplateManager()
         self._initialize_llm_provider()
@@ -62,8 +64,7 @@ class ResumeEvaluator:
                 ],
                 "options": {
                     "stream": False,
-                    "temperature": self.model_params.get("temperature", 0.5),
-                    "top_p": self.model_params.get("top_p", 0.9),
+                    **self.model_params,
                 },
             }
 

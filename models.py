@@ -278,6 +278,50 @@ class GitHubProfile(BaseModel):
     hireable: Optional[bool] = None
 
 
+_STRICT_SCHEMA_UNSUPPORTED_KEYWORDS = {
+    "minimum",
+    "maximum",
+    "exclusiveMinimum",
+    "exclusiveMaximum",
+    "multipleOf",
+    "minLength",
+    "maxLength",
+    "pattern",
+    "minItems",
+    "maxItems",
+    "uniqueItems",
+    "minProperties",
+    "maxProperties",
+}
+
+
+def _make_schema_strict(schema: Any) -> Any:
+    """Recursively enforce OpenAI/Anthropic strict-mode schema rules in place:
+    every object node gets ``additionalProperties: false`` and lists every one
+    of its properties in ``required`` (pydantic already marks optional fields
+    nullable via ``anyOf``, so requiring them too is safe). Also strips
+    numeric/string/array length constraints those strict modes reject outright.
+    """
+    if isinstance(schema, dict):
+        for key in _STRICT_SCHEMA_UNSUPPORTED_KEYWORDS:
+            schema.pop(key, None)
+        properties = schema.get("properties")
+        if isinstance(properties, dict):
+            schema["additionalProperties"] = False
+            schema["required"] = list(properties.keys())
+            for value in properties.values():
+                _make_schema_strict(value)
+        for key in ("$defs", "definitions"):
+            for value in schema.get(key, {}).values():
+                _make_schema_strict(value)
+        if isinstance(schema.get("items"), dict):
+            _make_schema_strict(schema["items"])
+        for key in ("anyOf", "oneOf", "allOf"):
+            for value in schema.get(key, []):
+                _make_schema_strict(value)
+    return schema
+
+
 class OpenAICompatibleProvider:
     """Generic OpenAI-chat-compatible LLM provider.
 
@@ -320,9 +364,10 @@ class OpenAICompatibleProvider:
         if "format" in kwargs and self.structured_output != "none":
             schema = kwargs["format"]
             if self.structured_output == "json_schema":
+                schema = _make_schema_strict(schema)
                 body["response_format"] = {
                     "type": "json_schema",
-                    "json_schema": {"name": "response", "schema": schema},
+                    "json_schema": {"name": "response", "schema": schema, "strict": True},
                 }
             elif self.structured_output == "json_object":
                 body["response_format"] = {"type": "json_object"}
