@@ -92,7 +92,7 @@ def print_evaluation_results(
         print(f"⚠️  Warning: Total score raised to minimum possible value")
 
     # Overall Score
-    print(f"\n🎯 OVERALL SCORE: {total_score:.1f}/{max_score}")
+    print(f"\n🎯 OVERALL SCORE: {total_score:.1f}/{role.max_final_score}")
 
     # Detailed Scores
     print("\n📈 DETAILED SCORES:")
