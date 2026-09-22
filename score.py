@@ -83,14 +83,16 @@ def print_evaluation_results(
     if hasattr(evaluation, "deductions") and evaluation.deductions:
         total_score -= evaluation.deductions.total
 
-    # Ensure total score doesn't exceed maximum possible score
-    max_possible_score = max_score + role.bonus_max
-    if total_score > max_possible_score:
-        total_score = max_possible_score
+    # Clamp to the role's configured final score bounds (role.json)
+    if total_score > role.max_final_score:
+        total_score = role.max_final_score
         print(f"⚠️  Warning: Total score capped at maximum possible value")
+    elif total_score < role.min_final_score:
+        total_score = role.min_final_score
+        print(f"⚠️  Warning: Total score raised to minimum possible value")
 
     # Overall Score
-    print(f"\n🎯 OVERALL SCORE: {total_score:.1f}/{max_score}")
+    print(f"\n🎯 OVERALL SCORE: {total_score:.1f}/{role.max_final_score}")
 
     # Detailed Scores
     print("\n📈 DETAILED SCORES:")
