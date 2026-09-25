@@ -278,6 +278,14 @@ roles/software_engineering_intern/
 `role.json` drives the scoring schema, the printed report, the CSV columns, and
 the score caps — so each role can score against its own categories and weights.
 
+Numeric settings in `role.json` must be JSON integers (not booleans, strings,
+or decimal numbers). Category `max` values must be positive; `bonus_max` may
+be zero but cannot be negative. `min_final_score` must not exceed
+`max_final_score`; negative lower bounds are allowed. Category weights do not
+need to total 100. Omitted limits default to `bonus_max: 20`,
+`min_final_score: 0`, and `max_final_score: sum(category maxima) + bonus_max`.
+Invalid numeric settings raise a role- and field-specific error when loading.
+
 To add a role, scaffold one with basic template files and then edit them:
 
 ```bash

@@ -164,6 +164,17 @@ def scaffold_role(name: str) -> Path:
     return role_dir
 
 
+def _validate_integer(name: str, field: str, value: object, minimum=None) -> int:
+    """Validate JSON integers without coercing booleans, strings, or floats."""
+    if type(value) is not int:
+        raise ValueError(f"Role '{name}': '{field}' must be an integer (got {value!r})")
+    if minimum is not None and value < minimum:
+        raise ValueError(
+            f"Role '{name}': '{field}' must be >= {minimum} (got {value!r})"
+        )
+    return value
+
+
 def load_role(name: str) -> Role:
     """Load and validate the role named ``name``.
 
@@ -213,23 +224,36 @@ def load_role(name: str) -> Role:
             Category(
                 key=key,
                 label=raw.get("label", key),
-                max=int(max_score),
+                max=_validate_integer(
+                    name, f"categories.{key}.max", max_score, minimum=1
+                ),
                 icon=raw.get("icon", "•"),
             )
+        )
+
+    bonus_max = _validate_integer(
+        name, "bonus_max", manifest.get("bonus_max", 20), minimum=0
+    )
+    min_final_score = _validate_integer(
+        name, "min_final_score", manifest.get("min_final_score", 0)
+    )
+    max_final_score = _validate_integer(
+        name,
+        "max_final_score",
+        manifest.get("max_final_score", sum(c.max for c in categories) + bonus_max),
+    )
+    if min_final_score > max_final_score:
+        raise ValueError(
+            f"Role '{name}': 'min_final_score' must be <= 'max_final_score'"
         )
 
     return Role(
         name=name,
         position_title=manifest.get("position_title", name),
         categories=categories,
-        bonus_max=int(manifest.get("bonus_max", 20)),
-        min_final_score=int(manifest.get("min_final_score", 0)),
-        max_final_score=int(
-            manifest.get(
-                "max_final_score",
-                sum(c.max for c in categories) + int(manifest.get("bonus_max", 20)),
-            )
-        ),
+        bonus_max=bonus_max,
+        min_final_score=min_final_score,
+        max_final_score=max_final_score,
         criteria_source=criteria_path.read_text(encoding="utf-8"),
         system_message_source=system_message_path.read_text(encoding="utf-8"),
     )
