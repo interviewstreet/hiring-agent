@@ -354,6 +354,13 @@ Please read the [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines on 
 - Validate changes with a couple of real resumes under different providers.
 - Add or adjust unit-free smoke tests that call each stage with minimal inputs.
 
+Unit tests run offline and need no API keys:
+
+```bash
+$ pip install -r requirements-dev.txt
+$ python -m pytest
+```
+
 ---
 
 
