@@ -345,9 +345,13 @@ class OpenAICompatibleProvider:
             response = requests.post(url, json=body, headers=headers, timeout=300)
 
             if response.status_code == 429 and attempt < MAX_RETRIES - 1:
-                retry_after = response.headers.get("Retry-After")
+                server_delay = self._server_retry_delay(response)
+                # A long server delay means a daily or billing quota, not a
+                # burst limit: retrying only adds minutes of waiting.
+                if server_delay is not None and server_delay > MAX_DELAY:
+                    self._raise_for_status(response)
                 exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
-                delay = float(retry_after) if retry_after else exp_delay
+                delay = server_delay if server_delay is not None else exp_delay
                 sleep_time = round(delay * random.uniform(0.8, 1.2), 2)
                 print(
                     f"[OpenAICompatibleProvider] Rate limit hit "
@@ -379,8 +383,8 @@ class OpenAICompatibleProvider:
             return {"message": {"role": "assistant", "content": content}}
 
     @staticmethod
-    def _api_error_message(response) -> Optional[str]:
-        """Return the provider's error message from an error response body, if any."""
+    def _api_error(response) -> Optional[Dict[str, Any]]:
+        """Return the error object from an error response body, if any."""
         try:
             data = response.json()
         except ValueError:
@@ -388,12 +392,15 @@ class OpenAICompatibleProvider:
         # Gemini wraps the OpenAI-style error object in a one-element list.
         if isinstance(data, list) and data:
             data = data[0]
-        if not isinstance(data, dict):
+        if not isinstance(data, dict) or not isinstance(data.get("error"), dict):
             return None
-        error = data.get("error")
-        if isinstance(error, dict):
-            return error.get("message")
-        return None
+        return data["error"]
+
+    @classmethod
+    def _api_error_message(cls, response) -> Optional[str]:
+        """Return the provider's error message from an error response body, if any."""
+        error = cls._api_error(response)
+        return error.get("message") if error else None
 
     @classmethod
     def _raise_for_status(cls, response) -> None:
@@ -411,3 +418,28 @@ class OpenAICompatibleProvider:
         if message:
             error += f"\n{message}"
         raise requests.HTTPError(error, response=response)
+
+    @classmethod
+    def _server_retry_delay(cls, response) -> Optional[float]:
+        """Return how many seconds the server asks to wait, if it says so.
+
+        Reads the Retry-After header, then Gemini's RetryInfo in the body.
+        """
+        retry_after = response.headers.get("Retry-After")
+        if retry_after:
+            try:
+                return float(retry_after)
+            except ValueError:
+                pass
+        error = cls._api_error(response) or {}
+        for detail in error.get("details") or []:
+            if not isinstance(detail, dict):
+                continue
+            if not detail.get("@type", "").endswith("google.rpc.RetryInfo"):
+                continue
+            retry_delay = detail.get("retryDelay", "")
+            try:
+                return float(retry_delay.rstrip("s"))
+            except (AttributeError, ValueError):
+                return None
+        return None
