@@ -120,21 +120,23 @@ def extract_github_username(github_url: str) -> Optional[str]:
     github_url = github_url.replace(" ", "")
     github_url = github_url.strip()
 
+    # GitHub usernames: 1-39 alphanumerics or single hyphens, no leading hyphen.
+    # The username must end at a URL boundary, so LLM text glued onto the URL
+    # is rejected instead of being queried as (possibly someone else's) account.
+    username = r"([A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))"
+    boundary = r"(?:[/?#]|$)"
     patterns = [
-        r"https?://github\.com/([^/]+)",
-        r"github\.com/([^/]+)",
-        r"@([^/]+)",
-        r"^([a-zA-Z0-9-]+)$",
+        rf"github\.com/{username}{boundary}",
+        rf"^@{username}$",
+        rf"^{username}$",
     ]
 
     for pattern in patterns:
         match = re.search(pattern, github_url)
         if match:
-            username = match.group(1)
-            # Remove query parameters if present (e.g., "?tab=repositories")
-            if "?" in username:
-                username = username.split("?", 1)[0]
-            return username
+            return match.group(1)
+
+    logger.warning(f"Could not extract a GitHub username from URL: {github_url!r}")
     return None
 
 
