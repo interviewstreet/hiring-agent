@@ -370,10 +370,44 @@ class OpenAICompatibleProvider:
                 time.sleep(sleep_time)
                 continue
 
-            response.raise_for_status()
+            self._raise_for_status(response)
             data = response.json()
             try:
                 content = data["choices"][0]["message"]["content"]
             except (KeyError, IndexError, TypeError):
                 raise ValueError(f"Unexpected response shape from {url}: {data}")
             return {"message": {"role": "assistant", "content": content}}
+
+    @staticmethod
+    def _api_error_message(response) -> Optional[str]:
+        """Return the provider's error message from an error response body, if any."""
+        try:
+            data = response.json()
+        except ValueError:
+            return None
+        # Gemini wraps the OpenAI-style error object in a one-element list.
+        if isinstance(data, list) and data:
+            data = data[0]
+        if not isinstance(data, dict):
+            return None
+        error = data.get("error")
+        if isinstance(error, dict):
+            return error.get("message")
+        return None
+
+    @classmethod
+    def _raise_for_status(cls, response) -> None:
+        """Like raise_for_status, but keeps the provider's error message.
+
+        The message is what tells a retired model or an exhausted quota apart
+        from a bad request.
+        """
+        import requests
+
+        if response.ok:
+            return
+        message = cls._api_error_message(response)
+        error = f"{response.status_code} {response.reason} for url: {response.url}"
+        if message:
+            error += f"\n{message}"
+        raise requests.HTTPError(error, response=response)
