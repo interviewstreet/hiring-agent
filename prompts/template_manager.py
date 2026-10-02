@@ -6,6 +6,7 @@ section-specific resume extraction prompts.
 """
 
 import os
+from pathlib import Path
 from typing import Dict, Optional
 from jinja2 import Environment, FileSystemLoader, Template
 
@@ -18,13 +19,16 @@ class TemplateManager:
     different resume sections (basics, work, education, skills, projects, awards).
     """
 
-    def __init__(self, template_dir: str = "prompts/templates"):
+    def __init__(self, template_dir: str = None):
         """
         Initialize the template manager.
 
         Args:
-            template_dir (str): Directory containing Jinja templates
+            template_dir (str): Directory containing Jinja templates.
+                               Defaults to templates directory relative to this file.
         """
+        if template_dir is None:
+            template_dir = str(Path(__file__).parent / "templates")
         self.template_dir = template_dir
         self.env = Environment(
             loader=FileSystemLoader(template_dir), trim_blocks=True, lstrip_blocks=True
