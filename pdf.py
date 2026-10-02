@@ -4,6 +4,7 @@ import json
 import time
 import logging
 import pymupdf
+import requests
 
 from models import (
     JSONResume,
@@ -127,6 +128,9 @@ class PDFHandler:
                 logger.error(f"Raw response: {response_text}")
                 return None
 
+        except requests.RequestException as e:
+            logger.error(f"❌ Error calling LLM for {section_name} section: {e}")
+            raise
         except Exception as e:
             logger.error(f"❌ Error calling LLM for {section_name} section: {e}")
             return None
@@ -210,6 +214,8 @@ class PDFHandler:
             logger.debug("🔄 Extracting all sections separately...")
             return self._extract_all_sections_separately(text_content)
 
+        except requests.RequestException:
+            raise
         except Exception as e:
             logger.error(f"❌ Error during PDF to JSON extraction: {e}")
             return None

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hiring Agent</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23141413'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,560;1,9..144,560&family=Outfit:wght@380;480;560&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <a class="mark" href="/">Hiring Agent</a>
+      <div class="links">
+        <a href="/" aria-current="page">Score</a>
+        <a href="/example">Example</a>
+      </div>
+    </nav>
+
+    <h1>What does this agent<br><em>think of your resume?</em></h1>
+    <p class="lede">It reads the PDF, checks public GitHub only if a profile is printed on it, then scores the work. Drop a file, then press Run analysis. We do not store your resume. It is deleted after scoring.</p>
+
+    <div class="composer">
+      <label class="drop" id="drop">
+        <input id="file" type="file" accept="application/pdf,.pdf" />
+        <div>
+          <strong id="dropTitle">Drop your resume here</strong>
+          <span id="dropHint">PDF only · scoring starts when you press the button</span>
+        </div>
+      </label>
+      <button class="run" id="run" type="button" disabled>Run analysis</button>
+    </div>
+    <ul class="weights" id="weights"></ul>
+    <p class="note">Those four add to 100. Bonus can add 20. Deductions come off. Name, college, grades, and city do not count. <a href="/example">See a scored example.</a></p>
+
+    <div class="status" id="status" aria-live="polite">
+      <div class="barline"><i></i></div>
+      <strong>Scoring this resume</strong>
+      <p>One pass. Usually under two minutes.</p>
+    </div>
+    <div class="error" id="error" role="alert"></div>
+    <div id="yours"></div>
+
+    <section class="profile" id="how">
+      <p class="index">How a score is made</p>
+      <h2>Four marks, then adjustments</h2>
+      <p class="bio">Open source is other people’s projects, up to 35. Your own repos alone stay at 10 or under. Self projects, up to 30, reward live products and mark down tutorial apps and missing links. Production, up to 25, is shipped work. Technical skills, up to 10, count when they show up in that work.</p>
+      <p class="bio">Bonus covers a portfolio, LinkedIn, a technical blog, Google Summer of Code, GirlScript Summer of Code, and founder or early-startup roles. Deductions cover tutorial-only projects, generic names, and broken or missing links.</p>
+      <details>
+        <summary>What happens to the file?</summary>
+        <p>We do not store your resume. Your resume will be deleted after scoring.</p>
+      </details>
+      <details>
+        <summary>Why might a second run differ?</summary>
+        <p>A model writes the evidence. Read the category bars and the lines under them, not only the total.</p>
+      </details>
+    </section>
+    <footer>Built on the open-source hiring agent.</footer>
+  </div>
+  <script>
+    const fileInput = document.getElementById("file");
+    const drop = document.getElementById("drop");
+    const dropTitle = document.getElementById("dropTitle");
+    const dropHint = document.getElementById("dropHint");
+    const runBtn = document.getElementById("run");
+    const statusEl = document.getElementById("status");
+    const errorEl = document.getElementById("error");
+    const yours = document.getElementById("yours");
+    const weights = document.getElementById("weights");
+    let chosen = null;
+    let role = "";
+    let busy = false;
+
+    function fmt(n) {
+      const value = Number(n);
+      return Number.isInteger(value) ? String(value) : value.toFixed(1);
+    }
+    function setError(message) {
+      errorEl.textContent = message || "";
+      errorEl.classList.toggle("show", Boolean(message));
+    }
+    function isPdf(file) {
+      return file && (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"));
+    }
+    function choose(file) {
+      if (!file || busy) return;
+      if (!isPdf(file)) { setError("Choose a PDF resume."); return; }
+      chosen = file;
+      dropTitle.textContent = file.name;
+      dropHint.textContent = "Ready. Press Run analysis.";
+      runBtn.disabled = false;
+      setError("");
+    }
+    function row(label, score, max, evidence) {
+      const wrap = document.createElement("div");
+      wrap.className = "row";
+      const top = document.createElement("div");
+      top.className = "row-top";
+      const name = document.createElement("span");
+      name.textContent = label;
+      const points = document.createElement("span");
+      points.textContent = fmt(score) + " / " + max;
+      top.append(name, points);
+      const track = document.createElement("div");
+      track.className = "track";
+      const fill = document.createElement("div");
+      fill.className = "fill";
+      fill.style.width = (max ? Math.max(0, Math.min(100, (score / max) * 100)) : 0) + "%";
+      track.appendChild(fill);
+      wrap.append(top, track);
+      if (evidence) {
+        const line = document.createElement("p");
+        line.className = "evidence";
+        line.textContent = evidence;
+        wrap.appendChild(line);
+      }
+      return wrap;
+    }
+    function bullets(title, items) {
+      const block = document.createElement("div");
+      const heading = document.createElement("h3");
+      heading.textContent = title;
+      const list = document.createElement("ul");
+      for (const text of (items.length ? items : ["Nothing called out."])) {
+        const item = document.createElement("li");
+        item.textContent = text;
+        list.appendChild(item);
+      }
+      block.append(heading, list);
+      return block;
+    }
+    function render(data) {
+      yours.replaceChildren();
+      const article = document.createElement("article");
+      article.className = "profile";
+      const index = document.createElement("p");
+      index.className = "index";
+      index.textContent = "Your result";
+      const name = document.createElement("h2");
+      name.textContent = data.candidate || "Candidate";
+      const score = document.createElement("p");
+      score.className = "score";
+      score.textContent = fmt(data.score) + " out of " + data.out_of;
+      const bonus = document.createElement("p");
+      bonus.className = "bonus";
+      const plus = data.bonus && data.bonus.total ? "Bonus +" + fmt(data.bonus.total) + ". " + (data.bonus.breakdown || "") : "No bonus.";
+      const minus = data.deductions && data.deductions.total ? " Deductions −" + fmt(data.deductions.total) + ". " + (data.deductions.reasons || "") : " No deductions.";
+      bonus.textContent = plus + minus;
+      const privacy = document.createElement("p");
+      privacy.className = "meta";
+      privacy.textContent = "We do not store your resume. Your resume will be deleted after scoring.";
+      const heading = document.createElement("h3");
+      heading.textContent = "Score breakdown";
+      article.append(index, name, score, privacy, heading);
+      for (const category of data.categories || []) {
+        article.appendChild(row(category.label, category.score, category.max, category.evidence));
+      }
+      article.appendChild(bonus);
+      const two = document.createElement("div");
+      two.className = "two";
+      two.append(bullets("Where it holds", data.strengths || []), bullets("Where it lags", data.gaps || []));
+      const again = document.createElement("button");
+      again.className = "again";
+      again.type = "button";
+      again.textContent = "Score another resume";
+      again.addEventListener("click", reset);
+      article.append(two, again);
+      yours.appendChild(article);
+      yours.classList.add("show");
+      yours.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    function reset() {
+      chosen = null;
+      fileInput.value = "";
+      dropTitle.textContent = "Drop your resume here";
+      dropHint.textContent = "PDF only · scoring starts when you press the button";
+      runBtn.disabled = true;
+      yours.classList.remove("show");
+      yours.replaceChildren();
+      setError("");
+    }
+    async function analyze() {
+      if (!chosen || busy) return;
+      busy = true;
+      runBtn.disabled = true;
+      setError("");
+      yours.classList.remove("show");
+      statusEl.classList.add("show");
+      const body = new FormData();
+      body.append("resume", chosen);
+      body.append("role", role);
+      try {
+        const response = await fetch("/api/score", { method: "POST", body });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Scoring failed.");
+        render(data);
+      } catch (err) {
+        setError(err.message || "Scoring failed.");
+        runBtn.disabled = false;
+      } finally {
+        busy = false;
+        statusEl.classList.remove("show");
+      }
+    }
+    fileInput.addEventListener("change", () => choose(fileInput.files && fileInput.files[0]));
+    runBtn.addEventListener("click", analyze);
+    ["dragenter", "dragover"].forEach((name) => drop.addEventListener(name, (event) => {
+      event.preventDefault();
+      drop.classList.add("hot");
+    }));
+    drop.addEventListener("dragleave", () => drop.classList.remove("hot"));
+    drop.addEventListener("drop", (event) => {
+      event.preventDefault();
+      drop.classList.remove("hot");
+      choose(event.dataTransfer.files && event.dataTransfer.files[0]);
+    });
+    fetch("/api/roles").then((response) => response.json()).then((data) => {
+      const first = (data.roles || [])[0];
+      if (!first) return;
+      role = first.name;
+      weights.replaceChildren();
+      for (const category of first.categories) {
+        const item = document.createElement("li");
+        const points = document.createElement("b");
+        points.textContent = category.max;
+        const label = document.createElement("span");
+        label.textContent = category.label;
+        item.append(points, label);
+        weights.appendChild(item);
+      }
+    }).catch(() => {});
+  </script>
+</body>
+</html>

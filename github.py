@@ -73,27 +73,9 @@ def _fetch_github_api(api_url, params=None):
             )  # Add 5 second buffer
             reset_time = datetime.datetime.fromtimestamp(reset_timestamp)
 
-            # Cap maximum wait time at 1 hour
-            max_wait = 3600
-            if wait_seconds > max_wait:
-                print(
-                    f"⚠️  Rate limit reset time is too far in the future ({wait_seconds}s). Capping wait to {max_wait}s"
-                )
-                wait_seconds = max_wait
-
-            logger.error(
-                f"⚠️  GitHub API rate limit low: {remaining}/{limit} requests remaining. Resets at {reset_time}"
+            logger.warning(
+                f"GitHub rate limit low: {remaining}/{limit} remaining, resets at {reset_time}. Continuing without waiting {wait_seconds}s."
             )
-            print(
-                f"💡 Tip: Set GITHUB_TOKEN environment variable to increase rate limits (60/hour → 5000/hour)"
-            )
-
-            if wait_seconds > 0:
-                logger.info(
-                    f"⏳ Proactively sleeping for {wait_seconds} seconds until rate limit resets..."
-                )
-                time.sleep(wait_seconds)
-                print(f"✅ Rate limit should be reset now. Continuing...")
         elif remaining < 100:
             logger.info(
                 f"ℹ️  GitHub API rate limit: {remaining}/{limit} requests remaining"
