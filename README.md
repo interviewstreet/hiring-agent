@@ -66,7 +66,7 @@ Articles and discussions that have shaped how we think about improving this proj
 | [HackerRank open sourced its ATS. My resume scored 90/100. Oh wait 74/100. No — 88/100. Actually 83/100.](https://danunparsed.com/p/hackerrank-open-source-ats) — *Dan Kinsky* | Deep statistical analysis of score variance across 100 runs of the same resume. Isolates which categories are stable (technical skills) vs. noisy (project quality judgments). Points to LLM non-determinism as the root cause. |
 | [The Score Depends on the Roll of the Dice](https://pinggy.io/blog/hackerrank_open_source_ats_inconsistent_scoring/) — *Pinggy Blog* | Reproduces the variance findings and surfaces a security issue: invisible text embedded in PDFs can inflate scores significantly. |
 | [The Hiring Rubric Inside](https://byteiota.com/hackerrank-ats-open-source-the-hiring-rubric-inside/) — *ByteIota* | Breaks down the scoring weights and argues that a GitHub-centric rubric disadvantages engineers whose work is in private enterprise repos. Also notes the signal degradation risk as candidates optimize for the now-public rubric. |
-| [Analyzing resume scoring consistency](https://dev.to/mgobea/hackerrank-open-sourced-its-ats-analyzing-resume-scoring-consistency-1j5d) — *Mariano Gobea Alcoba, DEV Community* | Proposes concrete fixes: standardized data formats, versioned evaluation models, ensemble scoring, and explainability layers to reduce variance and make the system more robust. |
+| [Analyzing resume scoring consistency](https://dev.to/mgobea/hackerrank-open-sourced-its-ats-analyzing-resume-scoring-consistency-1j5d) — *Mariano Gobea Alcoba, DEV Community* | Proposes concrete fixes: standardized data formats, versioned evaluation models, ensemble scoring, and explainability layers to reduce variance and make the system more robust. **This repo now implements ensemble scoring via `--ensemble N`.** |
 | [AI-Powered Pipeline for Explainable Resume Scoring](https://aitoolly.com/ai-news/article/2026-06-26-interviewstreet-unveils-hiring-agent-an-ai-powered-pipeline-for-explainable-resume-scoring-and-githu) — *AIToolly* | Covers the launch and highlights the transparency argument — making scoring logic public allows scrutiny that proprietary ATS systems never face. |
 | [Hacker News discussion](https://news.ycombinator.com/item?id=48713832) | 200+ comment thread covering LLM determinism, GDPR Article 22 implications, and the broader ethics of automated resume filtering. |
 
@@ -263,6 +263,57 @@ What happens:
 1. If development mode is on, the PDF extraction result is cached to `cache/resumecache_<basename>.json`.
 2. If a GitHub profile is found in the resume, repositories are fetched and cached to `cache/githubcache_<basename>.json`.
 3. The evaluator scores the resume against the selected role, prints a report and, in development mode, appends a CSV row to `resume_evaluations_<role>.csv`.
+
+### Ensemble scoring (mitigating LLM non-determinism)
+
+LLMs are inherently non-deterministic — even at low temperature settings, the same resume can produce wildly different scores across runs ([Dan Kinsky's analysis](https://danunparsed.com/p/hackerrank-open-source-ats) found ranges from 74 to 90 for identical inputs). This makes single-run scoring unreliable for high-stakes decisions.
+
+**Solution:** Use the `--ensemble N` flag to run the evaluation N times and aggregate results statistically.
+
+```bash
+# Run 5 independent evaluations and report median + confidence metrics
+$ python score.py ./resume/sample.pdf --role software_engineering_intern --ensemble 5
+```
+
+**What you get:**
+- **Median scores** per category (robust to outliers)
+- **Score ranges and standard deviations** showing stability
+- **Confidence labels** (Very High / High / Moderate / Low / Very Low) based on score variance
+- **Consistent strengths/improvements** — only items appearing in majority of runs
+- **Stability warnings** when score range is too wide to trust
+
+**Recommendations:**
+- **Production use:** `--ensemble 3` to `--ensemble 5` provides good balance between cost and reliability
+- **Single run (default):** Use only for demos or quick tests — not for candidate decisions
+- **When scores are unstable:** A "Low" or "Very Low" confidence score means the rubric or prompt needs refinement for that candidate profile
+
+**Example output:**
+
+```
+🎯 MEDIAN SCORE: 82.0/100 (range: 74.0-90.0)
+   Confidence: Moderate
+   Standard Deviation: 5.82 (5.8% of max)
+
+⚠️  LOW CONFIDENCE: Score varied by 16.0 points (16.0% of max possible).
+This indicates non-deterministic LLM scoring.
+
+📈 DETAILED SCORES (Median ± StdDev):
+✓ 🎓 Education: 18.0 ± 0.71/20 (range: 17.0-19.0)
+⚠ 💻 Technical Skills: 16.0 ± 2.45/20 (range: 12.0-19.0)
+✓ 🛠️ Project Quality: 14.0 ± 1.22/20 (range: 12.0-16.0)
+```
+
+The checkmark (✓) or warning (⚠) indicates whether that category's score was stable (range ≤ 20% of max).
+
+**CSV export in ensemble mode:**
+
+When `DEVELOPMENT_MODE=1`, CSV rows include:
+- `ensemble_runs` — number of evaluations run
+- `ensemble_median_score` — the median total score
+- `ensemble_score_range` — max score - min score
+- `ensemble_confidence` — confidence label (Very High / High / Moderate / Low / Very Low)
+
+The median evaluation's full breakdown is used for category-level CSV columns, since the median represents the "most typical" run.
 
 ### Roles
 
