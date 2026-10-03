@@ -215,6 +215,23 @@ What happens:
 2. If a GitHub profile is found in the resume, repositories are fetched and cached to `cache/githubcache_<basename>.json`.
 3. The evaluator prints a report and, in development mode, appends a CSV row to `resume_evaluations.csv`.
 
+### Batch scoring and ranking
+
+Score a whole applicant sheet (for example, an Airtable export of recruitment responses) against a folder of resume PDFs:
+
+```bash
+$ python batch_score.py applicants.xlsx resumes/ -o scores.csv
+```
+
+- The sheet can be `.xlsx` or `.csv`. Use `--sheet-name` to pick a worksheet other than the first.
+- Each row is matched to a PDF in the folder (subfolders included), in this order:
+  1. The attachment filename in the resume column. Airtable cells like `jane_resume.pdf (https://...)` work as-is.
+  2. The applicant's email, or the part before `@`, appearing in a PDF filename.
+  3. The applicant's name appearing in a PDF filename.
+- Columns are detected automatically. Override them with `--resume-column`, `--email-column` and `--name-column` if detection guesses wrong.
+- `scores.csv` keeps every original column and adds `rank`, `total_score`, category scores, bonus, deductions, strengths, areas for improvement, `matched_resume` and `scoring_status`. Rows are sorted by score, and unmatched or failed rows go at the bottom.
+- In development mode, cached extractions mean a rerun only scores resumes that haven't been scored before. Pressing Ctrl+C still writes the rows scored so far.
+
 ---
 
 ## Directory layout

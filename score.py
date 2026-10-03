@@ -26,19 +26,8 @@ logging.basicConfig(
 )
 
 
-def print_evaluation_results(
-    evaluation: EvaluationData, candidate_name: str = "Candidate"
-):
-    """Print evaluation results in a readable format."""
-    print("\n" + "=" * 80)
-    print(f"📊 RESUME EVALUATION RESULTS FOR: {candidate_name}")
-    print("=" * 80)
-
-    if not evaluation:
-        print("❌ No evaluation data available")
-        return
-
-    # Calculate overall score
+def calculate_total_score(evaluation: EvaluationData):
+    """Return (total_score, max_score): capped category scores plus bonus minus deductions."""
     total_score = 0
     max_score = 0
 
@@ -67,6 +56,23 @@ def print_evaluation_results(
     if total_score > max_possible_score:
         total_score = max_possible_score
         print(f"⚠️  Warning: Total score capped at maximum possible value")
+
+    return total_score, max_score
+
+
+def print_evaluation_results(
+    evaluation: EvaluationData, candidate_name: str = "Candidate"
+):
+    """Print evaluation results in a readable format."""
+    print("\n" + "=" * 80)
+    print(f"📊 RESUME EVALUATION RESULTS FOR: {candidate_name}")
+    print("=" * 80)
+
+    if not evaluation:
+        print("❌ No evaluation data available")
+        return
+
+    total_score, max_score = calculate_total_score(evaluation)
 
     # Overall Score
     print(f"\n🎯 OVERALL SCORE: {total_score:.1f}/{max_score}")
@@ -197,7 +203,11 @@ def find_profile(profiles, network):
     )
 
 
-def main(pdf_path):
+def score_resume(pdf_path):
+    """Run extraction, GitHub enrichment and evaluation for one PDF.
+
+    Returns (evaluation, resume_data, github_data), or None if the PDF could not be parsed.
+    """
     # Create cache filename based on PDF path
     cache_filename = (
         f"cache/resumecache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
@@ -256,6 +266,15 @@ def main(pdf_path):
             )
 
     score = _evaluate_resume(resume_data, github_data)
+
+    return score, resume_data, github_data
+
+
+def main(pdf_path):
+    result = score_resume(pdf_path)
+    if result is None:
+        return None
+    score, resume_data, github_data = result
 
     # Get candidate name for display
     candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
