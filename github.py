@@ -128,7 +128,8 @@ def extract_github_username(github_url: str) -> Optional[str]:
     ]
 
     for pattern in patterns:
-        match = re.search(pattern, github_url)
+        # Domains are case-insensitive ("GitHub.com/user" is a valid profile URL)
+        match = re.search(pattern, github_url, re.IGNORECASE)
         if match:
             username = match.group(1)
             # Remove query parameters if present (e.g., "?tab=repositories")
