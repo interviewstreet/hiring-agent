@@ -203,6 +203,10 @@ def find_profile(profiles, network):
     )
 
 
+def _is_empty_resume(resume_data: JSONResume) -> bool:
+    return not any(resume_data.model_dump().values())
+
+
 def score_resume(pdf_path):
     """Run extraction, GitHub enrichment and evaluation for one PDF.
 
@@ -217,11 +221,17 @@ def score_resume(pdf_path):
     )
 
     # Check if cache exists and we're in development mode
+    resume_data = None
     if DEVELOPMENT_MODE and os.path.exists(cache_filename):
         print(f"Loading cached data from {cache_filename}")
-        cached_data = json.loads(Path(cache_filename).read_text())
+        cached_data = json.loads(Path(cache_filename).read_text(encoding="utf-8"))
         resume_data = JSONResume(**cached_data)
-    else:
+        if _is_empty_resume(resume_data):
+            # Left behind by an earlier run where the LLM was unreachable.
+            print(f"Ignoring empty cached data in {cache_filename}")
+            resume_data = None
+
+    if resume_data is None:
         logger.debug(
             f"Extracting data from PDF"
             + (" and caching to " + cache_filename if DEVELOPMENT_MODE else "")
@@ -229,7 +239,10 @@ def score_resume(pdf_path):
         pdf_handler = PDFHandler()
         resume_data = pdf_handler.extract_json_from_pdf(pdf_path)
 
-        if resume_data == None:
+        # Every section failing usually means the LLM was unreachable; don't
+        # cache or score an empty resume.
+        if resume_data is None or _is_empty_resume(resume_data):
+            logger.error(f"No resume sections could be extracted from {pdf_path}")
             return None
 
         if DEVELOPMENT_MODE:

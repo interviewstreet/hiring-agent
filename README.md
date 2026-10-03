@@ -106,6 +106,32 @@ $ source .venv/bin/activate
 $ pip install -r requirements.txt
 ```
 
+### Docker setup
+
+If you have [Docker](https://docs.docker.com/get-docker/), you can skip the Python setup entirely:
+
+```bash
+$ ./hiring-agent.sh setup
+```
+
+Setup asks for either a Gemini API key or Ollama. For Ollama, it can use an install on your machine, or run Ollama in its own container and pull the model for you. It also asks for an optional GitHub token, then saves everything to `.env` and builds the image. Rerun it anytime to switch backends.
+
+```bash
+# Rank a sheet of applicants against a folder of resumes
+$ ./hiring-agent.sh batch applicants.xlsx resumes/ -o scores.csv
+
+# Score a single resume
+$ ./hiring-agent.sh score resume.pdf
+
+# Stop the bundled Ollama container when you're done
+$ ./hiring-agent.sh stop
+```
+
+Paths are relative to the folder you run the script from, and `cache/` and `scores.csv` are written there. The image picks up code changes on each run. `.env` is never copied into the image.
+
+> [!NOTE]
+> On macOS, choose "On this machine" for Ollama. Docker on a Mac can't use the GPU, so Ollama inside Docker runs on the CPU and is much slower. On Linux, start a host Ollama with `OLLAMA_HOST=0.0.0.0 ollama serve` so containers can reach it.
+
 ### Ollama Models
 
 Pull the model you want to use. For example:

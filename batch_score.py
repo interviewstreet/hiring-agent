@@ -286,7 +286,9 @@ def main():
                 try:
                     result = score_resume(str(pdf_path))
                     if result is None or result[0] is None:
-                        results[pdf_path] = {"scoring_status": "could not parse PDF"}
+                        results[pdf_path] = {
+                            "scoring_status": "extraction failed (unreadable PDF or model unreachable)"
+                        }
                     else:
                         results[pdf_path] = {
                             **evaluation_columns(result[0]),

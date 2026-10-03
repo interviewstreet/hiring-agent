@@ -18,13 +18,16 @@ class TemplateManager:
     different resume sections (basics, work, education, skills, projects, awards).
     """
 
-    def __init__(self, template_dir: str = "prompts/templates"):
+    def __init__(self, template_dir: Optional[str] = None):
         """
         Initialize the template manager.
 
         Args:
-            template_dir (str): Directory containing Jinja templates
+            template_dir (str): Directory containing Jinja templates. Defaults to
+                the templates folder next to this file, so it works from any cwd.
         """
+        if template_dir is None:
+            template_dir = os.path.join(os.path.dirname(__file__), "templates")
         self.template_dir = template_dir
         self.env = Environment(
             loader=FileSystemLoader(template_dir), trim_blocks=True, lstrip_blocks=True

@@ -1,0 +1,17 @@
+# Secrets stay out of the image; hiring-agent.sh passes .env at runtime.
+.env
+.env.*
+!.env.example
+
+.git
+.venv
+venv
+__pycache__
+*.pyc
+cache/
+run/
+greenhouse_resumes/
+*.pdf
+*.csv
+*.xlsx
+*.xlsm
