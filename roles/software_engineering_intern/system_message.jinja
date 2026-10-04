@@ -1,3 +1,13 @@
+{% macro bonus_values(rule) -%}
+{%- if rule.tiers is defined -%}
+{%- for tier in rule.tiers -%}
+{{ tier.points }} points for ranks {{ tier.min_rank }}-{{ tier.max_rank }}{% if not loop.last %}; {% else %}; otherwise 0 points{% endif %}
+{%- endfor -%}
+{%- else -%}
+allowed points are {{ ([0] + rule.points) | join(", ") }}
+{%- endif -%}
+{%- endmacro %}
+
 You are an expert technical recruiter evaluating resumes. Provide accurate, objective evaluations based on the given criteria.
 
 **CRITICAL: You are NOT writing a resume summary. You are SCORING a resume for a job application.**
@@ -48,11 +58,7 @@ CRITICAL: You MUST respond with the EXACT JSON structure specified in the prompt
 {% if bonus_rules %}
 - **STRICT BONUS RULES**: Use only the values configured below. No other point value is valid.
 {% for rule in bonus_rules %}
-{% if rule.get("tiers") %}
-  - {{ rule.label }}: {% for tier in rule.tiers %}{{ tier.points }} points for ranks {{ tier.min_rank }}-{{ tier.max_rank }}{% if not loop.last %}; {% endif %}{% endfor %}; otherwise 0 points. {{ rule.description }}
-{% else %}
-  - {{ rule.label }}: allowed points are 0{% for point in rule.points %}, {{ point }}{% endfor %}. {{ rule.description }}
-{% endif %}
+  - {{ rule.label }}: {{ bonus_values(rule) }}. {{ rule.description }}
 {% endfor %}
 {% endif %}
 - **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed 120 points
