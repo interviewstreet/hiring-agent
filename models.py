@@ -247,8 +247,42 @@ def _points_for_rank(rank, tiers) -> int:
     return 0
 
 
+def _build_bonus_entry(rule) -> Type[BaseModel]:
+    """Define one bonus's evidence, allowed points, and optional rank validation."""
+    fields = {"evidence": (str, Field(min_length=1))}
+    tiers = rule.get("tiers")
+    if tiers is not None:
+        fields["rank"] = (Optional[int], Field(..., ge=1))
+        allowed_points = [0] + [tier["points"] for tier in tiers]
+        description = "0 for no qualifying rank; " + "; ".join(
+            f"{tier['points']} for ranks {tier['min_rank']}-{tier['max_rank']}"
+            for tier in tiers
+        )
+    else:
+        allowed_points = [0] + rule["points"]
+        description = "Award 0 when evidence is absent."
+    fields["points"] = (Literal[tuple(allowed_points)], Field(description=description))
+
+    @model_validator(mode="after")
+    def validate_rank_points(entry):
+        if tiers is not None:
+            expected = _points_for_rank(entry.rank, tiers)
+            if entry.points != expected:
+                raise ValueError(
+                    f"{rule['label']}: rank {entry.rank} requires {expected} points"
+                )
+        return entry
+
+    return create_model(
+        f"{rule['key']}Bonus",
+        __config__=ConfigDict(extra="forbid"),
+        __validators__={"validate_rank_points": validate_rank_points},
+        **fields,
+    )
+
+
 def build_bonus_model(role) -> Type[BaseModel]:
-    """Build named bonus entries and validate rank-based points against the role."""
+    """Assemble the role's bonus entries and expose their total and breakdown."""
     if not role.bonus_rules:
         return create_model(
             "BonusPoints",
@@ -259,49 +293,17 @@ def build_bonus_model(role) -> Type[BaseModel]:
             breakdown=(str, Field(description="Breakdown of bonus points")),
         )
 
-    bonus_fields = {}
-    for rule in role.bonus_rules:
-        entry_fields = {"evidence": (str, Field(min_length=1))}
-        points = rule.get("points", [])
-        points_description = "Award 0 when evidence is absent."
-        if "tiers" in rule:
-            entry_fields["rank"] = (Optional[int], Field(..., ge=1))
-            points = [tier["points"] for tier in rule["tiers"]]
-            points_description = "0 for no qualifying rank; " + "; ".join(
-                f"{tier['points']} for ranks {tier['min_rank']}-{tier['max_rank']}"
-                for tier in rule["tiers"]
-            )
-        entry_fields["points"] = (
-            Literal[tuple([0] + points)],
-            Field(description=points_description),
-        )
-        entry_model = create_model(
-            f"{rule['key']}Bonus", __config__=ConfigDict(extra="forbid"), **entry_fields
-        )
-        bonus_fields[rule["key"]] = (
-            entry_model,
-            Field(description=rule["description"]),
-        )
-
+    fields = {
+        rule["key"]: (_build_bonus_entry(rule), Field(description=rule["description"]))
+        for rule in role.bonus_rules
+    }
     BonusItems = create_model(
-        "BonusItems", __config__=ConfigDict(extra="forbid"), **bonus_fields
+        "BonusItems", __config__=ConfigDict(extra="forbid"), **fields
     )
 
     class BonusPoints(BaseModel):
         model_config = ConfigDict(extra="forbid")
         items: BonusItems
-
-        @model_validator(mode="after")
-        def validate_rank_points(self):
-            for rule in role.bonus_rules:
-                if "tiers" in rule:
-                    entry = getattr(self.items, rule["key"])
-                    expected = _points_for_rank(entry.rank, rule["tiers"])
-                    if entry.points != expected:
-                        raise ValueError(
-                            f"{rule['label']}: rank {entry.rank} requires {expected} points"
-                        )
-            return self
 
         @computed_field
         @property
@@ -323,15 +325,14 @@ def build_bonus_model(role) -> Type[BaseModel]:
                     rank = (
                         "no stated rank" if entry.rank is None else f"rank {entry.rank}"
                     )
-                    details = (
-                        f"{rank}; awarded once; {details}"
-                        if entry.points
-                        else f"{rank}; no qualifying bonus; {details}"
-                    )
+                    outcome = "awarded once" if entry.points else "no qualifying bonus"
+                    details = f"{rank}; {outcome}; {details}"
                 lines.append(f"{rule['label']}: +{entry.points} points; {details}")
                 subtotal += entry.points
+
+            total = min(subtotal, role.bonus_max)
             lines.append(
-                f"Subtotal: {subtotal}; total after {role.bonus_max}-point cap: {self.total}."
+                f"Subtotal: {subtotal}; total after {role.bonus_max}-point cap: {total}."
             )
             return "\n".join(lines)
 
