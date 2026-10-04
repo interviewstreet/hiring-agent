@@ -7,7 +7,6 @@ from typing import (
     Type,
     Protocol,
     runtime_checkable,
-    Literal,
 )
 from pydantic import (
     BaseModel,
@@ -29,7 +28,7 @@ class LLMProvider(Protocol):
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """Send a chat request to the LLM provider."""
         ...
@@ -247,38 +246,39 @@ def _points_for_rank(rank, tiers) -> int:
     return 0
 
 
-def _build_bonus_entry(rule) -> Type[BaseModel]:
-    """Define one bonus's evidence, allowed points, and optional rank validation."""
-    fields = {"evidence": (str, Field(min_length=1))}
-    tiers = rule.get("tiers")
-    if tiers is not None:
-        fields["rank"] = (Optional[int], Field(..., ge=1))
-        allowed_points = [0] + [tier["points"] for tier in tiers]
-        description = "0 for no qualifying rank; " + "; ".join(
-            f"{tier['points']} for ranks {tier['min_rank']}-{tier['max_rank']}"
-            for tier in tiers
-        )
-    else:
-        allowed_points = [0] + rule["points"]
-        description = "Award 0 when evidence is absent."
-    fields["points"] = (Literal[tuple(allowed_points)], Field(description=description))
+class BonusItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    points: int = Field(ge=0)
+    evidence: str = Field(min_length=1)
 
-    @model_validator(mode="after")
-    def validate_rank_points(entry):
-        if tiers is not None:
-            expected = _points_for_rank(entry.rank, tiers)
-            if entry.points != expected:
-                raise ValueError(
-                    f"{rule['label']}: rank {entry.rank} requires {expected} points"
-                )
-        return entry
 
-    return create_model(
-        f"{rule['key']}Bonus",
-        __config__=ConfigDict(extra="forbid"),
-        __validators__={"validate_rank_points": validate_rank_points},
-        **fields,
-    )
+class RankedBonusItem(BonusItem):
+    rank: Optional[int] = Field(..., ge=1)
+
+
+def _validate_bonus(rule, item) -> None:
+    """Validate one item against its configured points or rank tiers."""
+    if "tiers" in rule:
+        expected = _points_for_rank(item.rank, rule["tiers"])
+        if item.points != expected:
+            raise ValueError(
+                f"{rule['label']}: rank {item.rank} requires {expected} points"
+            )
+        return
+
+    allowed = {0, *rule["points"]}
+    if item.points not in allowed:
+        raise ValueError(f"{rule['label']}: points must be one of {sorted(allowed)}")
+
+
+def _format_bonus(rule, item) -> str:
+    """Format one item for the human-readable breakdown."""
+    details = item.evidence
+    if "tiers" in rule:
+        rank = "no stated rank" if item.rank is None else f"rank {item.rank}"
+        outcome = "awarded once" if item.points else "no qualifying bonus"
+        details = f"{rank}; {outcome}; {details}"
+    return f"{rule['label']}: +{item.points} points; {details}"
 
 
 def build_bonus_model(role) -> Type[BaseModel]:
@@ -293,10 +293,13 @@ def build_bonus_model(role) -> Type[BaseModel]:
             breakdown=(str, Field(description="Breakdown of bonus points")),
         )
 
-    fields = {
-        rule["key"]: (_build_bonus_entry(rule), Field(description=rule["description"]))
-        for rule in role.bonus_rules
-    }
+    fields = {}
+    for rule in role.bonus_rules:
+        item_model = RankedBonusItem if "tiers" in rule else BonusItem
+        fields[rule["key"]] = (
+            item_model,
+            Field(description=rule["description"]),
+        )
     BonusItems = create_model(
         "BonusItems", __config__=ConfigDict(extra="forbid"), **fields
     )
@@ -304,6 +307,12 @@ def build_bonus_model(role) -> Type[BaseModel]:
     class BonusPoints(BaseModel):
         model_config = ConfigDict(extra="forbid")
         items: BonusItems
+
+        @model_validator(mode="after")
+        def validate_items(self):
+            for rule in role.bonus_rules:
+                _validate_bonus(rule, getattr(self.items, rule["key"]))
+            return self
 
         @computed_field
         @property
@@ -316,19 +325,11 @@ def build_bonus_model(role) -> Type[BaseModel]:
         @computed_field
         @property
         def breakdown(self) -> str:
-            lines = []
-            subtotal = 0
-            for rule in role.bonus_rules:
-                entry = getattr(self.items, rule["key"])
-                details = entry.evidence
-                if "tiers" in rule:
-                    rank = (
-                        "no stated rank" if entry.rank is None else f"rank {entry.rank}"
-                    )
-                    outcome = "awarded once" if entry.points else "no qualifying bonus"
-                    details = f"{rank}; {outcome}; {details}"
-                lines.append(f"{rule['label']}: +{entry.points} points; {details}")
-                subtotal += entry.points
+            items = [
+                (rule, getattr(self.items, rule["key"])) for rule in role.bonus_rules
+            ]
+            lines = [_format_bonus(rule, item) for rule, item in items]
+            subtotal = sum(item.points for _, item in items)
 
             total = min(subtotal, role.bonus_max)
             lines.append(
@@ -414,7 +415,7 @@ class OpenAICompatibleProvider:
         model: str,
         messages: List[Dict[str, str]],
         options: Dict[str, Any] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         import requests
         import time
@@ -456,7 +457,7 @@ class OpenAICompatibleProvider:
 
             if response.status_code == 429 and attempt < MAX_RETRIES - 1:
                 retry_after = response.headers.get("Retry-After")
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
                 delay = float(retry_after) if retry_after else exp_delay
                 sleep_time = round(delay * random.uniform(0.8, 1.2), 2)
                 print(
@@ -470,7 +471,7 @@ class OpenAICompatibleProvider:
                 response.status_code in RETRYABLE_SERVER_ERRORS
                 and attempt < MAX_RETRIES - 1
             ):
-                exp_delay = min(BASE_DELAY * (2 ** attempt), MAX_DELAY)
+                exp_delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
                 sleep_time = round(exp_delay * random.uniform(0.8, 1.2), 2)
                 print(
                     f"[OpenAICompatibleProvider] Transient server error "
