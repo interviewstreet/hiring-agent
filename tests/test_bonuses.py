@@ -107,7 +107,7 @@ class BonusTests(unittest.TestCase):
         schema = build_evaluation_model(self.role).model_json_schema()
         self.assertIn("orchestrate", schema["$defs"]["BonusItems"]["required"])
         self.assertNotIn("total", schema["$defs"]["BonusPoints"]["properties"])
-        self.assertIn("points", schema["$defs"]["orchestrateBonus"]["required"])
+        self.assertIn("points", schema["$defs"]["RankedBonusItem"]["required"])
 
 
 if __name__ == "__main__":
