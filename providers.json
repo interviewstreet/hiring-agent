@@ -1,5 +1,5 @@
 {
-  "default_model": "gemma4:latest",
+  "default_model": "qwen3:4b",
   "providers": {
     "ollama": {
       "base_url": "http://localhost:11434/v1",
