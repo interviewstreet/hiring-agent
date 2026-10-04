@@ -91,8 +91,7 @@ class PDFHandler:
                 ],
                 "options": {
                     "stream": False,
-                    "temperature": model_params["temperature"],
-                    "top_p": model_params["top_p"],
+                    **model_params,
                 },
             }
 

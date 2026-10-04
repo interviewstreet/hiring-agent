@@ -186,7 +186,7 @@ $ cp .env.example .env
 
 | Variable         | Values                                      | Description                                                            |
 | ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `DEFAULT_MODEL`  | for example `gemma4:latest`, `gemini-2.5-pro`, or `gpt-4o-mini` | Model to use; must exist in `providers.json` — the provider is inferred from which provider lists it. Defaults to `default_model` in `providers.json`. |
+| `DEFAULT_MODEL`  | for example `gemma4:latest`, `gemini-2.5-pro`, or `gpt-6-luna` | Model to use; must exist in `providers.json` — the provider is inferred from which provider lists it. Defaults to `default_model` in `providers.json`. |
 | `GEMINI_API_KEY` | string                                      | Required when using a Gemini model.                                   |
 | `OPENAI_API_KEY` | string                                      | Required when using an OpenAI model.                                  |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
@@ -347,7 +347,7 @@ role directory instead.
 
 ### OpenAI
 
-- Set `DEFAULT_MODEL` to an OpenAI model listed in `providers.json`, for example `gpt-4o-mini`
+- Set `DEFAULT_MODEL` to an OpenAI model listed in `providers.json`, for example `gpt-6-luna`
 - Provide `OPENAI_API_KEY`
 - Requests use OpenAI Chat Completions with JSON Schema structured output
 

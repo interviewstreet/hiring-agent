@@ -33,8 +33,7 @@
       "api_key_env": "OPENAI_API_KEY",
       "structured_output": "json_schema",
       "models": {
-        "gpt-4o":      { "temperature": 0.1, "top_p": 0.9 },
-        "gpt-4o-mini": { "temperature": 0.1, "top_p": 0.9 }
+        "gpt-6-luna": { "reasoning_effort": "medium"}
       }
     },
     "anthropic": {

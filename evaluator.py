@@ -62,8 +62,7 @@ class ResumeEvaluator:
                 ],
                 "options": {
                     "stream": False,
-                    "temperature": self.model_params.get("temperature", 0.5),
-                    "top_p": self.model_params.get("top_p", 0.9),
+                    **self.model_params,
                 },
             }
 
