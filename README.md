@@ -53,7 +53,7 @@ Since this was built, HackerRank has also shipped [AI Interviewer (Chakra)](http
 
 **On the default model:**
 
-The repo ships with `qwen3:4b` as the default because it runs locally on most laptops without any cloud API key. Actual intern resumes at HackerRank are evaluated using a top-tier Gemini model. The repo ships with a demo config, not the production one.
+The repo ships with `gemma4:latest` as the default because it runs locally on most laptops without any cloud API key. Actual intern resumes at HackerRank are evaluated using a top-tier Gemini model. The repo ships with a demo config, not the production one.
 
 ---
 
@@ -159,7 +159,7 @@ $ pip install -r requirements.txt
 Pull the model you want to use. For example:
 
 ```bash
-$ ollama pull qwen3:4b
+$ ollama pull gemma4:latest
 ```
 
 If you want different results, you can pull other models such as:
@@ -186,7 +186,7 @@ $ cp .env.example .env
 
 | Variable         | Values                                      | Description                                                            |
 | ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `DEFAULT_MODEL`  | for example `qwen3:4b` or `gemini-2.5-pro` | Model to use; must exist in `providers.json` — the provider is inferred from which provider lists it. Defaults to `default_model` in `providers.json`. |
+| `DEFAULT_MODEL`  | for example `gemma4:latest` or `gemini-2.5-pro` | Model to use; must exist in `providers.json` — the provider is inferred from which provider lists it. Defaults to `default_model` in `providers.json`. |
 | `GEMINI_API_KEY` | string                                      | Required when using a Gemini model.                                   |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
 
@@ -336,7 +336,7 @@ role directory instead.
 
 ### Ollama
 
-- Set `DEFAULT_MODEL` to any pulled model listed in `providers.json`, for example `qwen3:4b`
+- Set `DEFAULT_MODEL` to any pulled model listed in `providers.json`, for example `gemma4:latest`
 - Requests go through `models.OpenAICompatibleProvider` against Ollama's OpenAI-compatible endpoint (`http://localhost:11434/v1`)
 
 ### Gemini
