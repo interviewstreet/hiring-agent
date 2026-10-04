@@ -1,12 +1,112 @@
 {
   "position_title": "Software Intern position at HackerRank",
   "categories": [
-    {"key": "open_source", "label": "Open Source", "max": 35, "icon": "🌐"},
-    {"key": "self_projects", "label": "Self Projects", "max": 30, "icon": "🚀"},
-    {"key": "production", "label": "Production Experience", "max": 25, "icon": "🏢"},
-    {"key": "technical_skills", "label": "Technical Skills", "max": 10, "icon": "💻"}
+    {
+      "key": "open_source",
+      "label": "Open Source",
+      "max": 35,
+      "icon": "\ud83c\udf10"
+    },
+    {
+      "key": "self_projects",
+      "label": "Self Projects",
+      "max": 30,
+      "icon": "\ud83d\ude80"
+    },
+    {
+      "key": "production",
+      "label": "Production Experience",
+      "max": 25,
+      "icon": "\ud83c\udfe2"
+    },
+    {
+      "key": "technical_skills",
+      "label": "Technical Skills",
+      "max": 10,
+      "icon": "\ud83d\udcbb"
+    }
   ],
   "bonus_max": 20,
   "min_final_score": -20,
-  "max_final_score": 120
+  "max_final_score": 120,
+  "bonus_rules": [
+    {
+      "key": "gsoc",
+      "label": "Google Summer of Code",
+      "points": [
+        5
+      ],
+      "description": "Google Summer of Code participation only; +5 if evidenced, otherwise 0."
+    },
+    {
+      "key": "girl_script",
+      "label": "Girl Script Summer of Code",
+      "points": [
+        3
+      ],
+      "description": "Girl Script Summer of Code participation only; +3 if evidenced, otherwise 0."
+    },
+    {
+      "key": "orchestrate",
+      "label": "HackerRank Orchestrate",
+      "tiers": [
+        {
+          "min": 1,
+          "max": 100,
+          "points": 4
+        },
+        {
+          "min": 101,
+          "max": 200,
+          "points": 3
+        }
+      ],
+      "description": "Read the awards section for HackerRank Orchestrate. Return its best stated rank and cite the supporting award. Return null if absent; do not use Codeforces, LeetCode, CodeChef, or other contest ranks. Python determines the bonus from the rank."
+    },
+    {
+      "key": "founder",
+      "label": "Startup founder/co-founder",
+      "points": [
+        3,
+        4,
+        5
+      ],
+      "description": "Startup founder/co-founder experience; 3-5 if evidenced, otherwise 0. Building a personal project or an internship alone does not qualify."
+    },
+    {
+      "key": "early_engineer",
+      "label": "Early-stage engineer",
+      "points": [
+        2,
+        3
+      ],
+      "description": "Evidence of being among the first 10-20 engineers at a startup; 2-3 if evidenced, otherwise 0. An internship alone does not establish this."
+    },
+    {
+      "key": "portfolio",
+      "label": "Portfolio website",
+      "points": [
+        2
+      ],
+      "description": "Portfolio website as specified in the rubric; +2 if evidenced, otherwise 0."
+    },
+    {
+      "key": "linkedin",
+      "label": "LinkedIn profile",
+      "points": [
+        1
+      ],
+      "description": "LinkedIn profile in resume profiles; +1 if present, otherwise 0."
+    },
+    {
+      "key": "technical_blogs",
+      "label": "Technical blogs",
+      "points": [
+        1,
+        2,
+        3
+      ],
+      "description": "High-quality technical blogs only when blog data is provided; 1-3 if evidenced, otherwise 0."
+    }
+  ]
 }

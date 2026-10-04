@@ -125,6 +125,8 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 
 **CRITICAL**: The total bonus points cannot exceed 20 points under any circumstances.
 
+**MANDATORY BONUS EVIDENCE**: Return one entry for every allowed bonus criterion in `bonus_points.items`, including zero-point entries when evidence is absent. Award bonuses only for the criteria listed above; competitive programming ratings, unrelated contest rankings, and project complexity do not independently earn bonus points. For HackerRank Orchestrate, return the best explicitly stated rank from awards and its evidence, or null if absent. For example, Orchestrate ranks 5 and 22 mean `rank: 5`; do not combine the results or use another contest's rank. Python calculates Orchestrate points, the total, and an itemized breakdown from these fields; do not return your own total or breakdown.
+
 ## DEDUCTIONS
 **For Simple Projects:**
 - -2 to -5 points if resume contains only simple tutorial projects
@@ -175,7 +177,16 @@ Analyze the following resume and provide a JSON response with this EXACT structu
         "production": {"score": 0, "max": 25, "evidence": "string"},
         "technical_skills": {"score": 0, "max": 10, "evidence": "string"}
     },
-    "bonus_points": {"total": 0, "breakdown": "string"},
+    "bonus_points": {"items": {
+        "gsoc": {"points": 0, "evidence": "string"},
+        "girl_script": {"points": 0, "evidence": "string"},
+        "orchestrate": {"rank": null, "evidence": "string"},
+        "founder": {"points": 0, "evidence": "string"},
+        "early_engineer": {"points": 0, "evidence": "string"},
+        "portfolio": {"points": 0, "evidence": "string"},
+        "linkedin": {"points": 0, "evidence": "string"},
+        "technical_blogs": {"points": 0, "evidence": "string"}
+    }},
     "deductions": {"total": 0, "reasons": "string"},
     "key_strengths": ["strength1", "strength2", "strength3", "strength4", "strength5"],
     "areas_for_improvement": ["improvement1", "improvement2", "improvement3"]

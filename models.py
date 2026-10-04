@@ -240,14 +240,16 @@ def build_evaluation_model(role) -> Type[BaseModel]:
     """
     scores_model = build_scores_model(role.categories)
 
-    bonus_model = create_model(
-        "BonusPoints",
-        total=(
-            float,
-            Field(ge=0, le=role.bonus_max, description="Total bonus points"),
-        ),
-        breakdown=(str, Field(description="Breakdown of bonus points")),
-    )
+    if role.bonus_rules:
+        from bonuses import build_bonus_model
+
+        bonus_model = build_bonus_model(role)
+    else:
+        bonus_model = create_model(
+            "BonusPoints",
+            total=(float, Field(ge=0, le=role.bonus_max, description="Total bonus points")),
+            breakdown=(str, Field(description="Breakdown of bonus points")),
+        )
 
     return create_model(
         "EvaluationData",
