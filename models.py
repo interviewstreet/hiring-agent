@@ -5,6 +5,7 @@ from typing import (
     Tuple,
     Any,
     Type,
+    Literal,
     Protocol,
     runtime_checkable,
 )
@@ -256,6 +257,33 @@ class RankedBonusItem(BonusItem):
     rank: Optional[int] = Field(..., ge=1)
 
 
+def _allowed_bonus_points(rule) -> tuple[int, ...]:
+    """Return every point value allowed by a bonus rule, including zero."""
+    configured = (
+        (tier["points"] for tier in rule["tiers"])
+        if "tiers" in rule
+        else rule["points"]
+    )
+    return tuple(sorted({0, *configured}))
+
+
+def _build_bonus_item_model(rule) -> Type[BaseModel]:
+    """Build an item whose JSON schema lists the rule's allowed points."""
+    allowed_points = _allowed_bonus_points(rule)
+    points_type = Literal[allowed_points]
+    base = RankedBonusItem if "tiers" in rule else BonusItem
+    name = "".join(part.title() for part in rule["key"].split("_"))
+
+    return create_model(
+        f"{name}BonusItem",
+        __base__=base,
+        points=(
+            points_type,
+            Field(description=f"Allowed values: {', '.join(map(str, allowed_points))}"),
+        ),
+    )
+
+
 def _validate_bonus(rule, item) -> None:
     """Validate one item against its configured points or rank tiers."""
     if "tiers" in rule:
@@ -266,7 +294,7 @@ def _validate_bonus(rule, item) -> None:
             )
         return
 
-    allowed = {0, *rule["points"]}
+    allowed = set(_allowed_bonus_points(rule))
     if item.points not in allowed:
         raise ValueError(f"{rule['label']}: points must be one of {sorted(allowed)}")
 
@@ -295,9 +323,8 @@ def build_bonus_model(role) -> Type[BaseModel]:
 
     fields = {}
     for rule in role.bonus_rules:
-        item_model = RankedBonusItem if "tiers" in rule else BonusItem
         fields[rule["key"]] = (
-            item_model,
+            _build_bonus_item_model(rule),
             Field(description=rule["description"]),
         )
     BonusItems = create_model(
