@@ -3,8 +3,7 @@ from dataclasses import replace
 
 from pydantic import ValidationError
 
-from bonuses import build_bonus_model
-from models import build_evaluation_model
+from models import build_bonus_model, build_evaluation_model
 from roles import load_role
 
 
