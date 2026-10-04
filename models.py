@@ -7,7 +7,6 @@ from typing import (
     Type,
     Protocol,
     runtime_checkable,
-    ClassVar,
     Literal,
 )
 from pydantic import (
@@ -239,58 +238,6 @@ class Deductions(BaseModel):
     reasons: str = Field(description="Reasons for deductions")
 
 
-class BonusEntry(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    evidence: str = Field(min_length=1, description="Resume evidence, or why absent")
-
-
-class ItemizedBonus(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    _rules: ClassVar[list] = []
-    _cap: ClassVar[int] = 0
-
-    def _awards(self):
-        for rule in self._rules:
-            entry = getattr(self.items, rule["key"])
-            if "tiers" in rule:
-                rank = entry.rank
-                tier = next(
-                    (
-                        t
-                        for t in rule["tiers"]
-                        if rank is not None and t["min"] <= rank <= t["max"]
-                    ),
-                    None,
-                )
-                points = tier["points"] if tier else 0
-                detail = "no qualifying rank" if rank is None else f"rank {rank}"
-                if tier:
-                    detail += f" ({tier['min']}-{tier['max']} tier); awarded once"
-            else:
-                points = entry.points
-                detail = ""
-            yield rule["label"], points, detail, entry.evidence
-
-    @computed_field
-    @property
-    def total(self) -> int:
-        return min(sum(points for _, points, _, _ in self._awards()), self._cap)
-
-    @computed_field
-    @property
-    def breakdown(self) -> str:
-        awards = list(self._awards())
-        lines = [
-            f"{label}: +{points} points; {detail + '; ' if detail else ''}{evidence}"
-            for label, points, detail, evidence in awards
-        ]
-        subtotal = sum(points for _, points, _, _ in awards)
-        lines.append(
-            f"Subtotal: {subtotal}; total after {self._cap}-point cap: {self.total}."
-        )
-        return "\n".join(lines)
-
-
 def build_bonus_model(role) -> Type[BaseModel]:
     """Build allowed bonus entries, or retain the legacy format for other roles."""
     if not role.bonus_rules:
@@ -318,14 +265,69 @@ def build_bonus_model(role) -> Type[BaseModel]:
             }
         else:
             value = {"points": (Literal[tuple([0] + rule["points"])], ...)}
-        entry = create_model(f"{rule['key']}Bonus", __base__=BonusEntry, **value)
+        entry = create_model(
+            f"{rule['key']}Bonus",
+            __config__=ConfigDict(extra="forbid"),
+            evidence=(
+                str,
+                Field(min_length=1, description="Resume evidence, or why absent"),
+            ),
+            **value,
+        )
         fields[rule["key"]] = (entry, Field(..., description=rule["description"]))
 
-    items = create_model("BonusItems", __config__=ConfigDict(extra="forbid"), **fields)
-    bonus = create_model("BonusPoints", __base__=ItemizedBonus, items=(items, ...))
-    bonus._rules = role.bonus_rules
-    bonus._cap = role.bonus_max
-    return bonus
+    items_model = create_model(
+        "BonusItems", __config__=ConfigDict(extra="forbid"), **fields
+    )
+
+    class BonusPoints(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+        items: items_model
+
+        def _awards(self):
+            for rule in role.bonus_rules:
+                entry = getattr(self.items, rule["key"])
+                if "tiers" in rule:
+                    rank = entry.rank
+                    tier = next(
+                        (
+                            t
+                            for t in rule["tiers"]
+                            if rank is not None and t["min"] <= rank <= t["max"]
+                        ),
+                        None,
+                    )
+                    points = tier["points"] if tier else 0
+                    detail = "no qualifying rank" if rank is None else f"rank {rank}"
+                    if tier:
+                        detail += f" ({tier['min']}-{tier['max']} tier); awarded once"
+                else:
+                    points = entry.points
+                    detail = ""
+                yield rule["label"], points, detail, entry.evidence
+
+        @computed_field
+        @property
+        def total(self) -> int:
+            return min(
+                sum(points for _, points, _, _ in self._awards()), role.bonus_max
+            )
+
+        @computed_field
+        @property
+        def breakdown(self) -> str:
+            awards = list(self._awards())
+            lines = [
+                f"{label}: +{points} points; {detail + '; ' if detail else ''}{evidence}"
+                for label, points, detail, evidence in awards
+            ]
+            subtotal = sum(points for _, points, _, _ in awards)
+            lines.append(
+                f"Subtotal: {subtotal}; total after {role.bonus_max}-point cap: {self.total}."
+            )
+            return "\n".join(lines)
+
+    return BonusPoints
 
 
 def build_scores_model(categories) -> Type[BaseModel]:
