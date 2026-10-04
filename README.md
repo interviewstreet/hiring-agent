@@ -53,7 +53,7 @@ Since this was built, HackerRank has also shipped [AI Interviewer (Chakra)](http
 
 **On the default model:**
 
-The repo ships with `qwen3:4b` as the default because it runs locally on most laptops without any cloud API key. Actual intern resumes at HackerRank are evaluated using a top-tier Gemini model. The repo ships with a demo config, not the production one.
+The repo ships with `gemma4:latest` as the default because it runs locally on most laptops without any cloud API key. Actual intern resumes at HackerRank are evaluated using a top-tier Gemini model. The repo ships with a demo config, not the production one.
 
 ---
 
@@ -159,7 +159,7 @@ $ pip install -r requirements.txt
 Pull the model you want to use. For example:
 
 ```bash
-$ ollama pull qwen3:4b
+$ ollama pull gemma4:latest
 ```
 
 If you want different results, you can pull other models such as:
@@ -337,7 +337,7 @@ role directory instead.
 
 ### Ollama
 
-- Set `DEFAULT_MODEL` to any pulled model listed in `providers.json`, for example `qwen3:4b`
+- Set `DEFAULT_MODEL` to any pulled model listed in `providers.json`, for example `gemma4:latest`
 - Requests go through `models.OpenAICompatibleProvider` against Ollama's OpenAI-compatible endpoint (`http://localhost:11434/v1`)
 
 ### Gemini
