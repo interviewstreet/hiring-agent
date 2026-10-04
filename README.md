@@ -186,8 +186,9 @@ $ cp .env.example .env
 
 | Variable         | Values                                      | Description                                                            |
 | ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `DEFAULT_MODEL`  | for example `gemma4:latest` or `gemini-2.5-pro` | Model to use; must exist in `providers.json` — the provider is inferred from which provider lists it. Defaults to `default_model` in `providers.json`. |
+| `DEFAULT_MODEL`  | for example `gemma4:latest`, `gemini-2.5-pro`, or `gpt-6-luna` | Model to use; must exist in `providers.json` — the provider is inferred from which provider lists it. Defaults to `default_model` in `providers.json`. |
 | `GEMINI_API_KEY` | string                                      | Required when using a Gemini model.                                   |
+| `OPENAI_API_KEY` | string                                      | Required when using an OpenAI model.                                  |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
 
 Provider mapping lives in `providers.json` — each provider declares its `base_url`, an optional API-key env var, and per-model parameters; `config.py` loads it and resolves the provider for a model. `config.py` also has a flag:
@@ -343,6 +344,12 @@ role directory instead.
 - Set `DEFAULT_MODEL` to a Gemini model listed in `providers.json`, for example `gemini-2.0-flash`
 - Provide `GEMINI_API_KEY`
 - The same `models.OpenAICompatibleProvider` wrapper is used, pointed at Gemini's OpenAI-compatible endpoint
+
+### OpenAI
+
+- Set `DEFAULT_MODEL` to an OpenAI model listed in `providers.json`, for example `gpt-6-luna`
+- Provide `OPENAI_API_KEY`
+- Requests use OpenAI Chat Completions with JSON Schema structured output
 
 ---
 

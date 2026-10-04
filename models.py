@@ -311,10 +311,9 @@ class OpenAICompatibleProvider:
 
         options = options or {}
         body: Dict[str, Any] = {"model": model, "messages": messages, "stream": False}
-        if "temperature" in options:
-            body["temperature"] = options["temperature"]
-        if "top_p" in options:
-            body["top_p"] = options["top_p"]
+        for parameter in ("temperature", "top_p", "reasoning_effort"):
+            if parameter in options:
+                body[parameter] = options[parameter]
 
         # Structured-output translation: evaluator passes format=<json schema>.
         if "format" in kwargs and self.structured_output != "none":
@@ -370,7 +369,18 @@ class OpenAICompatibleProvider:
                 time.sleep(sleep_time)
                 continue
 
-            response.raise_for_status()
+            try:
+                response.raise_for_status()
+            except requests.HTTPError as exc:
+                try:
+                    detail = response.json()
+                except ValueError:
+                    detail = response.text
+                raise requests.HTTPError(
+                    f"{exc}. Response: {detail}",
+                    request=response.request,
+                    response=response,
+                ) from exc
             data = response.json()
             try:
                 content = data["choices"][0]["message"]["content"]

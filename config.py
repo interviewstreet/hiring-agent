@@ -21,10 +21,10 @@ with open(_CONFIG_PATH) as _f:
 # Default model, overridable by env.
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", _config["default_model"])
 
-# Flat model -> {temperature, top_p} map. Preserves the contract that
-# prompt.MODEL_PARAMETERS exposed to evaluator.py / pdf.py / github.py / score.py.
+# Flat model -> request parameters map. Preserves the contract that
+# prompt.MODEL_PARAMETERS exposes to evaluator.py / pdf.py / github.py / score.py.
 MODEL_PARAMETERS = {
-    model: {k: v for k, v in params.items() if k in ("temperature", "top_p")}
+    model: {k: v for k, v in params.items() if k != "extra_body"}
     for provider in _config["providers"].values()
     for model, params in provider["models"].items()
 }
