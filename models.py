@@ -293,14 +293,15 @@ def build_bonus_model(role) -> Type[BaseModel]:
                         (
                             t
                             for t in rule["tiers"]
-                            if rank is not None and t["min"] <= rank <= t["max"]
+                            if rank is not None
+                            and t["min_rank"] <= rank <= t["max_rank"]
                         ),
                         None,
                     )
                     points = tier["points"] if tier else 0
                     detail = "no qualifying rank" if rank is None else f"rank {rank}"
                     if tier:
-                        detail += f" ({tier['min']}-{tier['max']} tier); awarded once"
+                        detail += f" ({tier['min_rank']}-{tier['max_rank']} tier); awarded once"
                 else:
                     points = entry.points
                     detail = ""
