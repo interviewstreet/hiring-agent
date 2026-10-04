@@ -239,56 +239,78 @@ class Deductions(BaseModel):
 
 
 def _build_bonus_items_model(rules) -> Type[BaseModel]:
-    """Require evidence and either a rank or allowed point value for each rule."""
-    fields = {}
+    """Each bonus requires evidence plus either a rank or an allowed point value."""
+    bonus_fields = {}
     for rule in rules:
-        if "tiers" in rule:
-            value = {
-                "rank": (
-                    Optional[int],
-                    Field(
-                        ...,
-                        ge=1,
-                        description="Best explicitly stated rank for this contest in awards; null if absent. Never use another contest's rank.",
-                    ),
-                )
-            }
-        else:
-            value = {"points": (Literal[tuple([0] + rule["points"])], ...)}
-        entry = create_model(
-            f"{rule['key']}Bonus",
-            __config__=ConfigDict(extra="forbid"),
-            evidence=(
+        entry_fields = {
+            "evidence": (
                 str,
                 Field(min_length=1, description="Resume evidence, or why absent"),
-            ),
-            **value,
+            )
+        }
+        if "tiers" in rule:
+            entry_fields["rank"] = (
+                Optional[int],
+                Field(
+                    ...,
+                    ge=1,
+                    description="Best explicitly stated rank for this contest in awards; null if absent. Never use another contest's rank.",
+                ),
+            )
+        else:
+            allowed_points = Literal[tuple([0] + rule["points"])]
+            entry_fields["points"] = (allowed_points, ...)
+
+        entry_model = create_model(
+            f"{rule['key']}Bonus",
+            __config__=ConfigDict(extra="forbid"),
+            **entry_fields,
         )
-        fields[rule["key"]] = (entry, Field(..., description=rule["description"]))
-    return create_model("BonusItems", __config__=ConfigDict(extra="forbid"), **fields)
+        bonus_fields[rule["key"]] = (
+            entry_model,
+            Field(..., description=rule["description"]),
+        )
+
+    return create_model(
+        "BonusItems", __config__=ConfigDict(extra="forbid"), **bonus_fields
+    )
 
 
-def _score_bonus(rule, entry) -> Tuple[int, str]:
-    """Return one award's points and display line."""
-    detail = ""
-    if "tiers" not in rule:
-        points = entry.points
-    else:
-        points = 0
-        rank = entry.rank
-        detail = "no qualifying rank" if rank is None else f"rank {rank}"
-        for tier in rule["tiers"]:
-            if rank is not None and tier["min_rank"] <= rank <= tier["max_rank"]:
-                points = tier["points"]
-                detail += f" ({tier['min_rank']}-{tier['max_rank']} tier); awarded once"
-                break
+def _calculate_bonus(items, role) -> Tuple[int, str]:
+    """Calculate the capped total and its itemized explanation in one pass."""
+    subtotal = 0
+    lines = []
+    for rule in role.bonus_rules:
+        entry = getattr(items, rule["key"])
+        evidence = entry.evidence
 
-    description = "; ".join(part for part in (detail, entry.evidence) if part)
-    return points, f"{rule['label']}: +{points} points; {description}"
+        if "tiers" not in rule:
+            points = entry.points
+        else:
+            points = 0
+            rank = entry.rank
+            rank_details = "no qualifying rank" if rank is None else f"rank {rank}"
+            for tier in rule["tiers"]:
+                if rank is not None and tier["min_rank"] <= rank <= tier["max_rank"]:
+                    points = tier["points"]
+                    rank_details += (
+                        f" ({tier['min_rank']}-{tier['max_rank']} tier); awarded once"
+                    )
+                    break
+            evidence = f"{rank_details}; {evidence}"
+
+        subtotal += points
+        lines.append(f"{rule['label']}: +{points} points; {evidence}")
+
+    total = min(subtotal, role.bonus_max)
+    lines.append(
+        f"Subtotal: {subtotal}; total after {role.bonus_max}-point cap: {total}."
+    )
+    return total, "\n".join(lines)
 
 
 def build_bonus_model(role) -> Type[BaseModel]:
-    """Build a bonus response with calculated totals, preserving legacy roles."""
+    """Require structured bonus evidence when the role defines bonus rules."""
     if not role.bonus_rules:
         return create_model(
             "BonusPoints",
@@ -305,28 +327,17 @@ def build_bonus_model(role) -> Type[BaseModel]:
         model_config = ConfigDict(extra="forbid")
         items: items_model
 
-        def _awards(self):
-            return [
-                _score_bonus(rule, getattr(self.items, rule["key"]))
-                for rule in role.bonus_rules
-            ]
-
         @computed_field
         @property
         def total(self) -> int:
-            return min(sum(points for points, _ in self._awards()), role.bonus_max)
+            total, _ = _calculate_bonus(self.items, role)
+            return total
 
         @computed_field
         @property
         def breakdown(self) -> str:
-            awards = self._awards()
-            subtotal = sum(points for points, _ in awards)
-            total = min(subtotal, role.bonus_max)
-            lines = [line for _, line in awards]
-            lines.append(
-                f"Subtotal: {subtotal}; total after {role.bonus_max}-point cap: {total}."
-            )
-            return "\n".join(lines)
+            _, breakdown = _calculate_bonus(self.items, role)
+            return breakdown
 
     return BonusPoints
 
