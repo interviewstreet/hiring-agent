@@ -895,6 +895,12 @@ def convert_github_data_to_text(github_data: dict) -> str:
             github_text += f"{i}. {project.get('name', 'N/A')}\n"
             github_text += f"   Description: {project.get('description', 'N/A')}\n"
             github_text += f"   URL: {project.get('github_url', 'N/A')}\n"
+            if project.get("project_type"):
+                github_text += (
+                    f"   Type: {project['project_type']} "
+                    f"({project.get('contributor_count', 'N/A')} contributors, "
+                    f"{project.get('author_commit_count', 'N/A')} commits by the candidate)\n"
+                )
             if "github_details" in project:
                 details = project["github_details"]
                 github_text += f"   Stars: {details.get('stars', 'N/A')}\n"
