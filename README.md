@@ -234,7 +234,7 @@ You can leave it on during iteration. See the next section for details.
 
 - `evaluator.py` scores the resume against the **role** selected on the command line.
 - Each role lives in `roles/<role_name>/` and defines its own scoring categories and weights in `role.json`, plus its own `criteria.jinja` and `system_message.jinja` prompts (encoding fairness and scoring rules).
-- The shipped `software_engineering_intern` role scores `open_source`, `self_projects`, `production`, and `technical_skills`, plus bonus and deductions, with evidence for each. Other roles can define entirely different categories.
+- The shipped `software_engineering_intern` role scores `open_source`, `self_projects`, `production`, `technical_skills`, and `ai_fluency`, plus bonus and deductions, with evidence for each. Other roles can define entirely different categories.
 - The intern role defines `bonus_rules` in `role.json`. The LLM returns evidence and allowed point values for each named bonus; Python calculates the total and itemized explanation. For HackerRank Orchestrate, the model supplies the best rank from awards and its points; Python validates +4 for ranks 1–100, +3 for 101–200, +1 for 201–500, and 0 otherwise, once per candidate. All bonuses share the 20-point cap. Roles without `bonus_rules` keep the original total-and-breakdown response format. Evidence interpretation still depends on the LLM.
 
 </details>

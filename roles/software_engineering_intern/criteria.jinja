@@ -1,6 +1,6 @@
 You are evaluating a resume for a Software Intern position at HackerRank. Analyze the resume data and provide scores based on these criteria:
 
-**MANDATORY: You MUST always fill ALL FOUR categories: open_source, self_projects, production, technical_skills.**
+**MANDATORY: You MUST always fill ALL FIVE categories: open_source, self_projects, production, technical_skills, ai_fluency.**
 
 ## CRITICAL FAIRNESS REQUIREMENTS
 **SCORES MUST NEVER DEPEND ON:**
@@ -17,6 +17,7 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 - Work experience and production-level contributions
 - Technical communication and documentation abilities
 - Problem-solving and algorithmic thinking demonstrated in projects
+- Demonstrated ability to use, build, evaluate, or improve AI-assisted systems
 
 ## PROGRAM DISTINCTIONS
 - "Google Summer of Code (GSoC)" and "Girl Script Summer of Code" are COMPLETELY DIFFERENT programs
@@ -89,6 +90,38 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 ### Technical Skills (0-10 points)
 - Analyze the 'skills', 'languages', and evidence of technical breadth or problem-solving in projects, work, or competitions
 
+### AI Fluency (0-10 points)
+Evaluate both the candidate's ability to build AI-enabled software and their ability to use AI effectively in engineering work. Look for concrete evidence in projects, work experience, technical writing, and GitHub data. AI fluency includes selecting appropriate models or tools, designing prompts and context, integrating AI into a larger system, evaluating output quality, handling failure modes, and verifying AI-assisted work.
+
+**HIGH SCORES (8-10 points):**
+- Built or shipped a substantive AI system using capabilities such as LLM APIs, structured outputs, retrieval-augmented generation, embeddings, agents, tool use, fine-tuning, traditional ML, computer vision, or multimodal models
+- Describes meaningful technical decisions such as model selection, prompt or context design, data preparation, retrieval strategy, orchestration, latency or cost tradeoffs, or integration with non-AI components
+- Provides evidence of evaluation and reliability practices such as test sets, quality metrics, hallucination checks, guardrails, retries, fallbacks, monitoring, or human review
+- Shows measurable impact, real users, production deployment, or enough implementation depth to demonstrate ownership of the AI workflow
+- Uses AI-assisted development thoughtfully and verifies generated code or output through testing, review, or comparison against reliable sources
+
+**MEDIUM SCORES (4-7 points):**
+- Built a working AI-enabled feature or project with implementation details beyond a tutorial or thin API wrapper
+- Explains the model, framework, data flow, or user problem, but gives limited evidence of evaluation, reliability controls, production use, or measurable impact
+- Uses AI tools in a repeatable engineering workflow and explains how outputs are reviewed or validated
+- Demonstrates awareness of limitations such as incorrect output, privacy, latency, cost, bias, or non-determinism, even if the mitigation is basic
+
+**LOW SCORES (1-3 points):**
+- Lists AI tools, libraries, models, or prompting skills with little evidence of how they were applied
+- Built only a tutorial-level chatbot, basic pretrained-model demo, notebook experiment, or thin API wrapper with no evaluation or reliability work
+- Claims use of AI coding assistants without explaining the workflow, the task completed, or how the output was verified
+
+**ZERO SCORE (0 points):**
+- No evidence of using AI in engineering work or building an AI-enabled system
+
+**CRITICAL RULES:**
+- Score demonstrated AI fluency, not keyword count
+- Cite the specific project, work experience, or workflow that supports the score
+- Do not infer fluency solely from listing AI/ML tools, naming a model provider, or mentioning an AI project without implementation details
+- Traditional machine-learning or computer-vision work qualifies when the resume shows meaningful decisions about data, modeling, evaluation, or deployment
+- Do not award a high score for AI-assisted development alone unless the resume provides specific, credible evidence of sophisticated use and verification
+- Do not award points for competitive-programming results that contain no AI work
+
 ## PROJECT COMPLEXITY ASSESSMENT
 
 **Simple/Basic Projects (Low Impact):**
@@ -146,7 +179,7 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 
 ## CRITICAL REQUIREMENTS
 1. You MUST respond with ONLY the JSON structure below - no summary, no other fields
-2. You MUST fill ALL FOUR score categories: open_source, self_projects, production, technical_skills
+2. You MUST fill ALL FIVE score categories: open_source, self_projects, production, technical_skills, ai_fluency
 3. You MUST provide evidence for each score
 4. You MUST NOT add any other fields like "summary", "skills", "experience", etc.
 5. You MUST NOT change the field names or structure
@@ -163,8 +196,9 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
   - self_projects: 0-30 points (maximum 30)
   - production: 0-25 points (maximum 25)
   - technical_skills: 0-10 points (maximum 10)
+  - ai_fluency: 0-10 points (maximum 10)
 - Bonus points total must be <= 20 (maximum 20 points)
-- **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed 120 points
+- **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed 130 points
 
 **DO NOT RETURN A RESUME SUMMARY. RETURN ONLY THE SCORING EVALUATION IN THE SPECIFIED JSON FORMAT.**
 
@@ -175,7 +209,8 @@ Analyze the following resume and provide a JSON response with this EXACT structu
         "open_source": {"score": 0, "max": 35, "evidence": "string"},
         "self_projects": {"score": 0, "max": 30, "evidence": "string"},
         "production": {"score": 0, "max": 25, "evidence": "string"},
-        "technical_skills": {"score": 0, "max": 10, "evidence": "string"}
+        "technical_skills": {"score": 0, "max": 10, "evidence": "string"},
+        "ai_fluency": {"score": 0, "max": 10, "evidence": "string"}
     },
     "bonus_points": {"items": {
         "gsoc": {"points": 0, "evidence": "string"},

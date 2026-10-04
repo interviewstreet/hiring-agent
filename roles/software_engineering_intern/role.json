@@ -24,11 +24,17 @@
       "label": "Technical Skills",
       "max": 10,
       "icon": "💻"
+    },
+    {
+      "key": "ai_fluency",
+      "label": "AI Fluency",
+      "max": 10,
+      "icon": "🤖"
     }
   ],
   "bonus_max": 20,
   "min_final_score": -20,
-  "max_final_score": 120,
+  "max_final_score": 130,
   "bonus_rules": [
     {
       "key": "gsoc",
