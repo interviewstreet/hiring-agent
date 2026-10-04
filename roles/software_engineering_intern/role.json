@@ -5,25 +5,25 @@
       "key": "open_source",
       "label": "Open Source",
       "max": 35,
-      "icon": "\ud83c\udf10"
+      "icon": "🌐"
     },
     {
       "key": "self_projects",
       "label": "Self Projects",
       "max": 30,
-      "icon": "\ud83d\ude80"
+      "icon": "🚀"
     },
     {
       "key": "production",
       "label": "Production Experience",
       "max": 25,
-      "icon": "\ud83c\udfe2"
+      "icon": "🏢"
     },
     {
       "key": "technical_skills",
       "label": "Technical Skills",
       "max": 10,
-      "icon": "\ud83d\udcbb"
+      "icon": "💻"
     }
   ],
   "bonus_max": 20,
