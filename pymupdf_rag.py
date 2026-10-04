@@ -38,31 +38,26 @@ CA 94129, USA, for further information.
 import os
 import string
 from binascii import b2a_base64
+from collections import defaultdict
+from dataclasses import dataclass
+
 import pymupdf
 from pymupdf import mupdf
-from pymupdf4llm.helpers.get_text_lines import get_raw_lines, is_white
+from pymupdf4llm.helpers.get_text_lines import get_raw_lines
 from pymupdf4llm.helpers.multi_column import column_boxes
-from dataclasses import dataclass
-from collections import defaultdict
+from pymupdf4llm.helpers.utils import (
+    BULLETS,
+    REPLACEMENT_CHARACTER,
+    startswith_bullet,
+    is_white,
+)
+
+try:
+    from tqdm import tqdm as ProgressBar
+except ImportError:
+    from pymupdf4llm.helpers.progress import ProgressBar
 
 pymupdf.TOOLS.unset_quad_corrections(True)
-
-# Characters recognized as bullets when starting a line.
-bullet = tuple(
-    [
-        "- ",
-        "* ",
-        "> ",
-        chr(0xB6),
-        chr(0xB7),
-        chr(8224),
-        chr(8225),
-        chr(8226),
-        chr(0xF0A7),
-        chr(0xF0B7),
-    ]
-    + list(map(chr, range(9632, 9680)))
-)
 
 GRAPHICS_TEXT = "\n![](%s)\n"
 
@@ -101,6 +96,14 @@ class IdentifyHeaders:
             mydoc = doc
         else:
             mydoc = pymupdf.open(doc)
+
+        if mydoc.is_pdf:
+            # remove StructTreeRoot to avoid possible performance degradation
+            mypdf = pymupdf._as_pdf_document(mydoc)
+            root = mupdf.pdf_dict_get(
+                mupdf.pdf_trailer(mypdf), pymupdf.PDF_NAME("Root")
+            )
+            root.pdf_dict_del(pymupdf.PDF_NAME("StructTreeRoot"))
 
         if pages is None:  # use all pages if omitted
             pages = range(mydoc.page_count)
@@ -299,6 +302,18 @@ def is_significant(box, paths):
     return False
 
 
+def to_json(*args, **kwargs):
+    raise NotImplementedError(
+        "Function 'to_json' is only available in PyMuPDF-Layout mode"
+    )
+
+
+def to_text(*args, **kwargs):
+    raise NotImplementedError(
+        "Function 'to_text' is only available in PyMuPDF-Layout mode"
+    )
+
+
 def to_markdown(
     doc,
     *,
@@ -328,6 +343,7 @@ def to_markdown(
     show_progress=False,
     use_glyphs=False,
     ignore_alpha=False,
+    **kwargs,
 ) -> str:
     """Process the document and return the text of the selected pages.
 
@@ -355,8 +371,11 @@ def to_markdown(
         ignore_alpha: (bool, True) ignore text with alpha = 0 (transparent).
 
     """
+    if kwargs.keys():
+        print(f"Warning - arguments ignored in legacy mode: {set(kwargs.keys())}.")
+
     if write_images is False and embed_images is False and force_text is False:
-        raise ValueError("Image and text on images cannot both be suppressed.")
+        raise ValueError("Images and text on images cannot both be suppressed.")
     if embed_images is True:
         write_images = False
         image_path = ""
@@ -429,12 +448,13 @@ def to_markdown(
             return ""
         return "#" * (hdr_ids[0] - 1) + " "
 
-    def resolve_links(links, span):
+    def resolve_links(links, span, page):
         """Accept a span and return a markdown link string.
 
         Args:
             links: a list as returned by page.get_links()
             span: a span dictionary as returned by page.get_text("dict")
+            page: the page object (needed to extract text from link rect)
 
         Returns:
             None or a string representing the link in MD format.
@@ -453,114 +473,112 @@ def to_markdown(
         if not overlapping_links:
             return None
 
-        # If only one link, return simple format
+        # Single link case
         if len(overlapping_links) == 1:
             link = overlapping_links[0]
-            # Check if this looks like a partial URL (starts with http or contains domain parts)
-            if span_text.startswith("http"):
-                # Use the full link URL as the display text
-                return f'[{link["uri"]}]({link["uri"]})'
-            else:
-                return f'[{span_text}]({link["uri"]})'
+            uri = link["uri"]
+            hot = link["from"]
 
-        # Multiple links found - need to split the text
-        return _resolve_multiple_links(span_text, overlapping_links, bbox)
+            # Get text from link's bounding box
+            link_text = page.get_text("text", clip=hot).strip()
+            if not link_text:
+                link_text = span_text
 
-    def _resolve_multiple_links(span_text, links, span_bbox):
-        """Resolve multiple links within a single span text.
+            # If link text is part of span, replace just that part
+            if link_text in span_text and link_text != span_text:
+                markdown_link = f"[{link_text}]({uri})"
+                return span_text.replace(link_text, markdown_link, 1)
+
+            # Handle URLs as display text
+            if link_text.startswith("http"):
+                return f"[{uri}]({uri})"
+
+            return f"[{link_text}]({uri})"
+
+        # Multiple links case - process each link
+        result = span_text
+        for link in overlapping_links:
+            uri = link["uri"]
+            hot = link["from"]
+            link_text = page.get_text("text", clip=hot).strip()
+
+            if link_text and link_text in result:
+                markdown_link = f"[{link_text}]({uri})"
+                result = result.replace(link_text, markdown_link, 1)
+
+        return result
+
+    def get_orphan_links(links, page):
+        """
+        Find links that don't overlap with any text (icon-based links) and
+        associate them with the nearest text to their left.
+
+        This handles cases like: "Project Name [icon-link]" where the clickable
+        area is on an icon/image rather than the text itself.
 
         Args:
-            span_text: The text content of the span
-            links: List of overlapping links
-            span_bbox: The bounding box of the span
+            links: list of link dictionaries from page.get_links()
+            page: the page object
 
         Returns:
-            str: Markdown formatted text with multiple links
+            dict: mapping of text -> URI for orphan icon links
         """
-        # Common patterns for multiple links
-        if "|" in span_text:
-            # Split by pipe separator
-            parts = [part.strip() for part in span_text.split("|")]
-            if len(parts) == len(links):
-                # Perfect match - each part corresponds to a link
-                result_parts = []
-                for i, (part, link) in enumerate(zip(parts, links)):
-                    result_parts.append(f'[{part}]({link["uri"]})')
-                return " | ".join(result_parts)
-            elif len(parts) >= len(links):
-                # More parts than links - try to match intelligently
-                return _match_parts_to_links(parts, links, span_bbox)
+        orphan_links = {}
 
-        # Try to identify individual words that should be linked
-        words = span_text.split()
-        if len(words) >= len(links):
-            return _match_words_to_links(words, links, span_bbox)
+        # Get all text spans with their positions
+        text_dict = page.get_text("dict")
+        all_spans = []
+        for block in text_dict.get("blocks", []):
+            if block.get("type") == 0:  # text block
+                for line in block.get("lines", []):
+                    for span in line.get("spans", []):
+                        text = span.get("text", "").strip()
+                        if text:
+                            all_spans.append(
+                                {"text": text, "bbox": pymupdf.Rect(span["bbox"])}
+                            )
 
-        # Fallback: return the first link with the full text
-        return f'[{span_text}]({links[0]["uri"]})'
+        for link in links:
+            hot = link["from"]  # link bounding box
+            uri = link.get("uri", "")
+            if not uri:
+                continue
 
-    def _match_parts_to_links(parts, links, span_bbox):
-        """Match parts of text to specific links based on content and position."""
-        # Common platform names to match
-        platform_keywords = {
-            "github": ["github", "git"],
-            "linkedin": ["linkedin", "linked"],
-            "hackerrank": ["hackerrank", "hacker"],
-            "twitter": ["twitter", "tweet"],
-            "portfolio": ["portfolio", "site", "website"],
-            "behance": ["behance"],
-            "dribbble": ["dribbble"],
-            "leetcode": ["leetcode", "leet"],
-            "stackoverflow": ["stackoverflow", "stack"],
-        }
+            # Check if this link overlaps with any text
+            has_text_overlap = False
+            for span in all_spans:
+                if span["bbox"].intersects(hot):
+                    has_text_overlap = True
+                    break
 
-        result_parts = []
-        used_links = set()
+            if not has_text_overlap:
+                # This is an orphan link (icon-based)
+                # Find the nearest text to the LEFT of this link on the same line
+                link_left = hot.x0
+                link_y_center = (hot.y0 + hot.y1) / 2
 
-        for part in parts:
-            part_lower = part.lower()
-            matched_link = None
+                best_match = None
+                best_distance = float("inf")
 
-            # Try to match by platform keywords
-            for platform, keywords in platform_keywords.items():
-                if any(keyword in part_lower for keyword in keywords):
-                    # Find corresponding link
-                    for i, link in enumerate(links):
-                        if i not in used_links:
-                            uri = link.get("uri", "").lower()
-                            if platform in uri:
-                                matched_link = link
-                                used_links.add(i)
-                                break
-                    if matched_link:
-                        break
+                for span in all_spans:
+                    span_right = span["bbox"].x1
+                    span_y_center = (span["bbox"].y0 + span["bbox"].y1) / 2
 
-            # If no keyword match, try to find the best remaining link
-            if not matched_link and links:
-                for i, link in enumerate(links):
-                    if i not in used_links:
-                        matched_link = link
-                        used_links.add(i)
-                        break
+                    # Text must be to the LEFT of the link and on similar Y level
+                    if (
+                        span_right < link_left
+                        and abs(span_y_center - link_y_center) < 15
+                    ):
+                        distance = link_left - span_right
+                        if distance < best_distance:
+                            best_distance = distance
+                            best_match = span["text"]
 
-            if matched_link:
-                result_parts.append(f'[{part}]({matched_link["uri"]})')
-            else:
-                result_parts.append(part)
+                # Associate if within reasonable distance (50 points)
+                if best_match and best_distance < 100:
+                    orphan_links[best_match] = uri
 
-        return " | ".join(result_parts)
-
-    def _match_words_to_links(words, links, span_bbox):
-        """Match individual words to links based on position and content."""
-        # Simple heuristic: distribute links evenly among words
-        if len(words) == len(links):
-            result_parts = []
-            for word, link in zip(words, links):
-                result_parts.append(f'[{word}]({link["uri"]})')
-            return " ".join(result_parts)
-
-        # If more words than links, try to match by content
-        return _match_parts_to_links(words, links, span_bbox)
+        return orphan_links
 
     def save_image(parms, rect, i):
         """Optionally render the rect part of a page.
@@ -736,7 +754,7 @@ def to_markdown(
                 # Check if any spans in this heading have links
                 has_links = False
                 for s in spans:
-                    if resolve_links(parms.links, s):
+                    if resolve_links(parms.links, s, parms.page):
                         has_links = True
                         break
 
@@ -758,9 +776,14 @@ def to_markdown(
                             span_text = "~~" + span_text + "~~"
 
                         # Resolve links for this span
-                        ltext = resolve_links(parms.links, s)
+                        ltext = resolve_links(parms.links, s, parms.page)
                         if ltext:
                             header_text += ltext + " "
+                        elif span_text in parms.orphan_links:
+                            # Check for orphan links (icon-based links)
+                            header_text += (
+                                f"[{span_text}]({parms.orphan_links[span_text]}) "
+                            )
                         else:
                             header_text += span_text + " "
 
@@ -823,7 +846,7 @@ def to_markdown(
                 prev_lrect
                 and lrect.y1 - prev_lrect.y1 > lrect.height * 1.5
                 or span0["text"].startswith("[")
-                or span0["text"].startswith(bullet)
+                or startswith_bullet(span0["text"])
                 or span0["flags"] & 1  # superscript?
             ):
                 out_string += "\n"
@@ -857,12 +880,16 @@ def to_markdown(
                     suffix += "~~"
 
                 # convert intersecting link to markdown syntax
-                ltext = resolve_links(parms.links, s)
+                ltext = resolve_links(parms.links, s, parms.page)
+                span_text = s["text"].strip()
                 if ltext:
                     text = f"{hdr_string}{prefix}{ltext}{suffix} "
+                elif span_text in parms.orphan_links:
+                    # Check for orphan links (icon-based links)
+                    text = f"{hdr_string}{prefix}[{span_text}]({parms.orphan_links[span_text]}){suffix} "
                 else:
-                    text = f"{hdr_string}{prefix}{s['text'].strip()}{suffix} "
-                if text.startswith(bullet):
+                    text = f"{hdr_string}{prefix}{span_text}{suffix} "
+                if startswith_bullet(text):
                     text = "- " + text[1:]
                     text = text.replace("  ", " ")
                     dist = span0["bbox"][0] - clip.x0
@@ -1121,6 +1148,9 @@ def to_markdown(
         # extract external links on page
         parms.links = [l for l in page.get_links() if l["kind"] == pymupdf.LINK_URI]
 
+        # extract orphan links (icon-based links that don't overlap with text)
+        parms.orphan_links = get_orphan_links(parms.links, page)
+
         # extract annotation rectangles on page
         parms.annot_rects = [a.rect for a in page.annots()]
 
@@ -1179,6 +1209,9 @@ def to_markdown(
         graphics_count = len([b for b in page.get_bboxlog() if "path" in b[0]])
         if GRAPHICS_LIMIT and graphics_count > GRAPHICS_LIMIT:
             IGNORE_GRAPHICS = True
+            too_many_graphics = True
+        else:
+            too_many_graphics = False
 
         # Locate all tables on page
         parms.written_tables = []  # stores already written tables
@@ -1230,7 +1263,7 @@ def to_markdown(
         else:
             paths = []
         # catch too-many-graphics situation
-        if GRAPHICS_LIMIT and len(paths) > GRAPHICS_LIMIT:
+        if IGNORE_GRAPHICS:
             paths = []
 
         # We also ignore vector graphics that only represent
@@ -1256,17 +1289,27 @@ def to_markdown(
         parms.vg_clusters0 = refine_boxes(vg_clusters0)
 
         parms.vg_clusters = dict((i, r) for i, r in enumerate(parms.vg_clusters0))
+        block_count = len(parms.textpage.extractBLOCKS())
+        if block_count > 0:
+            char_density = len(parms.textpage.extractTEXT()) / block_count
+        else:
+            char_density = 0
         # identify text bboxes on page, avoiding tables, images and graphics
-        text_rects = column_boxes(
-            parms.page,
-            paths=parms.actual_paths,
-            no_image_text=not force_text,
-            textpage=parms.textpage,
-            avoid=parms.tab_rects0 + parms.vg_clusters0,
-            footer_margin=margins[3],
-            header_margin=margins[1],
-            ignore_images=IGNORE_IMAGES,
-        )
+        if too_many_graphics and char_density < 20:
+            # This page has too many isolated text pieces for meaningful
+            # layout analysis. Treat whole page as one text block.
+            text_rects = [parms.clip]
+        else:
+            text_rects = column_boxes(
+                parms.page,
+                paths=parms.actual_paths,
+                no_image_text=not force_text,
+                textpage=parms.textpage,
+                avoid=parms.tab_rects0 + parms.vg_clusters0,
+                footer_margin=margins[3],
+                header_margin=margins[1],
+                ignore_images=IGNORE_IMAGES,
+            )
 
         """
         ------------------------------------------------------------------
@@ -1297,7 +1340,7 @@ def to_markdown(
 
         while parms.md_string.startswith("\n"):
             parms.md_string = parms.md_string[1:]
-        parms.md_string = parms.md_string.replace(chr(0), chr(0xFFFD))
+        parms.md_string = parms.md_string.replace(chr(0), REPLACEMENT_CHARACTER)
 
         if EXTRACT_WORDS is True:
             # output words in sequence compliant with Markdown text
@@ -1341,18 +1384,33 @@ def to_markdown(
     # omit clipped text, collect styles, use accurate bounding boxes
     textflags = (
         0
-        | mupdf.FZ_STEXT_CLIP
-        | mupdf.FZ_STEXT_ACCURATE_BBOXES
-        # | mupdf.FZ_STEXT_IGNORE_ACTUALTEXT
-        | 32768  # mupdf.FZ_STEXT_COLLECT_STYLES
+        | pymupdf.TEXT_MEDIABOX_CLIP
+        | pymupdf.TEXT_ACCURATE_BBOXES
+        | pymupdf.TEXT_COLLECT_STYLES
     )
-    # optionally replace 0xFFFD by glyph number
+    pymupdf.table.FLAGS = (
+        0
+        | pymupdf.TEXTFLAGS_TEXT
+        | pymupdf.TEXT_COLLECT_STYLES
+        | pymupdf.TEXT_ACCURATE_BBOXES
+        | pymupdf.TEXT_MEDIABOX_CLIP
+    )
+    # optionally replace REPLACEMENT_CHARACTER by glyph number
     if use_glyphs:
         textflags |= mupdf.FZ_STEXT_USE_GID_FOR_UNKNOWN_UNICODE
 
+    if show_progress:
+        print(f"Processing {FILENAME}...")
+        pages = ProgressBar(pages)
     for pno in pages:
         parms = get_page_output(
-            doc, pno, margins, textflags, FILENAME, IGNORE_IMAGES, IGNORE_GRAPHICS
+            doc,
+            pno,
+            margins,
+            textflags,
+            FILENAME,
+            IGNORE_IMAGES,
+            IGNORE_GRAPHICS,
         )
         if page_chunks is False:
             document_output += parms.md_string
@@ -1375,3 +1433,107 @@ def to_markdown(
         del parms
 
     return document_output
+
+
+def extract_images_on_page_simple(page, parms, image_size_limit):
+    # extract images on page
+    # ignore images contained in some other one (simplified mechanism)
+    img_info = page.get_image_info()
+    for i in range(len(img_info)):
+        item = img_info[i]
+        item["bbox"] = pymupdf.Rect(item["bbox"]) & parms.clip
+        img_info[i] = item
+
+    # sort descending by image area size
+    img_info.sort(key=lambda i: abs(i["bbox"]), reverse=True)
+    # run from back to front (= small to large)
+    for i in range(len(img_info) - 1, 0, -1):
+        r = img_info[i]["bbox"]
+        if r.is_empty:
+            del img_info[i]
+            continue
+        for j in range(i):  # image areas larger than r
+            if r in img_info[j]["bbox"]:
+                del img_info[i]  # contained in some larger image
+                break
+
+    return img_info
+
+
+def filter_small_images(page, parms, image_size_limit):
+    img_info = []
+    for item in page.get_image_info():
+        r = pymupdf.Rect(item["bbox"]) & parms.clip
+        if r.is_empty or (
+            max(r.width / page.rect.width, r.height / page.rect.height)
+            < image_size_limit
+        ):
+            continue
+        item["bbox"] = r
+        img_info.append(item)
+    return img_info
+
+
+def extract_images_on_page_simple_drop(page, parms, image_size_limit):
+    img_info = filter_small_images(page, parms, image_size_limit)
+
+    # sort descending by image area size
+    img_info.sort(key=lambda i: abs(i["bbox"]), reverse=True)
+    # run from back to front (= small to large)
+    for i in range(len(img_info) - 1, 0, -1):
+        r = img_info[i]["bbox"]
+        if r.is_empty:
+            del img_info[i]
+            continue
+        for j in range(i):  # image areas larger than r
+            if r in img_info[j]["bbox"]:
+                del img_info[i]  # contained in some larger image
+                break
+
+    return img_info
+
+
+if __name__ == "__main__":
+    import pathlib
+    import sys
+    import time
+
+    try:
+        filename = sys.argv[1]
+    except IndexError:
+        print(f"Usage:\npython {os.path.basename(__file__)} input.pdf")
+        sys.exit()
+
+    t0 = time.perf_counter()  # start a time
+
+    doc = pymupdf.open(filename)  # open input file
+    parms = sys.argv[2:]  # contains ["-pages", "PAGES"] or empty list
+    pages = range(doc.page_count)  # default page range
+    if len(parms) == 2 and parms[0] == "-pages":  # page sub-selection given
+        pages = []  # list of desired page numbers
+
+        # replace any variable "N" by page count
+        pages_spec = parms[1].replace("N", f"{doc.page_count}")
+        for spec in pages_spec.split(","):
+            if "-" in spec:
+                start, end = map(int, spec.split("-"))
+                pages.extend(range(start - 1, end))
+            else:
+                pages.append(int(spec) - 1)
+
+        # make a set of invalid page numbers
+        wrong_pages = set([n + 1 for n in pages if n >= doc.page_count][:4])
+        if wrong_pages != set():  # if any invalid numbers given, exit.
+            sys.exit(f"Page number(s) {wrong_pages} not in '{doc}'.")
+
+    # get the markdown string
+    md_string = to_markdown(
+        doc,
+        pages=pages,
+    )
+    FILENAME = doc.name
+    # output to a text file with extension ".md"
+    outname = FILENAME + ".md"
+    pathlib.Path(outname).write_bytes(md_string.encode())
+    t1 = time.perf_counter()  # stop timer
+    print(f"Markdown creation time for {FILENAME=} {round(t1-t0,2)} sec.")
