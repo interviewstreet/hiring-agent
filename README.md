@@ -342,7 +342,7 @@ role directory instead.
 
 ### Gemini
 
-- Set `DEFAULT_MODEL` to a Gemini model listed in `providers.json`, for example `gemini-2.0-flash`
+- Set `DEFAULT_MODEL` to a Gemini model listed in `providers.json`, for example `gemini-3.8-flash`
 - Provide `GEMINI_API_KEY`
 - The same `models.OpenAICompatibleProvider` wrapper is used, pointed at Gemini's OpenAI-compatible endpoint
 

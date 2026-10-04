@@ -21,6 +21,7 @@
       "api_key_env": "GEMINI_API_KEY",
       "structured_output": "json_schema",
       "models": {
+        "gemini-3.8-flash":      { "temperature": 0.1, "top_p": 0.9 },
         "gemini-2.0-flash":      { "temperature": 0.1, "top_p": 0.9 },
         "gemini-2.0-flash-lite": { "temperature": 0.1, "top_p": 0.9 },
         "gemini-2.5-flash":      { "temperature": 0.1, "top_p": 0.9 },
