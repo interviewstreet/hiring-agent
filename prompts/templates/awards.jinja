@@ -1,5 +1,7 @@
 Extract ONLY the awards and honors information from this resume.
 
+Include explicitly stated competition achievements and participation, including HackerRank Orchestrate, wherever they appear in the resume, including Awards, Projects, Hackathons, or Competitions sections. Preserve the contest name and any stated rank or placement in the summary, tied to the correct contest. Do not invent a rank when only participation is stated.
+
 --- The input markdown starts here ---
 
 {{ text_content }}
@@ -12,9 +14,10 @@ Return ONLY a JSON object with this structure:
     {
       "title": "Award name",
       "date": "Award date (YYYY-MM)",
-      "awarder": "Awarding organization"
+      "awarder": "Awarding organization",
+      "summary": "Brief description of the award or honor and any supporting details stated in the resume"
     }
   ]
 }
 
-**IMPORTANT**: Return ONLY valid JSON. Do not include any explanatory text. 
+**IMPORTANT**: Return ONLY valid JSON. Do not include any explanatory text.

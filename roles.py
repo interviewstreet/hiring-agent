@@ -11,7 +11,7 @@ printout, the CSV columns and the score-cap math, so every role can score agains
 its own rubric.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
 import json
@@ -41,6 +41,7 @@ class Role:
     max_final_score: int
     criteria_source: str
     system_message_source: str
+    bonus_rules: list = field(default_factory=list)
 
 
 def list_available_roles() -> List[str]:
@@ -232,4 +233,5 @@ def load_role(name: str) -> Role:
         ),
         criteria_source=criteria_path.read_text(encoding="utf-8"),
         system_message_source=system_message_path.read_text(encoding="utf-8"),
+        bonus_rules=manifest.get("bonus_rules", []),
     )

@@ -116,6 +116,7 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 ## BONUS POINTS (Maximum total: 20 points)
 - +5 points for Google Summer of Code (GSoC) participation
 - +3 points for Girl Script Summer of Code participation
+- +4 points for participation in HackerRank Orchestrate with a stated rank of 1-100 inclusive, +3 points for a rank of 101-200 inclusive, or +1 point for a rank of 201-500 inclusive. Use the extracted awards section, which includes competition results mentioned under projects or hackathons in the original resume. Award this bonus only when the resume explicitly ties the qualifying rank to HackerRank Orchestrate; participation alone, a missing rank, a rank above 500, or a rank from another contest does not qualify. Award only the highest qualifying tier once per candidate, even if multiple qualifying results or repeated entries are listed; do not add the tiers together. Cite the qualifying rank and points in the bonus breakdown.
 - +3-5 points for startup founder/co-founder experience
 - +2-3 points for early-stage engineer experience (first 10-20 employees at a startup)
 - +2 points for portfolio website (GitHub URL in basics.url)
@@ -123,6 +124,8 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 - +1-3 points for high-quality technical blogs (if blog data provided)
 
 **CRITICAL**: The total bonus points cannot exceed 20 points under any circumstances.
+
+**MANDATORY BONUS EVIDENCE**: Return one entry for every allowed bonus criterion in `bonus_points.items`, including zero-point entries when evidence is absent. Award bonuses only for the criteria listed above; competitive programming ratings, unrelated contest rankings, and project complexity do not independently earn bonus points.
 
 ## DEDUCTIONS
 **For Simple Projects:**
@@ -174,7 +177,16 @@ Analyze the following resume and provide a JSON response with this EXACT structu
         "production": {"score": 0, "max": 25, "evidence": "string"},
         "technical_skills": {"score": 0, "max": 10, "evidence": "string"}
     },
-    "bonus_points": {"total": 0, "breakdown": "string"},
+    "bonus_points": {"items": {
+        "gsoc": {"points": 0, "evidence": "string"},
+        "girl_script": {"points": 0, "evidence": "string"},
+        "orchestrate": {"rank": null, "points": 0, "evidence": "string"},
+        "founder": {"points": 0, "evidence": "string"},
+        "early_engineer": {"points": 0, "evidence": "string"},
+        "portfolio": {"points": 0, "evidence": "string"},
+        "linkedin": {"points": 0, "evidence": "string"},
+        "technical_blogs": {"points": 0, "evidence": "string"}
+    }},
     "deductions": {"total": 0, "reasons": "string"},
     "key_strengths": ["strength1", "strength2", "strength3", "strength4", "strength5"],
     "areas_for_improvement": ["improvement1", "improvement2", "improvement3"]
