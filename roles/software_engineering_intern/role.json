@@ -61,7 +61,7 @@
           "points": 3
         }
       ],
-      "description": "Read the awards section for HackerRank Orchestrate. Return its best stated rank and cite the supporting award. Return null if absent; do not use Codeforces, LeetCode, CodeChef, or other contest ranks. Python determines the bonus from the rank."
+      "description": "Read the awards section for HackerRank Orchestrate. Return its best stated rank, matching tier points, and the supporting award. Return rank null and points 0 if absent; do not use Codeforces, LeetCode, CodeChef, or other contest ranks. Python validates that points match the rank tier."
     },
     {
       "key": "founder",
