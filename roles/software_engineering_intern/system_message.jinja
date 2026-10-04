@@ -45,19 +45,10 @@ CRITICAL: You MUST respond with the EXACT JSON structure specified in the prompt
 - Bonus points total must be <= {{ bonus_max }} (maximum {{ bonus_max }} points)
 - **CRITICAL**: The total bonus points cannot exceed {{ bonus_max }} points under any circumstances
 - Return every configured bonus item with supporting evidence. Use 0 points when evidence is absent, or null for a missing rank.
-{% macro bonus_values(rule) -%}
-{%- if rule.tiers is defined -%}
-{%- for tier in rule.tiers -%}
-{{ tier.points }} points for ranks {{ tier.min_rank }}-{{ tier.max_rank }}{% if not loop.last %}; {% else %}; otherwise 0 points{% endif %}
-{%- endfor -%}
-{%- else -%}
-allowed points are {{ ([0] + rule.points) | join(", ") }}
-{%- endif -%}
-{%- endmacro %}
 {% if bonus_rules %}
 - **STRICT BONUS RULES**: Use only the values configured below. No other point value is valid.
 {% for rule in bonus_rules %}
-  - {{ rule.label }}: {{ bonus_values(rule) }}. {{ rule.description }}
+  - {{ rule.label }}: {% if rule.tiers is defined %}{% for tier in rule.tiers %}{{ tier.points }} point{% if tier.points != 1 %}s{% endif %} for ranks {{ tier.min_rank }}-{{ tier.max_rank }}{% if not loop.last %}; {% else %}; otherwise 0 points{% endif %}{% endfor %}{% else %}allowed points are {{ ([0] + rule.points) | join(", ") }}{% endif %}. {{ rule.description }}
 {% endfor %}
 {% endif %}
 - **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed 120 points
