@@ -88,7 +88,7 @@
       "points": [
         2
       ],
-      "description": "Portfolio website as specified in the rubric; +2 if evidenced, otherwise 0."
+      "description": "An explicit personal portfolio website earns +2; GitHub projects and competitive-programming profiles do not qualify."
     },
     {
       "key": "linkedin",
