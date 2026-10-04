@@ -50,7 +50,7 @@ class Profile(BaseModel):
 
     network: Optional[str] = None
     username: Optional[str] = None
-    url: str
+    url: Optional[str] = None
 
 
 class Basics(BaseModel):

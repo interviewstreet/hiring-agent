@@ -809,6 +809,8 @@ def convert_json_resume_to_text(resume_data: JSONResume) -> str:
                 text_parts.append(f"   Description: {project.description}")
             if project.url:
                 text_parts.append(f"   URL: {project.url}")
+            if project.technologies:
+                text_parts.append(f"   Technologies: {', '.join(project.technologies)}")
             if project.highlights:
                 text_parts.append("   Highlights:")
                 for highlight in project.highlights:
@@ -895,6 +897,9 @@ def convert_github_data_to_text(github_data: dict) -> str:
             github_text += f"{i}. {project.get('name', 'N/A')}\n"
             github_text += f"   Description: {project.get('description', 'N/A')}\n"
             github_text += f"   URL: {project.get('github_url', 'N/A')}\n"
+            github_text += f"   Project Type: {project.get('project_type', 'N/A')}\n"
+            github_text += f"   Contributors: {project.get('contributor_count', 'N/A')}\n"
+            github_text += f"   Author Commits: {project.get('author_commit_count', 'N/A')}\n"
             if "github_details" in project:
                 details = project["github_details"]
                 github_text += f"   Stars: {details.get('stars', 'N/A')}\n"
