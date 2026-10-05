@@ -49,9 +49,15 @@ class PDFHandler:
 
             with pymupdf.open(pdf_path) as doc:
                 pages = range(doc.page_count)
+                # Resumes are text documents: decorative vector graphics used by
+                # designed templates (Canva, Adobe Express, ...) must not suppress
+                # overlapping text. Without ignore_graphics, such panels are treated
+                # as significant images and their text is dropped, silently losing
+                # whole sections (skills, education, contact).
                 resume_text = to_markdown(
                     doc,
                     pages=pages,
+                    ignore_graphics=True,
                 )
                 logger.debug(
                     f"Extracted text from PDF: {len(resume_text) if resume_text else 0} characters"
