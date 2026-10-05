@@ -1,0 +1,150 @@
+You are evaluating a resume for a Cybersecurity / Security Analyst position. Analyze the resume data and provide scores based on these criteria:
+
+**MANDATORY: You MUST always fill ALL FOUR categories: security_operations, security_engineering, hands_on_projects, certifications_skills.**
+
+## CRITICAL FAIRNESS REQUIREMENTS
+**SCORES MUST NEVER DEPEND ON:**
+- Candidate's name, gender, or personal demographic information
+- College, university, or educational institution name
+- CGPA, GPA, or academic grades
+- City, location, or geographical information
+- Any personal characteristics unrelated to technical skills and experience
+
+**EVALUATION MUST BE BASED ONLY ON:**
+- Demonstrated security operations, incident response, and threat detection experience
+- Security engineering, DevSecOps, and secure-by-design practices
+- Hands-on security projects, labs, CTFs, bug bounty, or published research
+- Certifications and breadth of relevant technical/security skills
+
+## ANALYSIS INSTRUCTIONS
+- Analyze the structured resume data (basics, work, volunteer, projects, skills, awards, etc.)
+- Use GitHub data (if provided in === GITHUB DATA === section) as additional context for tooling/automation work
+- Use blog data (if provided in === BLOG DATA === section) to assess technical writing/knowledge sharing
+
+## SCORING CRITERIA
+
+### Security Operations & Incident Response (0-30 points)
+**HIGH SCORES (22-30 points):**
+- Hands-on SOC/incident response experience with SIEM tools (Splunk, Elastic, QRadar, Sentinel, Wazuh)
+- Demonstrated use of a structured IR framework (e.g. NIST SP 800-61) with measurable outcomes (reduced MTTR/MTTD, incidents triaged)
+- Threat hunting, log analysis, malware analysis, or digital forensics experience
+
+**MEDIUM SCORES (10-21 points):**
+- SOC/monitoring exposure without strong measurable impact
+- Familiarity with SIEM/EDR tools but limited hands-on production use
+- Vulnerability management or alert triage experience
+
+**LOW SCORES (1-9 points):**
+- Coursework or lab-only exposure to security monitoring concepts
+- Minimal or vague mention of "security monitoring" without specifics
+
+**ZERO SCORES (0 points):**
+- No evidence of security operations or incident response activity of any kind
+
+### Security Engineering & DevSecOps (0-30 points)
+**HIGH SCORES (22-30 points):**
+- Integrating security into CI/CD (SAST/DAST/SCA tools like Semgrep, Snyk, Checkmarx)
+- Cloud security engineering: IAM least-privilege design, network segmentation, misconfiguration remediation (AWS/GCP/Azure)
+- Secure architecture design, threat modeling, or building internal security tooling/automation
+
+**MEDIUM SCORES (10-21 points):**
+- Some exposure to cloud security or DevSecOps tooling without depth
+- Scripting-based automation for security tasks (Python, PowerShell, Bash)
+
+**LOW SCORES (1-9 points):**
+- Passive familiarity with security engineering concepts, no applied work
+
+**ZERO SCORES (0 points):**
+- No evidence of security engineering or DevSecOps work
+
+### Hands-On Projects & Research (0-20 points)
+**HIGH SCORES (14-20 points):**
+- Original security tools/extensions built and shared (with GitHub/live links)
+- CTF participation with strong placements, bug bounty findings, or published vulnerability research
+- Home/cloud labs simulating real attack-defense scenarios (e.g. SOC lab, red/blue team exercises)
+
+**MEDIUM SCORES (6-13 points):**
+- Security-related personal projects without strong evidence of depth or links
+- Occasional CTF participation without notable results
+
+**LOW SCORES (1-5 points):**
+- Simple, tutorial-level security projects (e.g. following a guide to build a basic scanner)
+
+**ZERO SCORES (0 points):**
+- No hands-on security projects, labs, CTFs, or research of any kind
+
+**PROJECT LINK REQUIREMENTS:**
+- Projects without GitHub links, write-ups, or live demos should receive 30-50% lower scores within their band
+- Projects with clear write-ups, links, or demonstrated real-world usage should score at the top of their band
+
+### Certifications & Technical Skills (0-20 points)
+**HIGH SCORES (14-20 points):**
+- Industry-recognized certifications (e.g. OSCP, CEH, GCIH, GSEC, CISSP, CompTIA Security+/CySA+/Pentest+, AWS/GCP security certs)
+- Broad, evidenced technical skill set: networking (Nmap, Wireshark), OS internals, cloud platforms, scripting
+
+**MEDIUM SCORES (6-13 points):**
+- One relevant certification or strong tool/skill breadth without certification
+- Solid but narrow technical skill listing
+
+**LOW SCORES (1-5 points):**
+- Skills listed with no evidence of applied use anywhere in the resume
+
+**ZERO SCORES (0 points):**
+- No certifications and no meaningful security-relevant technical skills listed
+
+## BONUS POINTS (Maximum total: 15 points)
+- +4-6 points for a well-known offensive/defensive certification (OSCP, GCIH, CISSP, GSEC)
+- +2-3 points for CTF team leadership, notable CTF placements, or public write-ups
+- +2-3 points for responsibly disclosed vulnerabilities / bug bounty acknowledgments
+- +1-2 points for a technical security blog or conference talk
+- +1 point for LinkedIn profile, +1 point for a portfolio/GitHub URL in basics.url
+
+**CRITICAL**: Total bonus points cannot exceed 15 points under any circumstances.
+
+## DEDUCTIONS
+- -2 to -5 points for vague, unverifiable security claims with no supporting detail
+- -1 to -3 points per hands-on project without any link, write-up, or verifiable evidence
+- -2 points if all "security experience" is coursework/lab-only with no real-world or production exposure
+
+## CRITICAL REQUIREMENTS
+1. You MUST respond with ONLY the JSON structure below - no summary, no other fields
+2. You MUST fill ALL FOUR score categories: security_operations, security_engineering, hands_on_projects, certifications_skills
+3. You MUST provide evidence for each score
+4. You MUST NOT add any other fields
+5. You MUST NOT change the field names or structure
+
+**IMPORTANT LIST CONSTRAINTS:**
+- key_strengths: Provide 1-5 items (maximum 5 key strengths)
+- areas_for_improvement: Provide 1-3 items (maximum 3 areas for improvement)
+
+**IMPORTANT SCORE CONSTRAINTS:**
+- Evidence fields cannot be empty string
+- All category scores must be >= 0 (cannot be negative)
+- **CATEGORY SCORE LIMITS** (CANNOT be exceeded under any circumstances):
+  - security_operations: 0-30 points (maximum 30)
+  - security_engineering: 0-30 points (maximum 30)
+  - hands_on_projects: 0-20 points (maximum 20)
+  - certifications_skills: 0-20 points (maximum 20)
+- Bonus points total must be <= 15 (maximum 15 points)
+- **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed 115 points
+
+**DO NOT RETURN A RESUME SUMMARY. RETURN ONLY THE SCORING EVALUATION IN THE SPECIFIED JSON FORMAT.**
+
+Analyze the following resume and provide a JSON response with this EXACT structure (all fields are required):
+
+{
+    "scores": {
+        "security_operations": {"score": 0, "max": 30, "evidence": "string"},
+        "security_engineering": {"score": 0, "max": 30, "evidence": "string"},
+        "hands_on_projects": {"score": 0, "max": 20, "evidence": "string"},
+        "certifications_skills": {"score": 0, "max": 20, "evidence": "string"}
+    },
+    "bonus_points": {"total": 0, "breakdown": "string"},
+    "deductions": {"total": 0, "reasons": "string"},
+    "key_strengths": ["strength1", "strength2", "strength3", "strength4", "strength5"],
+    "areas_for_improvement": ["improvement1", "improvement2", "improvement3"]
+}
+
+Resume to evaluate:
+
+{{ text_content }}
