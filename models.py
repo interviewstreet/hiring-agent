@@ -417,6 +417,45 @@ class GitHubProfile(BaseModel):
     hireable: Optional[bool] = None
 
 
+# Keywords the Anthropic structured-output mode rejects. Stripping them costs
+# nothing: the prompts already state the score bounds, and scores are capped
+# against the role's rubric after parsing.
+_UNSUPPORTED_SCHEMA_KEYWORDS = {
+    "minimum",
+    "maximum",
+    "exclusiveMinimum",
+    "exclusiveMaximum",
+    "multipleOf",
+    "minLength",
+    "maxLength",
+    "pattern",
+    "format",
+    "minItems",
+    "maxItems",
+    "uniqueItems",
+}
+
+
+def _strictify_schema(node):
+    """Adapt a Pydantic JSON schema to a strict structured-output schema.
+
+    Every object must set additionalProperties=false and list all of its
+    properties in required, and unsupported validation keywords must be gone.
+    """
+    if isinstance(node, dict):
+        for keyword in _UNSUPPORTED_SCHEMA_KEYWORDS & node.keys():
+            node.pop(keyword)
+        if node.get("type") == "object" and "properties" in node:
+            node["additionalProperties"] = False
+            node["required"] = list(node["properties"])
+        for value in node.values():
+            _strictify_schema(value)
+    elif isinstance(node, list):
+        for value in node:
+            _strictify_schema(value)
+    return node
+
+
 class OpenAICompatibleProvider:
     """Generic OpenAI-chat-compatible LLM provider.
 
@@ -461,6 +500,17 @@ class OpenAICompatibleProvider:
                 body["response_format"] = {
                     "type": "json_schema",
                     "json_schema": {"name": "response", "schema": schema},
+                }
+            elif self.structured_output == "json_schema_strict":
+                import copy
+
+                body["response_format"] = {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "response",
+                        "schema": _strictify_schema(copy.deepcopy(schema)),
+                        "strict": True,
+                    },
                 }
             elif self.structured_output == "json_object":
                 body["response_format"] = {"type": "json_object"}
