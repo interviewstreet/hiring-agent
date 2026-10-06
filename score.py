@@ -5,7 +5,7 @@ import json
 # Fix for Windows Console Unicode errors
 if sys.platform == "win32":
     try:
-        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stdout.reconfigure(encoding="utf-8")
     except AttributeError:
         pass
 
@@ -47,9 +47,7 @@ logging.basicConfig(
 )
 
 
-def print_evaluation_results(
-    evaluation, role: Role, candidate_name: str = "Candidate"
-):
+def print_evaluation_results(evaluation, role: Role, candidate_name: str = "Candidate"):
     """Print evaluation results in a readable format."""
     print("\n" + "=" * 80)
     print(f"📊 RESUME EVALUATION RESULTS FOR: {candidate_name}")
@@ -204,6 +202,68 @@ def find_profile(profiles, network):
     )
 
 
+BLOG_DOMAINS = {"medium.com", "dev.to", "hashnode.dev", "substack.com"}
+
+
+def _extract_blog_data(resume_data: JSONResume, github_data: dict = None) -> dict:
+    """Extract blog/writing URLs from resume profiles and GitHub profile.
+
+    Returns a blog_data dict compatible with convert_blog_data_to_text(),
+    or None if no blog URLs are found.
+    """
+    blog_urls = []
+
+    # Check resume profiles for blog platforms
+    if (
+        resume_data
+        and hasattr(resume_data, "basics")
+        and resume_data.basics
+        and resume_data.basics.profiles
+    ):
+        for profile in resume_data.basics.profiles:
+            if not profile.url:
+                continue
+            url_lower = profile.url.lower()
+            # Match known blog platforms
+            if any(domain in url_lower for domain in BLOG_DOMAINS):
+                blog_urls.append(profile.url)
+            # Match personal portfolio/blog (often in basics.url too)
+            elif profile.network and profile.network.lower() in (
+                "blog",
+                "website",
+                "portfolio",
+            ):
+                blog_urls.append(profile.url)
+
+    # Check basics.url (personal website)
+    if (
+        resume_data
+        and hasattr(resume_data, "basics")
+        and resume_data.basics
+        and resume_data.basics.url
+    ):
+        url_lower = resume_data.basics.url.lower()
+        if url_lower not in [u.lower() for u in blog_urls]:
+            # Add personal site as potential blog source
+            blog_urls.append(resume_data.basics.url)
+
+    # Check GitHub profile blog field
+    if github_data and "profile" in github_data:
+        gh_blog = github_data["profile"].get("blog")
+        if gh_blog and gh_blog.lower() not in [u.lower() for u in blog_urls]:
+            blog_urls.append(gh_blog)
+
+    if not blog_urls:
+        return None
+
+    return {
+        "total_blogs": len(blog_urls),
+        "blog_score": "N/A",
+        "blog_details": "Blog URLs extracted from resume profiles and GitHub.",
+        "blogs": [{"url": url, "score": "N/A", "details": ""} for url in blog_urls],
+    }
+
+
 def main(pdf_path, role: Role):
     evaluation_model = build_evaluation_model(role)
 
@@ -320,7 +380,12 @@ def main(pdf_path, role: Role):
                     encoding="utf-8",
                 )
 
-    score = _evaluate_resume(resume_data, role, evaluation_model, github_data)
+    # Extract blog data from resume profiles and GitHub
+    blog_data = _extract_blog_data(resume_data, github_data)
+
+    score = _evaluate_resume(
+        resume_data, role, evaluation_model, github_data, blog_data
+    )
 
     # Get candidate name for display
     candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
