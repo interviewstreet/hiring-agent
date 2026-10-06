@@ -266,6 +266,21 @@ What happens:
 2. If a GitHub profile is found in the resume, repositories are fetched and cached to `cache/githubcache_<basename>.json`.
 3. The evaluator scores the resume against the selected role, prints a report and, in development mode, appends a CSV row to `resume_evaluations_<role>.csv`.
 
+### Evidence trace
+
+To inspect the records cited for each category score, pass an output stem:
+
+```bash
+python score.py ./resume/sample.pdf --role software_engineering_intern --evidence-trace cache/sample_trace
+```
+
+This writes JSON and Markdown reports with each category's cited records, source
+origins, and checks for unknown IDs or missing quotes. A matching quote does not
+prove a claim is true or supports the score. Reports contain resume data; bonuses
+and deductions are outside this version's trace. Without the flag, the existing
+evaluation flow stays unchanged. See [the evidence trace guide](docs/evidence-trace.md)
+for limitations, examples, and validation commands.
+
 ### Roles
 
 A role bundles its rubric in `roles/<role_name>/`:

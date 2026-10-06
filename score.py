@@ -38,6 +38,12 @@ from transform import (
     convert_blog_data_to_text,
 )
 from config import DEVELOPMENT_MODE
+from evidence_trace import (
+    build_source_catalog,
+    render_source_catalog,
+    build_trace_report,
+    write_trace_reports,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +155,7 @@ def _evaluate_resume(
     evaluation_model,
     github_data: dict = None,
     blog_data: dict = None,
+    trace_output: str = None,
 ):
     """Evaluate the resume using AI and display results."""
 
@@ -158,24 +165,32 @@ def _evaluate_resume(
         evaluation_model=evaluation_model,
         model_name=DEFAULT_MODEL,
         model_params=model_params,
+        evidence_trace=trace_output is not None,
     )
 
-    # Convert JSON resume data to text
-    resume_text = convert_json_resume_to_text(resume_data)
-
-    # Add GitHub data if available
-    if github_data:
-        github_text = convert_github_data_to_text(github_data)
-        resume_text += github_text
-
-    # Add blog data if available
-    if blog_data:
-        blog_text = convert_blog_data_to_text(blog_data)
-        resume_text += blog_text
+    if trace_output is not None:
+        sources = build_source_catalog(resume_data, github_data, blog_data)
+        resume_text = render_source_catalog(sources)
+    else:
+        # Preserve the existing evaluator input when tracing is disabled.
+        resume_text = convert_json_resume_to_text(resume_data)
+        if github_data:
+            resume_text += convert_github_data_to_text(github_data)
+        if blog_data:
+            resume_text += convert_blog_data_to_text(blog_data)
 
     # Evaluate the enhanced resume
     evaluation_result = evaluator.evaluate_resume(resume_text)
 
+    if trace_output is not None:
+        report = build_trace_report(evaluation_result, role, sources, DEFAULT_MODEL)
+        paths = write_trace_reports(report, trace_output)
+        print(f"Evidence trace written to {paths[0]} and {paths[1]}")
+        summary = report["summary"]
+        print(
+            f"Citation checks: {summary['matching_quotes']}/{summary['citations']} "
+            "references have matching quotes. Semantic support is not verified."
+        )
     # print(evaluation_result)
 
     return evaluation_result
@@ -204,8 +219,10 @@ def find_profile(profiles, network):
     )
 
 
-def main(pdf_path, role: Role):
-    evaluation_model = build_evaluation_model(role)
+def main(pdf_path, role: Role, trace_output: str = None):
+    evaluation_model = build_evaluation_model(
+        role, evidence_trace=trace_output is not None
+    )
 
     # Create cache filename based on PDF path
     cache_filename = (
@@ -276,8 +293,13 @@ def main(pdf_path, role: Role):
                 or "profile" not in loaded_github
             ):
                 raise ValueError("Cached GitHub data is invalid or empty")
-            github_data = loaded_github
-            github_cache_loaded = True
+            if trace_output is not None and "evidence_sources" not in loaded_github:
+                logger.info(
+                    "Refreshing GitHub enrichment for pre-selector evidence sources"
+                )
+            else:
+                github_data = loaded_github
+                github_cache_loaded = True
         except Exception as e:
             print(f"⚠️ Warning: Invalid GitHub cache file {github_cache_filename}: {e}")
             print("Ignoring GitHub cache and refetching...")
@@ -305,7 +327,9 @@ def main(pdf_path, role: Role):
                 )
             )
             github_data = fetch_and_display_github_info(
-                github_profile.url, position_title=role.position_title
+                github_profile.url,
+                position_title=role.position_title,
+                include_evidence_sources=trace_output is not None,
             )
 
             if (
@@ -320,7 +344,9 @@ def main(pdf_path, role: Role):
                     encoding="utf-8",
                 )
 
-    score = _evaluate_resume(resume_data, role, evaluation_model, github_data)
+    score = _evaluate_resume(
+        resume_data, role, evaluation_model, github_data, trace_output=trace_output
+    )
 
     # Get candidate name for display
     candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
@@ -381,6 +407,12 @@ if __name__ == "__main__":
         help="Scaffold a new role directory under roles/ with basic template "
         "files, then exit (does not score a resume).",
     )
+    parser.add_argument(
+        "--evidence-trace",
+        metavar="OUTPUT_STEM",
+        help="Include category source citations and write OUTPUT_STEM.json and "
+        "OUTPUT_STEM.md. Checks references and quote presence, not claim truth.",
+    )
     args = parser.parse_args()
 
     # Scaffold mode: create a new role and exit.
@@ -409,4 +441,4 @@ if __name__ == "__main__":
         print(f"Error: {e}")
         exit(1)
 
-    main(args.pdf_path, role)
+    main(args.pdf_path, role, trace_output=args.evidence_trace)

@@ -22,6 +22,7 @@ class ResumeEvaluator:
         evaluation_model,
         model_name: str = DEFAULT_MODEL,
         model_params: dict = None,
+        evidence_trace: bool = False,
     ):
         if not model_name:
             raise ValueError("Model name cannot be empty")
@@ -29,6 +30,7 @@ class ResumeEvaluator:
         self.role = role
         self.evaluation_model = evaluation_model
         self.model_name = model_name
+        self.evidence_trace = evidence_trace
         self.model_params = model_params or MODEL_PARAMETERS.get(
             model_name, {"temperature": 0.5, "top_p": 0.9}
         )
@@ -54,6 +56,11 @@ class ResumeEvaluator:
                 bonus_rules=self.role.bonus_rules,
                 bonus_max=self.role.bonus_max,
             )
+
+            if self.evidence_trace:
+                from evidence_trace import TRACE_INSTRUCTIONS
+
+                system_message += "\n\n" + TRACE_INSTRUCTIONS
 
             # Prepare chat parameters
             chat_params = {

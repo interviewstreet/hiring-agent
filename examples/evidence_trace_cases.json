@@ -1,0 +1,69 @@
+{
+  "resume": {
+    "projects": [
+      {
+        "name": "Service",
+        "description": "Built REST APIs using FastAPI and PostgreSQL",
+        "technologies": ["Python", "FastAPI", "PostgreSQL"]
+      }
+    ],
+    "work": [
+      {
+        "name": "Example company",
+        "position": "Engineering intern",
+        "summary": "Deployed a service used by 200 internal users"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "matching_quote",
+      "section": "projects",
+      "explanation": "Built REST APIs using FastAPI and PostgreSQL",
+      "quote": "Built REST APIs using FastAPI and PostgreSQL",
+      "expected_check": "quote_present",
+      "manual_support_label": "supported by an extracted resume claim"
+    },
+    {
+      "name": "invented_source",
+      "section": "projects",
+      "source_id": "S-invented",
+      "explanation": "Contributed to Kubernetes",
+      "quote": "Merged 12 Kubernetes PRs",
+      "expected_check": "unknown_source",
+      "manual_support_label": "unsupported"
+    },
+    {
+      "name": "invented_quote",
+      "section": "projects",
+      "explanation": "Participated in GSoC",
+      "quote": "Participated in GSoC",
+      "expected_check": "quote_not_found",
+      "manual_support_label": "unsupported"
+    },
+    {
+      "name": "real_quote_unrelated_claim",
+      "section": "projects",
+      "explanation": "Participated in GSoC",
+      "quote": "Built REST APIs using FastAPI and PostgreSQL",
+      "expected_check": "quote_present",
+      "manual_support_label": "unsupported: real quote does not substantiate GSoC"
+    },
+    {
+      "name": "quote_from_wrong_record",
+      "section": "projects",
+      "explanation": "Deployed a service used by 200 internal users",
+      "quote": "Deployed a service used by 200 internal users",
+      "expected_check": "quote_not_found",
+      "manual_support_label": "claim occurs in work, not in the cited project record"
+    },
+    {
+      "name": "uncited_explanation",
+      "section": "projects",
+      "explanation": "Extensive open source contributions",
+      "quote": null,
+      "expected_check": "uncited",
+      "manual_support_label": "unsupported"
+    }
+  ]
+}
