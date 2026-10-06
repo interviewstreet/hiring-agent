@@ -225,6 +225,59 @@ class JSONResume(BaseModel):
     projects: Optional[List[Project]] = None
 
 
+class RewrittenBasics(BaseModel):
+    """Editable fields for the resume summary rewrite.
+
+    The LLM is only allowed to touch ``summary``; all other basics fields
+    (name, email, phone, url, location, profiles) are protected and never
+    exposed in the output schema.
+    """
+
+    summary: Optional[str] = None
+
+
+class RewrittenWork(BaseModel):
+    """Editable fields for one work entry rewrite.
+
+    ``id`` is the position of the entry in the original work list (copied
+    unchanged by the LLM). The rewriter uses it to map rewrites back to the
+    correct entry, so a reordered LLM response can never misattribute content.
+    """
+
+    id: Optional[int] = None
+    summary: Optional[str] = None
+    highlights: Optional[List[str]] = None
+
+
+class RewrittenWorkList(BaseModel):
+    """Batch of rewritten work entries, position-keyed to the original list.
+
+    Keeping the array ordered and same-length (with ids echoed back) lets the
+    rewriter merge edits into the original resume without dropping, reordering,
+    or misattributing entries.
+    """
+
+    work: Optional[List[RewrittenWork]] = None
+
+
+class RewrittenProject(BaseModel):
+    """Editable fields for one project rewrite.
+
+    ``id`` is the position of the project in the original projects list (copied
+    unchanged by the LLM); the rewriter maps rewrites back by id.
+    """
+
+    id: Optional[int] = None
+    description: Optional[str] = None
+    highlights: Optional[List[str]] = None
+
+
+class RewrittenProjectList(BaseModel):
+    """Batch of rewritten project entries, position-keyed to the original list."""
+
+    projects: Optional[List[RewrittenProject]] = None
+
+
 class CategoryScore(BaseModel):
     score: float = Field(ge=0, description="Score achieved in this category")
     max: int = Field(gt=0, description="Maximum possible score")

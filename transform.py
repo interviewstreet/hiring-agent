@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional
 import pdb
 from models import JSONResume
+from scoring import compute_totals
 
 
 def transform_parsed_data(parsed_data: Dict) -> Dict:
@@ -674,8 +675,6 @@ def transform_evaluation_response(
     category_keys = [c.key for c in role.categories] if role else []
     if evaluation and hasattr(evaluation, "scores"):
         scores = evaluation.scores
-        total_score = 0
-        total_max = 0
         for key in category_keys:
             cat = getattr(scores, key, None)
             if cat is None:
@@ -684,9 +683,11 @@ def transform_evaluation_response(
                 continue
             csv_row[f"{key}_score"] = cat.score
             csv_row[f"{key}_max"] = cat.max
-            total_score += cat.score
-            total_max += cat.max
 
+        if role:
+            total_score, total_max = compute_totals(evaluation, role)
+        else:
+            total_score, total_max = "N/A", "N/A"
         csv_row["total_score"] = total_score
         csv_row["total_max"] = total_max
     else:
