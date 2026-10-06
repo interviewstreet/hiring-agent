@@ -231,6 +231,21 @@ class CategoryScore(BaseModel):
     evidence: str = Field(min_length=1, description="Evidence supporting the score")
 
 
+class EvidenceCitation(BaseModel):
+    source_id: str = Field(
+        min_length=1, description="ID from the supplied source catalog"
+    )
+    quote: str = Field(
+        min_length=1, description="Exact supporting text from that source"
+    )
+
+
+class TracedCategoryScore(CategoryScore):
+    citations: List[EvidenceCitation] = Field(
+        description="Supporting sources and exact quotes; use [] when none support the explanation"
+    )
+
+
 class Deductions(BaseModel):
     total: float = Field(
         ge=0,
@@ -367,24 +382,25 @@ def build_bonus_model(role) -> Type[BaseModel]:
     return BonusPoints
 
 
-def build_scores_model(categories) -> Type[BaseModel]:
+def build_scores_model(categories, evidence_trace: bool = False) -> Type[BaseModel]:
     """Build a ``Scores`` model with one CategoryScore field per role category.
 
     Using ``create_model`` (rather than a loose ``Dict[str, CategoryScore]``)
     keeps the emitted JSON schema concrete — the exact category property names —
     so the LLM's structured output stays as constrained as the old fixed schema.
     """
-    fields = {category.key: (CategoryScore, ...) for category in categories}
+    score_type = TracedCategoryScore if evidence_trace else CategoryScore
+    fields = {category.key: (score_type, ...) for category in categories}
     return create_model("Scores", **fields)
 
 
-def build_evaluation_model(role) -> Type[BaseModel]:
+def build_evaluation_model(role, evidence_trace: bool = False) -> Type[BaseModel]:
     """Build the full ``EvaluationData`` model for a given role.
 
     Categories/weights and the bonus cap come from the role definition, so each
     role scores against its own rubric.
     """
-    scores_model = build_scores_model(role.categories)
+    scores_model = build_scores_model(role.categories, evidence_trace=evidence_trace)
 
     bonus_model = build_bonus_model(role)
 

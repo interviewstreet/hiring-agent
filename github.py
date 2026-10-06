@@ -4,6 +4,7 @@ import json
 import requests
 import datetime
 import time
+from copy import deepcopy
 from pathlib import Path
 
 from typing import Dict, List, Optional, Any
@@ -461,7 +462,9 @@ def generate_projects_json(
 
 
 def fetch_and_display_github_info(
-    github_url: str, position_title: str = "software engineering position"
+    github_url: str,
+    position_title: str = "software engineering position",
+    include_evidence_sources: bool = False,
 ) -> Dict:
     logger.info(f"{github_url}")
     github_profile = fetch_github_profile(github_url)
@@ -476,6 +479,9 @@ def fetch_and_display_github_info(
         print("\n❌ No repositories found or failed to fetch repository details.")
 
     profile_json = generate_profile_json(github_profile)
+    evidence_sources = None
+    if include_evidence_sources:
+        evidence_sources = deepcopy({"profile": profile_json, "repositories": projects})
     projects_json = generate_projects_json(projects, position_title=position_title)
 
     result = {
@@ -483,6 +489,10 @@ def fetch_and_display_github_info(
         "projects": projects_json,
         "total_projects": len(projects_json),
     }
+
+    if include_evidence_sources:
+        # The selector's output cannot establish API provenance.
+        result["evidence_sources"] = evidence_sources
 
     return result
 
