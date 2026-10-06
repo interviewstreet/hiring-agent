@@ -2,15 +2,6 @@ import os
 import sys
 import json
 
-# Fix for Windows Console Unicode errors
-if sys.platform == "win32":
-    try:
-        sys.stdout.reconfigure(encoding='utf-8')
-    except AttributeError:
-        pass
-
-# Fix for Python 3.14 Protobuf TypeError
-os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
 import logging
 import csv
@@ -26,7 +17,6 @@ import argparse
 from pdf import PDFHandler
 from github import fetch_and_display_github_info
 from models import JSONResume, build_evaluation_model
-from typing import List, Optional, Dict
 from evaluator import ResumeEvaluator
 from roles import Role, load_role, list_available_roles, scaffold_role
 from pathlib import Path
@@ -47,9 +37,7 @@ logging.basicConfig(
 )
 
 
-def print_evaluation_results(
-    evaluation, role: Role, candidate_name: str = "Candidate"
-):
+def print_evaluation_results(evaluation, role: Role, candidate_name: str = "Candidate"):
     """Print evaluation results in a readable format."""
     print("\n" + "=" * 80)
     print(f"📊 RESUME EVALUATION RESULTS FOR: {candidate_name}")
@@ -246,7 +234,7 @@ def main(pdf_path, role: Role):
         pdf_handler = PDFHandler()
         resume_data = pdf_handler.extract_json_from_pdf(pdf_path)
 
-        if resume_data == None:
+        if resume_data is None:
             return None
 
         if DEVELOPMENT_MODE:

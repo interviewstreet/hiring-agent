@@ -1,10 +1,8 @@
-from typing import Dict, List, Optional, Tuple, Any
-from pydantic import BaseModel, Field, field_validator
-from models import JSONResume
+from typing import List
+from pydantic import BaseModel
 from llm_utils import initialize_llm_provider, extract_json_from_response
 import logging
 import json
-import re
 
 from prompt import (
     DEFAULT_MODEL,
