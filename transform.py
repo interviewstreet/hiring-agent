@@ -285,7 +285,10 @@ def transform_achievements(achievements_list: List) -> List[Dict]:
             transformed.append(
                 {
                     "title": title,
-                    "date": f"{item.get('year', '')}-01" if item.get("year") else None,
+                    "date": item.get(
+                        "date",
+                        f"{item.get('year', '')}-01" if item.get("year") else None,
+                    ),
                     "awarder": awarder,
                     "summary": summary,
                 }
