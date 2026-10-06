@@ -446,31 +446,15 @@ def parse_date_range(date_range: str) -> tuple:
         parts = date_range.split(" ")
         if len(parts) >= 2:
             year = parts[-1]
-            month_map = {
-                "Jan": "Jan",
-                "Feb": "Feb",
-                "Mar": "Mar",
-                "Apr": "Apr",
-                "May": "May",
-                "Jun": "Jun",
-                "Jul": "Jul",
-                "Aug": "Aug",
-                "Sep": "Sep",
-                "Oct": "Oct",
-                "Nov": "Nov",
-                "Dec": "Dec",
-            }
-
             # Check if it's a range like "Jan-Mar 2021"
             if "-" in parts[0] and len(parts[0].split("-")) == 2:
                 start_month, end_month = parts[0].split("-")
-                start_date = f"{month_map.get(start_month, start_month)} {year}"
-                end_date = f"{month_map.get(end_month, end_month)} {year}"
+                start_date = f"{start_month} {year}"
+                end_date = f"{end_month} {year}"
                 return start_date, end_date
             else:
                 # Single month format like "Jan 2021"
-                month = month_map.get(parts[0], parts[0])
-                start_date = f"{month} {year}"
+                start_date = f"{parts[0]} {year}"
                 return start_date, None
 
     # Handle year range like "2020-2021"
@@ -483,7 +467,7 @@ def parse_date_range(date_range: str) -> tuple:
     return None, None
 
 
-def fetch_profile(profiles, network_names, prefix):
+def fetch_profile(profiles, network_names):
     """Helper function to extract profile information for a given network."""
     for network in network_names:
         profile = next(
@@ -528,15 +512,13 @@ def transform_evaluation_response(
         # Extract all profile information
         if basics.profiles:
             # Extract profiles for each platform
-            github_profile = fetch_profile(basics.profiles, ["github"], "github")
-            linkedin_profile = fetch_profile(basics.profiles, ["linkedin"], "linkedin")
-            twitter_profile = fetch_profile(
-                basics.profiles, ["twitter", "x"], "twitter"
-            )
+            github_profile = fetch_profile(basics.profiles, ["github"])
+            linkedin_profile = fetch_profile(basics.profiles, ["linkedin"])
+            twitter_profile = fetch_profile(basics.profiles, ["twitter", "x"])
             dev_profile = fetch_profile(
                 basics.profiles, ["dev community", "dev"], "dev"
             )
-            behance_profile = fetch_profile(basics.profiles, ["behance"], "behance")
+            behance_profile = fetch_profile(basics.profiles, ["behance"])
 
             # Add GitHub profile columns
             if github_profile:
