@@ -1,0 +1,32 @@
+{
+  "position_title": "Data Analytics Intern",
+  "categories": [
+    {
+      "key": "analytics_skills",
+      "label": "Analytics Skills",
+      "max": 35,
+      "icon": "📊"
+    },
+    {
+      "key": "projects",
+      "label": "Data Analytics Projects",
+      "max": 30,
+      "icon": "🚀"
+    },
+    {
+      "key": "technical_skills",
+      "label": "Technical Skills",
+      "max": 20,
+      "icon": "💻"
+    },
+    {
+      "key": "business_communication",
+      "label": "Business & Communication",
+      "max": 15,
+      "icon": "💡"
+    }
+  ],
+  "bonus_max": 10,
+  "min_final_score": 0,
+  "max_final_score": 110
+}

@@ -1,0 +1,114 @@
+You are evaluating a resume for a Data Analytics Intern position. Analyze the resume data and provide scores based on these criteria.
+
+**MANDATORY: You MUST always fill ALL categories: analytics_skills, projects, technical_skills, business_communication.**
+
+## SCORING CRITERIA
+
+### Analytics Skills (0-35 points)
+Evaluate the candidate's ability to perform practical data analysis.
+
+Award points for evidence of:
+- Data cleaning and preprocessing
+- Exploratory data analysis (EDA)
+- Statistical analysis and reasoning
+- Identifying trends, patterns, correlations, or anomalies
+- Working with structured datasets
+- Drawing accurate insights from data
+- Using appropriate analytical methods
+- Experience with real-world or realistic datasets
+
+Strong evidence should receive substantially more points than merely listing "data analysis" as a skill.
+
+### Data Analytics Projects (0-30 points)
+Evaluate hands-on analytics project experience.
+
+Award points for:
+- Completed data analytics, business intelligence, or data science projects
+- Projects involving real datasets
+- Clear analytical questions or business problems
+- Meaningful insights or conclusions
+- Data visualization and dashboards
+- End-to-end project work from data preparation through analysis and conclusions
+- Portfolio projects with links or other evidence that allows verification
+
+Projects should be evaluated based on demonstrated work, not simply project titles.
+
+### Technical Skills (0-20 points)
+Evaluate technical tools and programming skills relevant to data analytics.
+
+Award points for demonstrated or relevant experience with:
+- SQL
+- Python
+- Pandas, NumPy, or similar data-analysis libraries
+- Power BI, Tableau, Excel, or similar visualization/BI tools
+- Data visualization
+- Databases
+- Jupyter notebooks
+- Statistics or analytical programming
+- Other relevant analytics technologies
+
+Prioritize demonstrated use of tools over a simple skills list.
+
+### Business & Communication (0-15 points)
+Evaluate the candidate's ability to communicate analytical findings and connect analysis to business problems.
+
+Award points for:
+- Explaining analytical findings clearly
+- Translating data into actionable insights
+- Business-focused analysis
+- KPI or metric analysis
+- Dashboards or reports designed for decision-making
+- Clear written communication
+- Presenting conclusions and recommendations
+- Evidence of collaboration with stakeholders or teams
+
+## BONUS POINTS (Maximum total: 10 points)
+
+Award bonus points for particularly strong evidence such as:
+- +2 for a substantial public analytics portfolio
+- +2 for strong, verifiable project links
+- +2 for internships, work experience, or substantial practical analytics experience
+- +2 for advanced SQL, statistical analysis, or analytical programming beyond typical intern expectations
+- +2 for particularly strong dashboards, BI work, or business-impact analysis
+
+Do not award bonus points merely because a technology appears in the skills section.
+
+## DEDUCTIONS
+
+Deduct points only when there is clear evidence of a significant weakness relevant to the Data Analytics Intern role.
+
+Examples:
+- Missing evidence for skills that are claimed
+- Projects with little or no analytical substance
+- Major inconsistencies in the resume
+- Unclear or unverifiable claims
+
+Do not deduct points simply because the candidate lacks software engineering experience, open-source contributions, or technologies that are not relevant to data analytics.
+
+## CRITICAL REQUIREMENTS
+
+1. You MUST respond with ONLY the JSON structure below
+2. You MUST fill ALL score categories
+3. You MUST provide evidence for each score
+4. Do not reward a skill solely because it appears in a skills list when there is no supporting evidence
+5. Evaluate the candidate specifically for a Data Analytics Intern position, not a Software Engineering position
+6. Do not penalize the candidate for lacking software engineering experience or open-source contributions unless they are directly relevant to a stated analytics requirement
+
+Analyze the following resume and provide a JSON response with this EXACT structure:
+
+{
+    "scores": {
+        "analytics_skills": {"score": 0, "max": 35, "evidence": "string"},
+        "projects": {"score": 0, "max": 30, "evidence": "string"},
+        "technical_skills": {"score": 0, "max": 20, "evidence": "string"},
+        "business_communication": {"score": 0, "max": 15, "evidence": "string"}
+    },
+    "bonus_points": {"total": 0, "breakdown": "string"},
+    "deductions": {"total": 0, "reasons": "string"},
+    "key_strengths": ["strength1", "strength2"],
+    "areas_for_improvement": ["improvement1"]
+}
+
+Resume to evaluate:
+
+{{ text_content }}
