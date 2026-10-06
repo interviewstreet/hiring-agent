@@ -90,7 +90,6 @@ class PDFHandler:
                     {"role": "user", "content": prompt},
                 ],
                 "options": {
-                    "stream": False,
                     **model_params,
                 },
             }

@@ -63,7 +63,6 @@ class ResumeEvaluator:
                     {"role": "user", "content": full_prompt},
                 ],
                 "options": {
-                    "stream": False,
                     **self.model_params,
                 },
             }
