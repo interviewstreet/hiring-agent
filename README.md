@@ -24,6 +24,7 @@
 - [Architecture](#architecture)
 - [Installation and Setup](#installation-and-setup)
   - [Prerequisites](#prerequisites)
+  - [Recommended setup with uv](#recommended-setup-with-uv)
   - [Quick setup with pip](#quick-setup-with-pip)
   - [Ollama models](#ollama-models)
 - [Configuration](#configuration)
@@ -129,15 +130,39 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
 
 ### Prerequisites
 
-- **Python 3.11+**
+- **Python 3.11.13 recommended**
 
-  The repository pins `.python-version` to 3.11.13.
+  The repository pins `.python-version` to 3.11.13. Using the pinned version
+  provides a reproducible environment when installing the pinned dependencies.
 
 - **One LLM backend** (either of them)
 
   - **Ollama** for local models
     Install from the [official site](https://ollama.com/), then run `ollama serve`.
   - **Google Gemini** if you have an API key, get it from [here](https://aistudio.google.com/api-keys).
+
+### Recommended setup with uv
+
+Use [uv](https://docs.astral.sh/uv/getting-started/installation/) to install the
+repository-pinned Python version and create the virtual environment explicitly:
+
+```bash
+$ git clone https://github.com/interviewstreet/hiring-agent
+$ cd hiring-agent
+
+$ uv python install 3.11.13
+$ uv venv --python 3.11.13
+
+# Linux or macOS
+$ source .venv/bin/activate
+# Windows PowerShell
+# .venv\Scripts\Activate.ps1
+
+$ python --version
+Python 3.11.13
+
+$ uv pip install -r requirements.txt
+```
 
 ### Quick setup with pip
 
