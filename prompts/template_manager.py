@@ -41,6 +41,7 @@ class TemplateManager:
             "skills": "skills.jinja",
             "projects": "projects.jinja",
             "awards": "awards.jinja",
+            "open_source_contributions": "open_source_contributions.jinja",
             "system_message": "system_message.jinja",
             "github_project_selection": "github_project_selection.jinja",
         }

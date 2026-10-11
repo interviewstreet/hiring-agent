@@ -172,6 +172,17 @@ class Project(BaseModel):
     skills: Optional[List[str]] = None
 
 
+class OpenSourceContribution(BaseModel):
+    """Open source contribution for JSON Resume format."""
+
+    project: Optional[str] = None
+    organization: Optional[str] = None
+    url: Optional[str] = None
+    description: Optional[str] = None
+    stars: Optional[str] = None
+    status: Optional[str] = None
+
+
 class BasicsSection(BaseModel):
     """Basics section containing basic information."""
 
@@ -208,6 +219,12 @@ class AwardsSection(BaseModel):
     awards: Optional[List[Award]] = None
 
 
+class OpenSourceSection(BaseModel):
+    """Open source contributions section containing a list of contributions."""
+
+    open_source_contributions: Optional[List[OpenSourceContribution]] = None
+
+
 class JSONResume(BaseModel):
     """Complete JSON Resume format model."""
 
@@ -223,6 +240,7 @@ class JSONResume(BaseModel):
     interests: Optional[List[Interest]] = None
     references: Optional[List[Reference]] = None
     projects: Optional[List[Project]] = None
+    open_source_contributions: Optional[List[OpenSourceContribution]] = None
 
 
 class CategoryScore(BaseModel):
