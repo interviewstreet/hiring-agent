@@ -99,7 +99,8 @@ def extract_domain_from_url(url: str) -> str:
     try:
         if "://" in url:
             url = url.split("://")[1]
-        domain = url.split("/")[0]
+        # Domains are case-insensitive, so "GitHub.com" maps like "github.com"
+        domain = url.split("/")[0].lower()
         if domain.startswith("www."):
             domain = domain[4:]
         return domain
@@ -153,7 +154,9 @@ def transform_basics(basics_data: Dict) -> Dict:
 
 def extract_username_from_url(url: str, domain: str) -> str:
     try:
-        path = url.split(domain)[1] if domain in url else ""
+        # Find the domain case-insensitively but keep the path's original case
+        index = url.lower().find(domain)
+        path = url[index + len(domain) :] if index != -1 else ""
         if not path:
             return ""
         path = path.lstrip("/")
