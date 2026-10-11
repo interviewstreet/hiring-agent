@@ -61,45 +61,59 @@ def _fetch_github_api(api_url, params=None):
     )
 
     if rate_limit_remaining is not None and rate_limit_limit is not None:
-        remaining = int(rate_limit_remaining)
-        limit = int(rate_limit_limit)
+        try:
+            remaining = int(rate_limit_remaining)
+            limit = int(rate_limit_limit)
+        except ValueError:
+            logger.warning("⚠️  Warning: Could not parse rate limit headers")
+            remaining = None
+            limit = None
 
-        # Log rate limit information and handle proactively
-        if remaining < 10 and rate_limit_reset:
-            reset_timestamp = int(rate_limit_reset)
-            current_timestamp = int(time.time())
-            wait_seconds = (
-                max(0, reset_timestamp - current_timestamp) + 5
-            )  # Add 5 second buffer
-            reset_time = datetime.datetime.fromtimestamp(reset_timestamp)
-
-            # Cap maximum wait time at 1 hour
-            max_wait = 3600
-            if wait_seconds > max_wait:
+        if remaining is not None and limit is not None:
+            # Log rate limit information and handle proactively
+            if remaining < 10 and rate_limit_reset:
+                try:
+                    reset_timestamp = int(rate_limit_reset)
+                except ValueError:
+                    logger.warning("⚠️  Warning: Could not parse rate limit reset header")
+                    reset_timestamp = int(time.time()) + 60  # Default to 60s wait
+                current_timestamp = int(time.time())
+                wait_seconds = (
+                    max(0, reset_timestamp - current_timestamp) + 5
+                )  # Add 5 second buffer
+                reset_time = datetime.datetime.fromtimestamp(reset_timestamp)
+    
+                # Cap maximum wait time at 1 hour
+                max_wait = 3600
+                if wait_seconds > max_wait:
+                    print(
+                        f"⚠️  Rate limit reset time is too far in the future ({wait_seconds}s). Capping wait to {max_wait}s"
+                    )
+                    wait_seconds = max_wait
+    
+                logger.warning(
+                    f"⚠️  GitHub API rate limit low: {remaining}/{limit} requests remaining. Resets at {reset_time}"
+                )
                 print(
-                    f"⚠️  Rate limit reset time is too far in the future ({wait_seconds}s). Capping wait to {max_wait}s"
+                    f"💡 Tip: Set GITHUB_TOKEN environment variable to increase rate limits (60/hour → 5000/hour)"
                 )
-                wait_seconds = max_wait
-
-            logger.error(
-                f"⚠️  GitHub API rate limit low: {remaining}/{limit} requests remaining. Resets at {reset_time}"
-            )
-            print(
-                f"💡 Tip: Set GITHUB_TOKEN environment variable to increase rate limits (60/hour → 5000/hour)"
-            )
-
-            if wait_seconds > 0:
+    
+                if wait_seconds > 0:
+                    logger.info(
+                        f"⏳ Proactively sleeping for {wait_seconds} seconds until rate limit resets..."
+                    )
+                    time.sleep(wait_seconds)
+                    print(f"✅ Rate limit should be reset now. Continuing...")
+            elif remaining < 100:
                 logger.info(
-                    f"⏳ Proactively sleeping for {wait_seconds} seconds until rate limit resets..."
+                    f"ℹ️  GitHub API rate limit: {remaining}/{limit} requests remaining"
                 )
-                time.sleep(wait_seconds)
-                print(f"✅ Rate limit should be reset now. Continuing...")
-        elif remaining < 100:
-            logger.info(
-                f"ℹ️  GitHub API rate limit: {remaining}/{limit} requests remaining"
-            )
 
-    data = response.json() if response.status_code == 200 else {}
+    try:
+        data = response.json() if response.status_code == 200 else {}
+    except ValueError:
+        logger.warning(f"⚠️  Warning: GitHub API did not return valid JSON. Status: {status_code}")
+        data = {}
 
     if DEVELOPMENT_MODE and status_code == 200:
         try:
@@ -331,9 +345,7 @@ def generate_profile_json(profile: GitHubProfile) -> Dict:
     return profile_data
 
 
-def generate_projects_json(
-    projects: List[Dict], position_title: str = "software engineering position"
-) -> List[Dict]:
+def generate_projects_json(projects: List[Dict]) -> List[Dict]:
     if not projects:
         return []
 
@@ -361,9 +373,7 @@ def generate_projects_json(
 
         template_manager = TemplateManager()
         prompt = template_manager.render_template(
-            "github_project_selection",
-            projects_data=projects_json,
-            position_title=position_title,
+            "github_project_selection", projects_data=projects_json
         )
 
         print(
@@ -460,9 +470,7 @@ def generate_projects_json(
         return projects_data
 
 
-def fetch_and_display_github_info(
-    github_url: str, position_title: str = "software engineering position"
-) -> Dict:
+def fetch_and_display_github_info(github_url: str) -> Dict:
     logger.info(f"{github_url}")
     github_profile = fetch_github_profile(github_url)
     if not github_profile:
@@ -476,7 +484,7 @@ def fetch_and_display_github_info(
         print("\n❌ No repositories found or failed to fetch repository details.")
 
     profile_json = generate_profile_json(github_profile)
-    projects_json = generate_projects_json(projects, position_title=position_title)
+    projects_json = generate_projects_json(projects)
 
     result = {
         "profile": profile_json,
