@@ -231,10 +231,74 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
         if status_code == 200:
             projects = []
             for repo in repos_data:
-                if repo.get("fork") and repo.get("forks_count", 0) < 5:
-                    continue
 
                 repo_name = repo.get("name")
+
+                github_details = {}
+
+                # handle forked repositories
+                if repo.get("fork"):
+                    parent = repo.get("parent")
+
+                    # Fetch parent info if not embedded
+                    if not parent:
+                        try:
+                            status_code, repo_data = _fetch_github_api(repo.get("url"))
+                            if status_code == 200 and "parent" in repo_data:
+                                parent = repo_data["parent"]
+                        except Exception as e:
+                            logger.warning(f"Could not fetch parent repo for {repo_name}: {e}")
+
+                    # skip the forks whose parent has <5 forks
+                    if parent and isinstance(parent, dict):
+                        parent_forks = parent.get("forks_count", 0)
+                        if parent_forks < 5:
+                            continue
+                    else:
+                        continue
+
+                    try:
+                        parent_full_name = parent.get("full_name")
+                        if parent_full_name:
+                            parent_api_url = f"https://api.github.com/repos/{parent_full_name}"
+                            status_code, parent_data = _fetch_github_api(parent_api_url)
+                            if status_code == 200:
+                                parent = parent_data
+                    except Exception as e:
+                        logger.warning(f"Could not fetch parent details for open issues: {e}")
+
+                    github_details = {
+                        "forked_from": parent.get("html_url"),
+                        "parent_full_name": parent.get("full_name"),
+                        "stars": parent.get("stargazers_count", 0),
+                        "forks": parent.get("forks_count", 0),
+                        "language": parent.get("language"),
+                        "description": parent.get("description"),
+                        "topics": parent.get("topics", []),
+                        "open_issues": parent.get("open_issues_count", 0),
+                        "created_at": parent.get("created_at"),
+                        "updated_at": parent.get("updated_at"),
+                        "size": parent.get("size", 0),
+                        "fork": True,
+                        "archived": parent.get("archived", False),
+                        "default_branch": parent.get("default_branch"),
+                    }
+
+                else:
+                    github_details = {
+                        "stars": repo.get("stargazers_count", 0),
+                        "forks": repo.get("forks_count", 0),
+                        "language": repo.get("language"),
+                        "description": repo.get("description"),
+                        "created_at": repo.get("created_at"),
+                        "updated_at": repo.get("updated_at"),
+                        "topics": repo.get("topics", []),
+                        "open_issues": repo.get("open_issues_count", 0),
+                        "size": repo.get("size", 0),
+                        "fork": False,
+                        "archived": repo.get("archived", False),
+                        "default_branch": repo.get("default_branch"),
+                    }
 
                 contributors_data = fetch_repo_contributors(username, repo_name)
                 contributor_count = len(contributors_data)
@@ -243,12 +307,10 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                     username, contributors_data
                 )
 
-                project_type = (
-                    "open_source" if contributor_count > 1 else "self_project"
-                )
+                project_type = "open_source" if contributor_count > 1 else "self_project"
 
                 project = {
-                    "name": repo.get("name"),
+                    "name": repo_name,
                     "description": repo.get("description"),
                     "github_url": repo.get("html_url"),
                     "live_url": repo.get("homepage") if repo.get("homepage") else None,
@@ -259,32 +321,14 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                     "contributor_count": contributor_count,
                     "author_commit_count": user_contributions,
                     "total_commit_count": total_contributions,
-                    "github_details": {
-                        "stars": repo.get("stargazers_count", 0),
-                        "forks": repo.get("forks_count", 0),
-                        "language": repo.get("language"),
-                        "description": repo.get("description"),
-                        "created_at": repo.get("created_at"),
-                        "updated_at": repo.get("updated_at"),
-                        "topics": repo.get("topics", []),
-                        "open_issues": repo.get("open_issues_count", 0),
-                        "size": repo.get("size", 0),
-                        "fork": repo.get("fork", False),
-                        "archived": repo.get("archived", False),
-                        "default_branch": repo.get("default_branch"),
-                        "contributors": contributor_count,
-                    },
+                    "github_details": github_details,
                 }
                 projects.append(project)
 
             projects.sort(key=lambda x: x["github_details"]["stars"], reverse=True)
 
-            open_source_count = sum(
-                1 for p in projects if p["project_type"] == "open_source"
-            )
-            self_project_count = sum(
-                1 for p in projects if p["project_type"] == "self_project"
-            )
+            open_source_count = sum(1 for p in projects if p["project_type"] == "open_source")
+            self_project_count = sum(1 for p in projects if p["project_type"] == "self_project")
 
             print(f"✅ Found {len(projects)} repositories")
             print(
@@ -357,7 +401,7 @@ def generate_projects_json(
             }
             projects_data.append(project_data)
 
-        projects_json = json.dumps(projects_data, indent=2)
+        projects_json = json.dumps(projects_data, indent=2, ensure_ascii=False)
 
         template_manager = TemplateManager()
         prompt = template_manager.render_template(
