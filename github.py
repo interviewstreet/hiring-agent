@@ -215,6 +215,58 @@ def fetch_repo_contributors(owner: str, repo_name: str) -> list[dict]:
         return []
 
 
+def fetch_external_pr_contributions(username: str) -> List[Dict]:
+    """Find merged PRs the user authored in repos they don't own.
+
+    The repo-listing approach in fetch_all_github_repos only sees repos owned
+    by the user, so it can't detect real open-source work done via the
+    standard fork-and-PR workflow (e.g. contributing to someone else's
+    project). This queries the Search API for merged PRs authored by the
+    user and keeps only the ones landed in repos owned by someone else.
+    """
+    try:
+        api_url = "https://api.github.com/search/issues"
+        params = {
+            "q": f"author:{username} type:pr is:merged",
+            "per_page": 100,
+        }
+
+        status_code, search_data = _fetch_github_api(api_url, params=params)
+
+        if status_code != 200:
+            return []
+
+        contributions_by_repo: Dict[str, Dict] = {}
+
+        for item in search_data.get("items", []):
+            repo_full_name = item["repository_url"].replace(
+                "https://api.github.com/repos/", ""
+            )
+            repo_owner = repo_full_name.split("/")[0]
+
+            if repo_owner.lower() == username.lower():
+                continue
+
+            repo = contributions_by_repo.setdefault(
+                repo_full_name,
+                {"repo": repo_full_name, "merged_pr_count": 0, "pull_requests": []},
+            )
+            repo["merged_pr_count"] += 1
+            repo["pull_requests"].append(
+                {
+                    "title": item.get("title"),
+                    "url": item.get("html_url"),
+                    "merged_at": item.get("pull_request", {}).get("merged_at"),
+                }
+            )
+
+        return list(contributions_by_repo.values())
+
+    except Exception as e:
+        logger.error(f"Error fetching external PR contributions for {username}: {e}")
+        return []
+
+
 def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
     try:
         username = extract_github_username(github_url)
@@ -475,6 +527,13 @@ def fetch_and_display_github_info(
     if not projects:
         print("\n❌ No repositories found or failed to fetch repository details.")
 
+    print("🔍 Fetching external open-source PR contributions...")
+    external_contributions = fetch_external_pr_contributions(github_profile.username)
+    if external_contributions:
+        print(
+            f" Found merged PRs in {len(external_contributions)} external repositories"
+        )
+
     profile_json = generate_profile_json(github_profile)
     projects_json = generate_projects_json(projects, position_title=position_title)
 
@@ -482,6 +541,7 @@ def fetch_and_display_github_info(
         "profile": profile_json,
         "projects": projects_json,
         "total_projects": len(projects_json),
+        "external_contributions": external_contributions,
     }
 
     return result
