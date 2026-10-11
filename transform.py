@@ -417,6 +417,8 @@ def parse_date_range(date_range: str) -> tuple:
     if not date_range:
         return None, None
 
+    date_range = date_range.replace("–", "-").replace("—", "-")
+
     # Handle "onwards" case
     if "onwards" in date_range:
         # Extract the start date from "onwards" format
