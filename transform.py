@@ -200,6 +200,8 @@ def transform_work_experience(work_list: List) -> List[Dict]:
                 ]
             ):
                 start_date, end_date = parse_date_range(start_date_input)
+                if not end_date:
+                    end_date = item.get("endDate")
             else:
                 # Use existing startDate and endDate values
                 start_date = item.get("startDate")
@@ -424,6 +426,12 @@ def parse_date_range(date_range: str) -> tuple:
         if start_part:
             return start_part, "Present"
         return None, "Present"
+
+    # Handle standard range with space-hyphen-space
+    if " - " in date_range:
+        parts = date_range.split(" - ")
+        if len(parts) == 2:
+            return parts[0], parts[1]
 
     # Handle format like "Jan-Mar 2021"
     if " " in date_range and any(
