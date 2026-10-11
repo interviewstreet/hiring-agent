@@ -133,18 +133,30 @@ def transform_basics(basics_data: Dict) -> Dict:
         for i, profile in enumerate(profiles):
             if isinstance(profile, dict):
                 transformed_profile = profile.copy()
-                url = transformed_profile.get("url", "")
+                url = transformed_profile.get("url", "") or ""
                 network = transformed_profile.get("network")
+                username = transformed_profile.get("username")
 
+                # Normalize bare URLs (no scheme) by prepending https://
+                if url and "://" not in url:
+                    url = "https://" + url
+                    transformed_profile["url"] = url
+
+                domain = extract_domain_from_url(url) if url else ""
+
+                # If network is missing, infer it from the URL domain
                 if url and network is None:
-                    domain = extract_domain_from_url(url)
                     network_name = get_network_name(domain)
-
                     if network_name:
                         transformed_profile["network"] = network_name
-                        username = extract_username_from_url(url, domain)
-                        if username:
-                            transformed_profile["username"] = username
+                        network = network_name
+
+                # If username is missing, extract it from the URL
+                if url and domain and not username:
+                    extracted_username = extract_username_from_url(url, domain)
+                    if extracted_username:
+                        transformed_profile["username"] = extracted_username
+
                 transformed_profiles.append(transformed_profile)
 
     basics_data["profiles"] = transformed_profiles
@@ -162,9 +174,11 @@ def extract_username_from_url(url: str, domain: str) -> str:
 
         if parts:
             if domain == "linkedin.com":
-                return parts[1]
+                # Path is "in/<username>" — username is at index 1
+                # Guard against profiles that only have the base domain
+                return parts[1] if len(parts) > 1 else parts[0]
             elif domain == "stackoverflow.com":
-                return parts[2]
+                return parts[2] if len(parts) > 2 else ""
             else:
                 return parts[0]
         return ""
