@@ -26,6 +26,17 @@ def _create_cache_filename(api_url: str, params: dict = None) -> str:
     return filename
 
 
+def _parse_rate_limit_header(value: Optional[str], header_name: str) -> Optional[int]:
+    if value is None:
+        return None
+
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        logger.warning(f"Ignoring invalid GitHub {header_name} header: {value!r}")
+        return None
+
+
 def _fetch_github_api(api_url, params=None):
     headers = {}
     github_token = os.environ.get("GITHUB_TOKEN")
@@ -60,13 +71,18 @@ def _fetch_github_api(api_url, params=None):
         f"{rate_limit_remaining}/{rate_limit_limit}. Reset at {rate_limit_reset}"
     )
 
-    if rate_limit_remaining is not None and rate_limit_limit is not None:
-        remaining = int(rate_limit_remaining)
-        limit = int(rate_limit_limit)
+    remaining = _parse_rate_limit_header(
+        rate_limit_remaining, "X-RateLimit-Remaining"
+    )
+    limit = _parse_rate_limit_header(rate_limit_limit, "X-RateLimit-Limit")
+    reset_timestamp = _parse_rate_limit_header(
+        rate_limit_reset, "X-RateLimit-Reset"
+    )
+
+    if remaining is not None and limit is not None:
 
         # Log rate limit information and handle proactively
-        if remaining < 10 and rate_limit_reset:
-            reset_timestamp = int(rate_limit_reset)
+        if remaining < 10 and reset_timestamp is not None:
             current_timestamp = int(time.time())
             wait_seconds = (
                 max(0, reset_timestamp - current_timestamp) + 5
