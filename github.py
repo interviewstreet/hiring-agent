@@ -235,8 +235,9 @@ def fetch_all_github_repos(github_url: str, max_repos: int = 100) -> List[Dict]:
                     continue
 
                 repo_name = repo.get("name")
+                repo_owner = (repo.get("owner") or {}).get("login") or username
 
-                contributors_data = fetch_repo_contributors(username, repo_name)
+                contributors_data = fetch_repo_contributors(repo_owner, repo_name)
                 contributor_count = len(contributors_data)
 
                 user_contributions, total_contributions = fetch_contributions_count(
