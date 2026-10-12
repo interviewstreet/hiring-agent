@@ -162,9 +162,17 @@ def extract_username_from_url(url: str, domain: str) -> str:
 
         if parts:
             if domain == "linkedin.com":
-                return parts[1]
+                # Usual shape is /in/<username> (parts[1]); fall back to the only
+                # segment for the shorter linkedin.com/<username> form.
+                return parts[1] if len(parts) > 1 else parts[0]
             elif domain == "stackoverflow.com":
-                return parts[2]
+                # /users/<id>/<slug>: keep the slug (parts[2]) when present, fall
+                # back to the <id> when it is absent, instead of raising.
+                return (
+                    parts[2]
+                    if len(parts) > 2
+                    else (parts[1] if len(parts) == 2 else "")
+                )
             else:
                 return parts[0]
         return ""
