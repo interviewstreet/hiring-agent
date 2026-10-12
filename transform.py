@@ -1,6 +1,23 @@
+import re
 from typing import Dict, List, Optional
 import pdb
 from models import JSONResume
+
+# roles/*/system_message.jinja instructs the model to locate GitHub/blog
+# context by looking for the literal "=== GITHUB DATA ===" / "=== BLOG DATA ==="
+# markers below. Every field interpolated into those blocks (GitHub bio, repo
+# name/description, blog details, ...) is candidate-controlled and unsanitized,
+# so a candidate can forge that same marker inside e.g. their GitHub bio to
+# open a fake section and smuggle new instructions past the real one. Runs of
+# "===" are not legitimate content in a bio/description, so breaking them is
+# a safe, targeted neutralization rather than a lossy content filter.
+_DELIMITER_RUN_RE = re.compile(r"={3,}")
+
+
+def _sanitize_untrusted_field(value) -> str:
+    if value is None:
+        return "N/A"
+    return _DELIMITER_RUN_RE.sub(lambda m: "=" * (len(m.group(0)) - 1) + " ", str(value))
 
 
 def transform_parsed_data(parsed_data: Dict) -> Dict:
@@ -879,9 +896,9 @@ def convert_github_data_to_text(github_data: dict) -> str:
     if "profile" in github_data:
         profile = github_data["profile"]
         github_text += f"GitHub Profile:\n"
-        github_text += f"- Username: {profile.get('username', 'N/A')}\n"
-        github_text += f"- Name: {profile.get('name', 'N/A')}\n"
-        github_text += f"- Bio: {profile.get('bio', 'N/A')}\n"
+        github_text += f"- Username: {_sanitize_untrusted_field(profile.get('username', 'N/A'))}\n"
+        github_text += f"- Name: {_sanitize_untrusted_field(profile.get('name', 'N/A'))}\n"
+        github_text += f"- Bio: {_sanitize_untrusted_field(profile.get('bio', 'N/A'))}\n"
         github_text += f"- Public Repositories: {profile.get('public_repos', 'N/A')}\n"
         github_text += f"- Followers: {profile.get('followers', 'N/A')}\n"
         github_text += f"- Following: {profile.get('following', 'N/A')}\n"
@@ -892,8 +909,8 @@ def convert_github_data_to_text(github_data: dict) -> str:
         projects = github_data["projects"]
         github_text += f"\nGitHub Projects ({len(projects)} total):\n"
         for i, project in enumerate(projects[:10], 1):
-            github_text += f"{i}. {project.get('name', 'N/A')}\n"
-            github_text += f"   Description: {project.get('description', 'N/A')}\n"
+            github_text += f"{i}. {_sanitize_untrusted_field(project.get('name', 'N/A'))}\n"
+            github_text += f"   Description: {_sanitize_untrusted_field(project.get('description', 'N/A'))}\n"
             github_text += f"   URL: {project.get('github_url', 'N/A')}\n"
             if "github_details" in project:
                 details = project["github_details"]
@@ -909,14 +926,14 @@ def convert_blog_data_to_text(blog_data: dict) -> str:
     blog_text = "\n\n=== BLOG DATA ===\n"
     blog_text += f"Total Blogs Found: {blog_data.get('total_blogs', 'N/A')}\n"
     blog_text += f"Blog Score: {blog_data.get('blog_score', 'N/A')}/10.0\n"
-    blog_text += f"Blog Details: {blog_data.get('blog_details', 'N/A')}\n"
+    blog_text += f"Blog Details: {_sanitize_untrusted_field(blog_data.get('blog_details', 'N/A'))}\n"
 
     if "blogs" in blog_data:
         blog_text += "\nBlog URLs Found:\n"
         for i, blog in enumerate(blog_data["blogs"][:5], 1):
             blog_text += f"{i}. {blog.get('url', 'N/A')}\n"
             blog_text += f"   Score: {blog.get('score', 'N/A')}/10.0\n"
-            blog_text += f"   Details: {blog.get('details', 'N/A')}\n"
+            blog_text += f"   Details: {_sanitize_untrusted_field(blog.get('details', 'N/A'))}\n"
             blog_text += "\n"
 
     return blog_text
