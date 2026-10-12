@@ -49,55 +49,60 @@ def _fetch_github_api(api_url, params=None):
                     f"Failed to delete invalid cache file {cache_filename}: {delete_err}"
                 )
 
-    response = requests.get(api_url, params, timeout=10, headers=headers)
-    status_code = response.status_code
+    # A rate-limited request is retried once after the limit resets, since a
+    # single reset restores the full quota.
+    max_attempts = 2
+    for attempt in range(max_attempts):
+        response = requests.get(api_url, params, timeout=10, headers=headers)
+        status_code = response.status_code
 
-    # Check GitHub rate limit headers
-    rate_limit_remaining = response.headers.get("X-RateLimit-Remaining")
-    rate_limit_limit = response.headers.get("X-RateLimit-Limit")
-    rate_limit_reset = response.headers.get("X-RateLimit-Reset")
-    logger.info(
-        f"{rate_limit_remaining}/{rate_limit_limit}. Reset at {rate_limit_reset}"
-    )
+        # Check GitHub rate limit headers
+        rate_limit_remaining = response.headers.get("X-RateLimit-Remaining")
+        rate_limit_limit = response.headers.get("X-RateLimit-Limit")
+        rate_limit_reset = response.headers.get("X-RateLimit-Reset")
+        logger.info(
+            f"{rate_limit_remaining}/{rate_limit_limit}. Reset at {rate_limit_reset}"
+        )
 
-    if rate_limit_remaining is not None and rate_limit_limit is not None:
-        remaining = int(rate_limit_remaining)
-        limit = int(rate_limit_limit)
-
-        # Log rate limit information and handle proactively
-        if remaining < 10 and rate_limit_reset:
-            reset_timestamp = int(rate_limit_reset)
-            current_timestamp = int(time.time())
-            wait_seconds = (
-                max(0, reset_timestamp - current_timestamp) + 5
-            )  # Add 5 second buffer
-            reset_time = datetime.datetime.fromtimestamp(reset_timestamp)
-
-            # Cap maximum wait time at 1 hour
-            max_wait = 3600
-            if wait_seconds > max_wait:
-                print(
-                    f"⚠️  Rate limit reset time is too far in the future ({wait_seconds}s). Capping wait to {max_wait}s"
-                )
-                wait_seconds = max_wait
-
-            logger.error(
-                f"⚠️  GitHub API rate limit low: {remaining}/{limit} requests remaining. Resets at {reset_time}"
-            )
-            print(
-                f"💡 Tip: Set GITHUB_TOKEN environment variable to increase rate limits (60/hour → 5000/hour)"
-            )
-
-            if wait_seconds > 0:
+        rate_limited = (
+            status_code in (403, 429)
+            and rate_limit_remaining == "0"
+            and rate_limit_reset is not None
+        )
+        if not rate_limited:
+            # Successful (or unrelated error) response: return it immediately.
+            if rate_limit_remaining is not None and int(rate_limit_remaining) < 100:
                 logger.info(
-                    f"⏳ Proactively sleeping for {wait_seconds} seconds until rate limit resets..."
+                    f"ℹ️  GitHub API rate limit: {rate_limit_remaining}/{rate_limit_limit} requests remaining"
                 )
-                time.sleep(wait_seconds)
-                print(f"✅ Rate limit should be reset now. Continuing...")
-        elif remaining < 100:
-            logger.info(
-                f"ℹ️  GitHub API rate limit: {remaining}/{limit} requests remaining"
+            break
+
+        reset_timestamp = int(rate_limit_reset)
+        reset_time = datetime.datetime.fromtimestamp(reset_timestamp)
+        logger.error(
+            f"⚠️  GitHub API rate limit exhausted ({rate_limit_limit} requests). Resets at {reset_time}"
+        )
+        print(
+            f"💡 Tip: Set GITHUB_TOKEN environment variable to increase rate limits (60/hour → 5000/hour)"
+        )
+        if attempt == max_attempts - 1:
+            break
+
+        # Add 5 second buffer
+        wait_seconds = max(0, reset_timestamp - int(time.time())) + 5
+
+        # Cap maximum wait time at 1 hour
+        max_wait = 3600
+        if wait_seconds > max_wait:
+            print(
+                f"⚠️  Rate limit reset time is too far in the future ({wait_seconds}s). Capping wait to {max_wait}s"
             )
+            wait_seconds = max_wait
+
+        logger.info(
+            f"⏳ Sleeping for {wait_seconds} seconds until rate limit resets, then retrying..."
+        )
+        time.sleep(wait_seconds)
 
     data = response.json() if response.status_code == 200 else {}
 
