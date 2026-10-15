@@ -518,9 +518,10 @@ def transform_evaluation_response(
         csv_row["name"] = basics.name if basics.name else ""
         csv_row["email"] = basics.email if basics.email else ""
         csv_row["phone"] = basics.phone if basics.phone else ""
+        location = basics.location
         csv_row["location"] = (
-            f"{basics.location.city}, {basics.location.region}"
-            if basics.location
+            ", ".join(part for part in (location.city, location.region) if part)
+            if location
             else ""
         )
         csv_row["summary"] = basics.summary if basics.summary else ""
@@ -592,6 +593,14 @@ def transform_evaluation_response(
             for prefix in ["github", "linkedin", "twitter", "dev", "behance"]:
                 csv_row[f"{prefix}_url"] = ""
                 csv_row[f"{prefix}_username"] = ""
+    else:
+        # Keep the column set identical to rows that have basics, otherwise
+        # rows appended to an existing CSV shift under the wrong headers.
+        for column in ["name", "email", "phone", "location", "summary"]:
+            csv_row[column] = ""
+        for prefix in ["github", "linkedin", "twitter", "dev", "behance"]:
+            csv_row[f"{prefix}_url"] = ""
+            csv_row[f"{prefix}_username"] = ""
 
     # Extract work experience summary
     if resume_data and hasattr(resume_data, "work") and resume_data.work:
