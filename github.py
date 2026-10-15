@@ -4,15 +4,17 @@ import json
 import requests
 import datetime
 import time
+import logging
 from pathlib import Path
 
 from typing import Dict, List, Optional, Any
 from models import GitHubProfile
-from pdf import logger
 from prompts.template_manager import TemplateManager
 from prompt import DEFAULT_MODEL, MODEL_PARAMETERS
 from llm_utils import initialize_llm_provider, extract_json_from_response
 from config import DEVELOPMENT_MODE
+
+logger = logging.getLogger(__name__)
 
 
 def _create_cache_filename(api_url: str, params: dict = None) -> str:
@@ -367,7 +369,7 @@ def generate_projects_json(
         )
 
         print(
-            f"🤖 Using LLM to select top 5 projects from {len(projects)} repositories..."
+            f"🤖 Using LLM to select top 7 projects from {len(projects)} repositories..."
         )
 
         # Initialize the LLM provider
