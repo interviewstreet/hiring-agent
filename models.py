@@ -1,3 +1,4 @@
+import copy
 from typing import (
     List,
     Optional,
@@ -417,6 +418,51 @@ class GitHubProfile(BaseModel):
     hireable: Optional[bool] = None
 
 
+def _inline_refs(schema: Dict[str, Any]) -> Dict[str, Any]:
+    """Replace every $ref with its $defs entry, keeping sibling keywords such as description."""
+    defs = schema.get("$defs", {})
+
+    def resolve(node):
+        if isinstance(node, dict):
+            if "$ref" in node:
+                target = resolve(copy.deepcopy(defs[node["$ref"].split("/")[-1]]))
+                siblings = {k: resolve(v) for k, v in node.items() if k != "$ref"}
+                return {**target, **siblings}
+            return {k: resolve(v) for k, v in node.items() if k != "$defs"}
+        if isinstance(node, list):
+            return [resolve(item) for item in node]
+        return node
+
+    return resolve(schema)
+
+
+def _drop_unsupported_for_gemini(node: Any) -> Any:
+    """Remove additionalProperties and non-string enums, which Gemini's structured output rejects."""
+    if isinstance(node, dict):
+        out = {
+            k: _drop_unsupported_for_gemini(v)
+            for k, v in node.items()
+            if k != "additionalProperties"
+        }
+        if "enum" in out and out.get("type") != "string":
+            del out["enum"]
+        return out
+    if isinstance(node, list):
+        return [_drop_unsupported_for_gemini(item) for item in node]
+    return node
+
+
+def gemini_compatible_schema(schema: Dict[str, Any]) -> Dict[str, Any]:
+    """Adapt a pydantic JSON schema for Gemini structured output.
+
+    Through OpenRouter, Gemini answered the bonus items (an object with
+    additionalProperties: false and an integer enum for points) with empty
+    objects, and validation failed. The allowed values stay in each field's
+    description, and the full pydantic model still validates the answer.
+    """
+    return _drop_unsupported_for_gemini(_inline_refs(schema))
+
+
 class OpenAICompatibleProvider:
     """Generic OpenAI-chat-compatible LLM provider.
 
@@ -457,6 +503,8 @@ class OpenAICompatibleProvider:
         # Structured-output translation: evaluator passes format=<json schema>.
         if "format" in kwargs and self.structured_output != "none":
             schema = kwargs["format"]
+            if "gemini" in model.lower():
+                schema = gemini_compatible_schema(schema)
             if self.structured_output == "json_schema":
                 body["response_format"] = {
                     "type": "json_schema",

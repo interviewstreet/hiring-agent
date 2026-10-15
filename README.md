@@ -53,7 +53,9 @@ Since this was built, HackerRank has also shipped [AI Interviewer (Chakra)](http
 
 **On the default model:**
 
-The repo ships with `gemma4:latest` as the default because it runs locally on most laptops without any cloud API key. Actual intern resumes at HackerRank are evaluated using a top-tier Gemini model. The repo ships with a demo config, not the production one.
+This fork defaults to `google/gemini-3.1-pro-preview` through OpenRouter, with `google/gemini-3.8-flash` as an alternative. Both use JSON Schema structured output. Pro is a preview model; compare repeated runs before relying on scores.
+
+Upstream defaults to the local `gemma4:latest` demo model. Actual intern resumes at HackerRank are evaluated using a top-tier Gemini model; upstream does not disclose the exact production model or configuration.
 
 ---
 
@@ -84,7 +86,7 @@ Articles and discussions that have shaped how we think about improving this proj
 
 ## Overview
 
-Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can run fully local with Ollama or use Google Gemini.
+Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a local or hosted LLM, augments the data with GitHub profile and repository signals, then produces an objective evaluation with category scores, evidence, bonus points, and deductions. You can use Gemini through OpenRouter (the default in this fork), run fully local with Ollama, or use the other providers listed in `providers.json`.
 
 ---
 
@@ -133,8 +135,9 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
 
   The repository pins `.python-version` to 3.11.13.
 
-- **One LLM backend** (either of them)
+- **One LLM backend**
 
+  - **OpenRouter** (default in this fork) with an exported `OPENROUTER_API_KEY`.
   - **Ollama** for local models
     Install from the [official site](https://ollama.com/), then run `ollama serve`.
   - **Google Gemini** if you have an API key, get it from [here](https://aistudio.google.com/api-keys).
@@ -186,7 +189,8 @@ $ cp .env.example .env
 
 | Variable         | Values                                      | Description                                                            |
 | ---------------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `DEFAULT_MODEL`  | for example `gemma4:latest`, `gemini-2.5-pro`, or `gpt-6-luna` | Model to use; must exist in `providers.json` — the provider is inferred from which provider lists it. Defaults to `default_model` in `providers.json`. |
+| `DEFAULT_MODEL`  | for example `google/gemini-3.1-pro-preview`, `google/gemini-3.8-flash`, or `gemma4:latest` | Model to use; must exist in `providers.json` — the provider is inferred from which provider lists it. Defaults to `google/gemini-3.1-pro-preview` in this fork. |
+| `OPENROUTER_API_KEY` | exported shell variable | Required for OpenRouter models. Reuse the shell key used by Pi; no need to copy it into this repo. |
 | `GEMINI_API_KEY` | string                                      | Required when using a Gemini model.                                   |
 | `OPENAI_API_KEY` | string                                      | Required when using an OpenAI model.                                  |
 | `GITHUB_TOKEN`   | optional                                    | Inherits from your shell environment, improves GitHub API rate limits. |
@@ -236,6 +240,8 @@ You can leave it on during iteration. See the next section for details.
 - Each role lives in `roles/<role_name>/` and defines its own scoring categories and weights in `role.json`, plus its own `criteria.jinja` and `system_message.jinja` prompts (encoding fairness and scoring rules).
 - The shipped `software_engineering_intern` role scores `open_source`, `self_projects`, `production`, `technical_skills`, and `ai_fluency`, plus bonus and deductions, with evidence for each. Other roles can define entirely different categories.
 - The intern role defines `bonus_rules` in `role.json`. The LLM returns evidence and allowed point values for each named bonus; Python calculates the total and itemized explanation. For HackerRank Orchestrate, the model supplies the best rank from awards and its points; Python validates +4 for ranks 1–100, +3 for 101–200, +1 for 201–500, and 0 otherwise, once per candidate. All bonuses share the 20-point cap. Roles without `bonus_rules` keep the original total-and-breakdown response format. Evidence interpretation still depends on the LLM.
+- This fork adds a `senior_software_engineer` role. It scores `impact_ownership` (30), `technical_depth` (25), `leadership` (20), `communication_community` (15), and `ai_fluency` (10) out of 100, with up to 10 bonus points (founder, early-stage engineer, open-source maintainer, patents or publications) and at most 5 points of deductions. Its prompts tell the model to ignore total years of experience, career gaps, and employer prestige, and not to penalize a lack of public code outside `communication_community`.
+- `tests/test_roles.py` checks that every role's prompts restate the category limits, bonus cap, and bonus keys from its `role.json`.
 
 </details>
 
@@ -334,6 +340,32 @@ role directory instead.
 ---
 
 ## Provider details
+
+### OpenRouter (default)
+
+- Endpoint: `https://openrouter.ai/api/v1`, using the existing `models.OpenAICompatibleProvider`.
+- Default: `google/gemini-3.1-pro-preview`; alternative: `google/gemini-3.8-flash`.
+- Both models use `json_schema` structured output and temperature `0.1`.
+- Authentication reads `OPENROUTER_API_KEY` from the process environment. If your shell already exports it for Pi, run this project from that shell; do not put the key into tracked files.
+- An untracked `.env` is optional. Exported shell variables take precedence over `.env` values.
+- Model IDs with the `google/` prefix select OpenRouter; unprefixed IDs such as `gemini-3.8-flash` select the direct Google provider and require `GEMINI_API_KEY` instead.
+
+```bash
+# With dependencies installed and OPENROUTER_API_KEY exported:
+python score.py /path/to/resume.pdf
+
+# Compare against Flash without changing the default:
+DEFAULT_MODEL=google/gemini-3.8-flash python score.py /path/to/resume.pdf
+
+# Optional explicit Pro selection:
+DEFAULT_MODEL=google/gemini-3.1-pro-preview python score.py /path/to/resume.pdf
+```
+
+Check configuration and request construction without model calls or real credentials:
+
+```bash
+python -m unittest discover -s tests -v
+```
 
 ### Ollama
 

@@ -1,0 +1,207 @@
+You are evaluating a resume for a Senior Software Engineer position. Analyze the resume data and provide scores based on these criteria:
+
+**MANDATORY: You MUST always fill ALL FIVE categories: impact_ownership, technical_depth, leadership, communication_community, ai_fluency.**
+
+## CRITICAL FAIRNESS REQUIREMENTS
+**SCORES MUST NEVER DEPEND ON:**
+- Candidate's name, gender, age, or personal demographic information
+- Total years of experience, graduation year, or how long ago a role ended, by themselves
+- Employment gaps, career breaks, or the number of employers
+- College, university, or educational institution name, and academic grades
+- Employer brand, prestige, or company size, by themselves
+- City, location, nationality, visa status, or geographical information
+- Any personal characteristics unrelated to technical skills and experience
+
+**EVALUATION MUST BE BASED ONLY ON:**
+- Ownership of production systems and the outcomes of that work
+- Architecture decisions, trade-offs, and depth of technical expertise
+- Technical leadership, mentoring, and influence beyond the candidate's own tasks
+- Technical communication: talks, writing, teaching, documentation, and open-source contributions
+- Demonstrated ability to use, build, evaluate, or improve AI-assisted systems
+
+## ANALYSIS INSTRUCTIONS
+- Analyze the structured resume data (basics, work, volunteer, projects, skills, awards, etc.)
+- Weigh the most recent roles most; earlier roles are supporting evidence
+- Use GitHub data (if provided in === GITHUB DATA === section) as supporting evidence only
+- Use blog data (if provided in === BLOG DATA === section) for communication_community
+- Cite specific roles, systems, projects, talks, or links in every evidence field
+
+## SCORING CRITERIA
+
+### Impact & Ownership (0-30 points)
+**HIGH SCORES (24-30 points):**
+- Owned production systems or major initiatives end to end: design, delivery, and operation
+- Concrete outcomes tied to specific changes, such as reliability, latency, cost, throughput, adoption, or support load
+- Ownership at team-to-organization scope, repeated across recent roles
+
+**MEDIUM SCORES (15-23 points):**
+- Clear ownership of significant production components, with some stated outcomes
+- Scope mostly within one team, or outcomes mostly qualitative
+
+**LOW SCORES (6-14 points):**
+- Production experience described as tasks or responsibilities, with few outcomes
+- Ownership unclear: hard to tell what the candidate personally built or decided
+
+**VERY LOW SCORES (0-5 points):**
+- Little or no professional production experience
+
+**CRITICAL RULES:**
+- Job titles alone (Senior, Staff, Lead, Architect) earn nothing without described work
+- Quantified claims count only when tied to a specific system or change
+- Do not reward total years of experience or employer brand
+
+### Architecture & Technical Depth (0-25 points)
+**HIGH SCORES (20-25 points):**
+- Designed systems or platforms with explicit trade-offs (consistency, availability, cost, latency, operability)
+- Led complex migrations or re-architectures
+- Deep expertise in at least one area, such as distributed systems, data, infrastructure, reliability, security, or performance, shown through specific technical decisions
+
+**MEDIUM SCORES (12-19 points):**
+- Solid design and implementation of non-trivial components
+- Some design decisions or trade-offs explained; breadth across the stack backed by work
+
+**LOW SCORES (5-11 points):**
+- Competent implementation using established patterns, with little evidence of design decisions
+- Skills listed but thinly evidenced in work or projects
+
+**VERY LOW SCORES (0-4 points):**
+- Technology keyword lists with no supporting evidence
+
+**CRITICAL RULES:**
+- Score demonstrated depth, not the number of technologies
+- A skills section counts only where work or projects back it up
+
+### Technical Leadership & Influence (0-20 points)
+**HIGH SCORES (16-20 points):**
+- Led cross-team initiatives or set technical direction
+- Introduced standards or practices that others adopted (architecture, documentation, reliability, delivery), with evidence of adoption
+- Mentored, onboarded, or taught engineers, with a described program or result
+
+**MEDIUM SCORES (9-15 points):**
+- Led projects within a team, reviewed and guided others' work
+- Proposed and drove improvements that were adopted within the team
+
+**LOW SCORES (3-8 points):**
+- Leadership words ("led", "mentored", "drove") with little specific evidence
+
+**VERY LOW SCORES (0-2 points):**
+- No evidence of leadership or influence
+
+**CRITICAL RULES:**
+- Individual-contributor leadership counts as much as people management
+- Titles alone do not earn leadership points
+
+### Communication & Community (0-15 points)
+**HIGH SCORES (12-15 points):**
+- Sustained public technical communication: conference or meetup talks, podcasts, workshops or teaching, or published technical writing, with links a reviewer can open
+- Merged contributions to other people's open-source projects, or maintaining a project others use
+
+**MEDIUM SCORES (7-11 points):**
+- Some talks, writing, teaching, or open-source contributions to other projects
+- Internal documentation or knowledge-sharing work with evidence of adoption
+
+**LOW SCORES (2-6 points):**
+- A single talk or article, or only personal repositories
+
+**VERY LOW SCORES (0-1 points):**
+- No evidence of technical communication or community contribution
+
+**CRITICAL RULES:**
+- Personal GitHub repositories do NOT constitute open-source contribution
+- When GitHub data is provided, 'project_type' 'open_source' means multiple contributors; 'self_project' means a single contributor
+- A lack of public work lowers only this category; many senior engineers work on private code
+
+### AI Fluency (0-10 points)
+Evaluate both the candidate's ability to build AI-enabled software and their ability to use AI effectively in engineering work, including bringing it to a team. Look for concrete evidence in work experience, projects, writing, and GitHub data.
+
+**HIGH SCORES (8-10 points):**
+- Built or shipped a substantive AI system (LLM APIs, structured outputs, retrieval, agents, tool use, fine-tuning, traditional ML, or computer vision) with described technical decisions
+- Evidence of evaluation and reliability practices such as test sets, quality metrics, guardrails, fallbacks, monitoring, or human review
+- Introduced AI-assisted development to a team with a repeatable workflow, verification of generated work, and a described result
+
+**MEDIUM SCORES (4-7 points):**
+- Built a working AI-enabled feature with implementation details beyond a thin API wrapper
+- Uses AI tools in a repeatable engineering workflow and explains how outputs are reviewed
+- Contributed to AI tooling (including open-source tools) with described scope
+
+**LOW SCORES (1-3 points):**
+- Lists AI tools, models, or prompting skills with little evidence of how they were applied
+- Claims use of AI coding assistants without describing the workflow or verification
+
+**ZERO SCORE (0 points):**
+- No evidence of using AI in engineering work or building an AI-enabled system
+
+**CRITICAL RULES:**
+- Score demonstrated AI fluency, not keyword count
+- Cite the specific role, project, or workflow that supports the score
+
+## BONUS POINTS (Maximum total: 10 points)
+- +2-3 points for founder/co-founder experience with responsibility for the product or technology
+- +1-2 points for being among the first 10-20 engineers at a startup, when the resume states it
+- +2-3 points for maintaining, or being a core contributor to, an open-source project that others use
+- +1-2 points for granted patents, peer-reviewed papers, or published technical books
+
+**CRITICAL**: The total bonus points cannot exceed 10 points under any circumstances.
+
+**MANDATORY BONUS EVIDENCE**: Return one entry for every bonus criterion in `bonus_points.items`, including zero-point entries when evidence is absent. Talks, podcasts, blog posts, and individual open-source pull requests are scored in communication_community and do not earn bonus points.
+
+## DEDUCTIONS (Maximum total: 5 points)
+- -1 to -3 points if most bullets in the recent roles list responsibilities with no outcomes or scope
+- -1 to -2 points for skills or claims that nothing in the work or projects supports
+
+**NEVER DEDUCT FOR:**
+- Employment gaps, career breaks, or the number of employers
+- Total years of experience or the age of earlier roles
+- Missing personal projects, small personal experiments, or a lack of public code
+- Location, nationality, or visa status
+
+## CRITICAL REQUIREMENTS
+1. You MUST respond with ONLY the JSON structure below - no summary, no other fields
+2. You MUST fill ALL FIVE score categories: impact_ownership, technical_depth, leadership, communication_community, ai_fluency
+3. You MUST provide evidence for each score
+4. You MUST NOT add any other fields like "summary", "skills", "experience", etc.
+5. You MUST NOT change the field names or structure
+
+**IMPORTANT LIST CONSTRAINTS:**
+- key_strengths: Provide 1-5 items (maximum 5 key strengths)
+- areas_for_improvement: Provide 1-3 items (maximum 3 areas for improvement)
+
+**IMPORTANT SCORE CONSTRAINTS:**
+- Evidence fields cannot be empty string
+- All category scores must be >= 0 (cannot be negative)
+- **CATEGORY SCORE LIMITS** (CANNOT be exceeded under any circumstances):
+  - impact_ownership: 0-30 points (maximum 30)
+  - technical_depth: 0-25 points (maximum 25)
+  - leadership: 0-20 points (maximum 20)
+  - communication_community: 0-15 points (maximum 15)
+  - ai_fluency: 0-10 points (maximum 10)
+- Bonus points total must be <= 10 (maximum 10 points)
+- Deductions total must be <= 5 (maximum 5 points)
+- **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed 110 points
+
+**DO NOT RETURN A RESUME SUMMARY. RETURN ONLY THE SCORING EVALUATION IN THE SPECIFIED JSON FORMAT.**
+
+Analyze the following resume and provide a JSON response with this EXACT structure (all fields are required):
+
+{
+    "scores": {
+        "impact_ownership": {"score": 0, "max": 30, "evidence": "string"},
+        "technical_depth": {"score": 0, "max": 25, "evidence": "string"},
+        "leadership": {"score": 0, "max": 20, "evidence": "string"},
+        "communication_community": {"score": 0, "max": 15, "evidence": "string"},
+        "ai_fluency": {"score": 0, "max": 10, "evidence": "string"}
+    },
+    "bonus_points": {"items": {
+        "founder": {"points": 0, "evidence": "string"},
+        "early_engineer": {"points": 0, "evidence": "string"},
+        "oss_maintainer": {"points": 0, "evidence": "string"},
+        "publications": {"points": 0, "evidence": "string"}
+    }},
+    "deductions": {"total": 0, "reasons": "string"},
+    "key_strengths": ["strength1", "strength2", "strength3", "strength4", "strength5"],
+    "areas_for_improvement": ["improvement1", "improvement2", "improvement3"]
+}
+
+Resume to evaluate:
+
+{{ text_content }}

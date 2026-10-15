@@ -1,0 +1,76 @@
+{
+  "position_title": "Senior Software Engineer position",
+  "categories": [
+    {
+      "key": "impact_ownership",
+      "label": "Impact & Ownership",
+      "max": 30,
+      "icon": "🏢"
+    },
+    {
+      "key": "technical_depth",
+      "label": "Architecture & Technical Depth",
+      "max": 25,
+      "icon": "🏗️"
+    },
+    {
+      "key": "leadership",
+      "label": "Technical Leadership & Influence",
+      "max": 20,
+      "icon": "🧭"
+    },
+    {
+      "key": "communication_community",
+      "label": "Communication & Community",
+      "max": 15,
+      "icon": "🎙️"
+    },
+    {
+      "key": "ai_fluency",
+      "label": "AI Fluency",
+      "max": 10,
+      "icon": "🤖"
+    }
+  ],
+  "bonus_max": 10,
+  "min_final_score": -5,
+  "max_final_score": 110,
+  "bonus_rules": [
+    {
+      "key": "founder",
+      "label": "Founder/co-founder",
+      "points": [
+        2,
+        3
+      ],
+      "description": "Founded or co-founded a company and was responsible for building its product or technology; 2-3 if evidenced, otherwise 0. A personal project or freelance work alone does not qualify."
+    },
+    {
+      "key": "early_engineer",
+      "label": "Early-stage engineer",
+      "points": [
+        1,
+        2
+      ],
+      "description": "Among the first 10-20 engineers at a startup and built core systems there; 1-2 if the resume states it, otherwise 0. Do not infer it from company size or the word startup alone."
+    },
+    {
+      "key": "oss_maintainer",
+      "label": "Open-source maintainer",
+      "points": [
+        2,
+        3
+      ],
+      "description": "Maintainer or core contributor of an open-source project that other people use or contribute to; 2-3 if evidenced, otherwise 0. Individual merged pull requests to other projects belong in communication_community, not here."
+    },
+    {
+      "key": "publications",
+      "label": "Patents or publications",
+      "points": [
+        1,
+        2
+      ],
+      "description": "Granted patents, peer-reviewed papers, or published books on technical topics; 1-2 if evidenced, otherwise 0. Blog posts, talks and podcasts belong in communication_community, not here."
+    }
+  ]
+}
