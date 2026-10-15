@@ -337,26 +337,28 @@ def generate_projects_json(
     if not projects:
         return []
 
+    # Built before the LLM call so every fallback path returns the same
+    # filtered list (no zero-commit repos) with commit counts intact.
+    projects_data = []
+    for project in projects:
+        if project.get("author_commit_count") == 0:
+            continue
+
+        project_data = {
+            "name": project.get("name"),
+            "description": project.get("description"),
+            "github_url": project.get("github_url"),
+            "live_url": project.get("live_url"),
+            "technologies": project.get("technologies", []),
+            "project_type": project.get("project_type", "self_project"),
+            "contributor_count": project.get("contributor_count", 1),
+            "author_commit_count": project.get("author_commit_count", 0),
+            "total_commit_count": project.get("total_commit_count", 0),
+            "github_details": project.get("github_details", {}),
+        }
+        projects_data.append(project_data)
+
     try:
-        projects_data = []
-        for project in projects:
-            if project.get("author_commit_count") == 0:
-                continue
-
-            project_data = {
-                "name": project.get("name"),
-                "description": project.get("description"),
-                "github_url": project.get("github_url"),
-                "live_url": project.get("live_url"),
-                "technologies": project.get("technologies", []),
-                "project_type": project.get("project_type", "self_project"),
-                "contributor_count": project.get("contributor_count", 1),
-                "author_commit_count": project.get("author_commit_count", 0),
-                "total_commit_count": project.get("total_commit_count", 0),
-                "github_details": project.get("github_details", {}),
-            }
-            projects_data.append(project_data)
-
         projects_json = json.dumps(projects_data, indent=2)
 
         template_manager = TemplateManager()
@@ -442,22 +444,7 @@ def generate_projects_json(
     except Exception as e:
         print(f"Error using LLM for project selection: {e}")
         print("🔄 Falling back to first 7 projects")
-
-        projects_data = []
-        for project in projects[:7]:
-            project_data = {
-                "name": project.get("name"),
-                "description": project.get("description"),
-                "github_url": project.get("github_url"),
-                "live_url": project.get("live_url"),
-                "technologies": project.get("technologies", []),
-                "project_type": project.get("project_type", "self_project"),
-                "contributor_count": project.get("contributor_count", 1),
-                "github_details": project.get("github_details", {}),
-            }
-            projects_data.append(project_data)
-
-        return projects_data
+        return projects_data[:7]
 
 
 def fetch_and_display_github_info(
