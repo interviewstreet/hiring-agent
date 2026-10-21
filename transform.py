@@ -672,6 +672,9 @@ def transform_evaluation_response(
 
     # Extract evaluation scores (one pair of columns per role category)
     category_keys = [c.key for c in role.categories] if role else []
+    # Cap at the role's configured weight, not the LLM-returned max, so the CSV
+    # matches the printed report and the weights are actually applied.
+    role_max = {c.key: c.max for c in role.categories} if role else {}
     if evaluation and hasattr(evaluation, "scores"):
         scores = evaluation.scores
         total_score = 0
@@ -682,10 +685,12 @@ def transform_evaluation_response(
                 csv_row[f"{key}_score"] = "N/A"
                 csv_row[f"{key}_max"] = "N/A"
                 continue
-            csv_row[f"{key}_score"] = cat.score
-            csv_row[f"{key}_max"] = cat.max
-            total_score += cat.score
-            total_max += cat.max
+            cap = role_max.get(key, cat.max)
+            capped = min(cat.score, cap)
+            csv_row[f"{key}_score"] = capped
+            csv_row[f"{key}_max"] = cap
+            total_score += capped
+            total_max += cap
 
         csv_row["total_score"] = total_score
         csv_row["total_max"] = total_max

@@ -63,16 +63,22 @@ def print_evaluation_results(
     total_score = 0
     max_score = 0
 
+    # Cap each category at the role's configured weight, not the max the LLM
+    # returned. The LLM typically returns max=100 per category, so summing its
+    # maxes scores everyone out of (categories x 100) and ignores the weights.
+    role_max = {category.key: category.max for category in role.categories}
+
     if hasattr(evaluation, "scores") and evaluation.scores:
         for category_name, category_data in evaluation.scores.model_dump().items():
-            category_score = min(category_data["score"], category_data["max"])
+            cap = role_max.get(category_name, category_data["max"])
+            category_score = min(category_data["score"], cap)
             total_score += category_score
-            max_score += category_data["max"]
+            max_score += cap
 
             # Log warning if score was capped
             if category_score < category_data["score"]:
                 print(
-                    f"⚠️  Warning: {category_name} score capped from {category_data['score']} to {category_score} (max: {category_data['max']})"
+                    f"⚠️  Warning: {category_name} score capped from {category_data['score']} to {category_score} (max: {cap})"
                 )
 
     # Add bonus points
@@ -102,7 +108,7 @@ def print_evaluation_results(
             if not cat_score:
                 continue
             capped_score = min(cat_score.score, category.max)
-            print(f"{category.icon} {category.label}: {capped_score}/{cat_score.max}")
+            print(f"{category.icon} {category.label}: {capped_score}/{category.max}")
             print(f"   Evidence: {cat_score.evidence}")
             print()
 
