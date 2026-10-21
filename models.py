@@ -285,18 +285,26 @@ def _build_bonus_item_model(rule) -> Type[BaseModel]:
 
 
 def _validate_bonus(rule, item) -> None:
-    """Validate one item against its configured points or rank tiers."""
+    """Reconcile one bonus item against its configured points or rank tiers.
+
+    The structured-output schema constrains `points` to the allowed values but
+    cannot constrain `rank` to the tier that matches those points, so the model
+    can return an individually-valid pair whose rank and points disagree (e.g.
+    rank 3 with 3 points when rank 1-100 requires 4). Raising here aborts the
+    whole evaluation and leaves the candidate with no score. Instead, when the
+    model contradicts itself, treat the item as non-qualifying: this never
+    crashes and never awards points off an unreliable (often hallucinated) rank.
+    """
     if "tiers" in rule:
         expected = _points_for_rank(item.rank, rule["tiers"])
         if item.points != expected:
-            raise ValueError(
-                f"{rule['label']}: rank {item.rank} requires {expected} points"
-            )
+            item.points = 0
+            item.rank = None
         return
 
     allowed = set(_allowed_bonus_points(rule))
     if item.points not in allowed:
-        raise ValueError(f"{rule['label']}: points must be one of {sorted(allowed)}")
+        item.points = 0
 
 
 def _format_bonus(rule, item) -> str:
