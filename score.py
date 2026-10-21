@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import hashlib
 
 # Fix for Windows Console Unicode errors
 if sys.platform == "win32":
@@ -204,16 +205,31 @@ def find_profile(profiles, network):
     )
 
 
+def _cache_key(pdf_path) -> str:
+    """Stable per-file cache key: the PDF's content hash, not its basename.
+
+    Resumes are overwhelmingly named resume.pdf / CV.pdf, so keying on the
+    basename makes different candidates share one cache entry (and the CSV row),
+    scoring the second candidate with the first one's data. Hashing the bytes
+    keys each distinct file separately, while genuine duplicates still share.
+    """
+    try:
+        digest = hashlib.sha256(Path(pdf_path).read_bytes()).hexdigest()[:16]
+    except OSError:
+        # Fall back to the full resolved path if the bytes can't be read.
+        digest = hashlib.sha256(
+            str(Path(pdf_path).resolve()).encode("utf-8")
+        ).hexdigest()[:16]
+    return f"{Path(pdf_path).stem}_{digest}"
+
+
 def main(pdf_path, role: Role):
     evaluation_model = build_evaluation_model(role)
 
-    # Create cache filename based on PDF path
-    cache_filename = (
-        f"cache/resumecache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
-    )
-    github_cache_filename = (
-        f"cache/githubcache_{os.path.basename(pdf_path).replace('.pdf', '')}.json"
-    )
+    # Cache per file content, so two different resume.pdf files never collide.
+    key = _cache_key(pdf_path)
+    cache_filename = f"cache/resumecache_{key}.json"
+    github_cache_filename = f"cache/githubcache_{key}.json"
 
     resume_data = None
     cache_loaded = False
@@ -323,7 +339,7 @@ def main(pdf_path, role: Role):
     score = _evaluate_resume(resume_data, role, evaluation_model, github_data)
 
     # Get candidate name for display
-    candidate_name = os.path.basename(pdf_path).replace(".pdf", "")
+    candidate_name = Path(pdf_path).stem
     if (
         resume_data
         and hasattr(resume_data, "basics")
