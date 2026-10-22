@@ -24,6 +24,10 @@ if sys.platform == "win32":
 import argparse
 
 from pdf import PDFHandler
+from engineering_evidence import (
+    format_engineering_evidence_report,
+    needs_engineering_evidence_extraction,
+)
 from github import fetch_and_display_github_info
 from models import JSONResume, build_evaluation_model
 from typing import List, Optional, Dict
@@ -204,7 +208,7 @@ def find_profile(profiles, network):
     )
 
 
-def main(pdf_path, role: Role):
+def main(pdf_path, role: Role, evidence_only: bool = False):
     evaluation_model = build_evaluation_model(role)
 
     # Create cache filename based on PDF path
@@ -260,6 +264,30 @@ def main(pdf_path, role: Role):
                 logger.warning(
                     "Newly extracted resume data is empty/invalid. Skipping cache write."
                 )
+
+    # Older resume caches predate the evidence report. Re-read source text and run
+    # only the new pass so users do not need to invalidate a valid parse cache.
+    if resume_data and needs_engineering_evidence_extraction(
+        resume_data.engineering_evidence
+    ):
+        evidence_handler = PDFHandler()
+        source_text = evidence_handler.extract_text_from_pdf(pdf_path)
+        resume_data.engineering_evidence = (
+            evidence_handler.extract_engineering_evidence(
+                source_text or "", resume_data
+            )
+        )
+        if DEVELOPMENT_MODE and is_valid_resume_data(resume_data):
+            Path(cache_filename).write_text(
+                json.dumps(resume_data.model_dump(), indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+
+    if evidence_only:
+        evidence_report = resume_data.engineering_evidence if resume_data else None
+        if evidence_report:
+            print(format_engineering_evidence_report(evidence_report))
+        return evidence_report
 
     # Check if cache exists and we're in development mode
     github_data = {}
@@ -335,6 +363,9 @@ def main(pdf_path, role: Role):
     # Print evaluation results in readable format
     print_evaluation_results(score, role, candidate_name)
 
+    if resume_data and resume_data.engineering_evidence:
+        print(format_engineering_evidence_report(resume_data.engineering_evidence))
+
     if DEVELOPMENT_MODE:
         csv_row = transform_evaluation_response(
             file_name=os.path.basename(pdf_path),
@@ -381,6 +412,11 @@ if __name__ == "__main__":
         help="Scaffold a new role directory under roles/ with basic template "
         "files, then exit (does not score a resume).",
     )
+    parser.add_argument(
+        "--evidence-only",
+        action="store_true",
+        help="Extract and print engineering evidence, then exit without scoring.",
+    )
     args = parser.parse_args()
 
     # Scaffold mode: create a new role and exit.
@@ -397,7 +433,9 @@ if __name__ == "__main__":
 
     # Scoring mode: both pdf_path and --role are required.
     if not args.pdf_path or not args.role:
-        parser.error("pdf_path and --role are required (or use --init-role NAME)")
+        parser.error(
+            "pdf_path and --role are required (or use --init-role NAME)"
+        )
 
     if not os.path.exists(args.pdf_path):
         print(f"Error: File '{args.pdf_path}' does not exist.")
@@ -409,4 +447,8 @@ if __name__ == "__main__":
         print(f"Error: {e}")
         exit(1)
 
-    main(args.pdf_path, role)
+    result = main(args.pdf_path, role, evidence_only=args.evidence_only)
+    if args.evidence_only and (
+        result is None or result.status == "extraction_error"
+    ):
+        exit(2)

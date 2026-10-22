@@ -98,9 +98,10 @@ Hiring Agent parses a resume PDF to Markdown, extracts sectioned JSON using a lo
 
 1. `pymupdf_rag.py` converts PDF pages to Markdown-like text.
 2. `pdf.py` calls the LLM per section using Jinja templates under `prompts/templates`.
-3. `github.py` fetches profile and repos, classifies projects, and asks the LLM to select the top 7.
-4. `evaluator.py` runs a strict-scored evaluation with fairness constraints.
-5. `score.py` orchestrates everything end to end and writes CSV when development mode is on.
+3. `pdf.py` runs a separate engineering evidence pass and validates its quotations against the extracted text.
+4. `github.py` fetches profile and repos, classifies projects, and asks the LLM to select the top 7.
+5. `evaluator.py` runs a strict-scored evaluation with fairness constraints.
+6. `score.py` orchestrates everything end to end and writes CSV when development mode is on.
 
 </td>
 <td>
@@ -218,6 +219,30 @@ You can leave it on during iteration. See the next section for details.
 - `prompts/templates/*.jinja` define strict instructions for each section
   Basics, Work, Education, Skills, Projects, Awards.
 - `pdf.PDFHandler` calls the LLM per section and assembles a `JSONResume` object (see `models.py`).
+- A separate engineering evidence pass records concrete tasks and exact source quotes. Unverified quotes and unsupported skill links are rejected by Python.
+
+</details>
+
+<details>
+<summary><b>Engineering evidence report</b></summary>
+
+The CLI prints a source-grounded report after the score summary and passes the
+same records as supplemental context to the evaluator. It extracts the
+problem, contribution, technical approach, verification, outcome, ownership
+wording, and skills connected to each engineering observation. Every record
+includes an exact quote and its line numbers in extracted resume text. A skill is
+linked only if it appears in both the parsed skills list and the quote. Other
+listed skills are shown without a supporting example in the extracted text.
+
+Python rejects observations whose quote is not an exact substring of the source
+text and drops skill links that cannot be checked. A failed extraction is shown
+as unavailable; a successful extraction with no observations means no concrete
+engineering evidence was found in the text. The evaluator is instructed to treat
+candidate statements as unverified, prefer the source quote over extracted
+interpretations, and report insufficient information rather than infer low
+ability from missing detail. The report is stored in the resume cache.
+Locations are extracted-text line numbers, not PDF page numbers. Existing resume
+caches are upgraded by reading the source PDF and running only the evidence pass.
 
 </details>
 
@@ -265,6 +290,25 @@ What happens:
 1. If development mode is on, the PDF extraction result is cached to `cache/resumecache_<basename>.json`.
 2. If a GitHub profile is found in the resume, repositories are fetched and cached to `cache/githubcache_<basename>.json`.
 3. The evaluator scores the resume against the selected role, prints a report and, in development mode, appends a CSV row to `resume_evaluations_<role>.csv`.
+4. The CLI prints the engineering evidence report. Its source-linked observations are included in evaluation context.
+
+### Engineering evidence tests
+
+Run the source-grounding and report tests with:
+
+```bash
+$ python -m unittest discover -s tests -p "*_test.py"
+```
+
+To extract and print engineering evidence without making a separate evaluation
+request, run:
+
+```bash
+$ python score.py ./resume/sample.pdf --role software_engineering_intern --evidence-only
+```
+
+The command reuses parsed resume data when available and retries reports that
+previously failed or whose proposed source references could not be resolved.
 
 ### Roles
 

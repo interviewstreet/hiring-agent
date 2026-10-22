@@ -172,6 +172,58 @@ class Project(BaseModel):
     skills: Optional[List[str]] = None
 
 
+class EngineeringEvidenceObservation(BaseModel):
+    """A source-grounded description of engineering work in a resume."""
+
+    source_quote: str = Field(min_length=1)
+    source_section: Literal["work", "project", "volunteer", "other"] = "other"
+    problem: Optional[str] = None
+    contribution: Optional[str] = None
+    technical_approach: Optional[str] = None
+    verification: Optional[str] = None
+    outcome: Optional[str] = None
+    skills: List[str] = Field(default_factory=list)
+    ownership: Literal["individual", "team", "unspecified"] = "unspecified"
+    ownership_phrase: Optional[str] = None
+    source_start: Optional[int] = None
+    source_end: Optional[int] = None
+    line_start: Optional[int] = None
+    line_end: Optional[int] = None
+
+
+class EngineeringEvidenceCandidate(BaseModel):
+    """An extraction proposal referring to a numbered source passage."""
+
+    source_id: int = Field(ge=1)
+    source_section: Literal["work", "project", "volunteer", "other"] = "other"
+    problem: Optional[str] = None
+    contribution: Optional[str] = None
+    technical_approach: Optional[str] = None
+    verification: Optional[str] = None
+    outcome: Optional[str] = None
+    skills: List[str] = Field(default_factory=list)
+    ownership: Literal["individual", "team", "unspecified"] = "unspecified"
+    ownership_phrase: Optional[str] = None
+
+
+class EngineeringEvidenceExtraction(BaseModel):
+    """LLM response schema used for the engineering evidence pass."""
+
+    observations: List[EngineeringEvidenceCandidate] = Field(default_factory=list)
+
+
+class EngineeringEvidenceReport(BaseModel):
+    """Verified, review-only engineering evidence extraction result."""
+
+    status: Literal["complete", "extraction_error"]
+    observations: List[EngineeringEvidenceObservation] = Field(default_factory=list)
+    skills_with_evidence: List[str] = Field(default_factory=list)
+    skills_without_examples: List[str] = Field(default_factory=list)
+    rejected_observations: int = 0
+    rejected_skill_links: int = 0
+    error: Optional[str] = None
+
+
 class BasicsSection(BaseModel):
     """Basics section containing basic information."""
 
@@ -223,6 +275,7 @@ class JSONResume(BaseModel):
     interests: Optional[List[Interest]] = None
     references: Optional[List[Reference]] = None
     projects: Optional[List[Project]] = None
+    engineering_evidence: Optional[EngineeringEvidenceReport] = None
 
 
 class CategoryScore(BaseModel):
