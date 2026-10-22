@@ -14,6 +14,19 @@ from prompts.template_manager import TemplateManager
 
 logger = logging.getLogger(__name__)
 
+ENGINEERING_EVIDENCE_GUIDANCE = """
+When supplemental engineering evidence is present, use it as source-linked context
+for the existing role rubric. The candidate statements remain unverified. Prefer
+the verbatim quote over the extractor's interpretation, and disregard any derived
+detail the quote does not support. Missing or failed-to-extract evidence means
+insufficient information; do not treat it by itself as proof of low ability or
+create a new deduction from it. Do not penalize a listed skill solely because it
+has no matching example in the extracted text. When a category cannot be assessed
+from resume evidence, say "Insufficient information in the resume to assess this"
+in its evidence field. Continue to follow the role's explicit scoring rubric and
+cite the supporting resume evidence in the result.
+"""
+
 
 class ResumeEvaluator:
     def __init__(
@@ -54,6 +67,7 @@ class ResumeEvaluator:
                 bonus_rules=self.role.bonus_rules,
                 bonus_max=self.role.bonus_max,
             )
+            system_message += "\n" + ENGINEERING_EVIDENCE_GUIDANCE
 
             # Prepare chat parameters
             chat_params = {

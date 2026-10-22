@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional
 import pdb
 from models import JSONResume
+from engineering_evidence import format_engineering_evidence_for_evaluation
 
 
 def transform_parsed_data(parsed_data: Dict) -> Dict:
@@ -869,6 +870,13 @@ def convert_json_resume_to_text(resume_data: JSONResume) -> str:
                 text_parts.append("  Highlights:")
                 for highlight in volunteer.highlights:
                     text_parts.append(f"    • {highlight}")
+
+    if resume_data.engineering_evidence:
+        text_parts.append(
+            format_engineering_evidence_for_evaluation(
+                resume_data.engineering_evidence
+            )
+        )
 
     return "\n".join(text_parts)
 

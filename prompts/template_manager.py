@@ -40,6 +40,7 @@ class TemplateManager:
             "education": "education.jinja",
             "skills": "skills.jinja",
             "projects": "projects.jinja",
+            "engineering_evidence": "engineering_evidence.jinja",
             "awards": "awards.jinja",
             "system_message": "system_message.jinja",
             "github_project_selection": "github_project_selection.jinja",
