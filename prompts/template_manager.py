@@ -9,6 +9,11 @@ import os
 from typing import Dict, Optional
 from jinja2 import Environment, FileSystemLoader, Template
 
+# Resolve relative to this module so templates load regardless of the CWD.
+DEFAULT_TEMPLATE_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "templates"
+)
+
 
 class TemplateManager:
     """
@@ -18,12 +23,13 @@ class TemplateManager:
     different resume sections (basics, work, education, skills, projects, awards).
     """
 
-    def __init__(self, template_dir: str = "prompts/templates"):
+    def __init__(self, template_dir: str = DEFAULT_TEMPLATE_DIR):
         """
         Initialize the template manager.
 
         Args:
-            template_dir (str): Directory containing Jinja templates
+            template_dir (str): Directory containing Jinja templates. Defaults to
+                the ``templates`` directory next to this module.
         """
         self.template_dir = template_dir
         self.env = Environment(
