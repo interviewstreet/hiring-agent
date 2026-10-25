@@ -671,21 +671,25 @@ def transform_evaluation_response(
         csv_row["github_bio"] = ""
 
     # Extract evaluation scores (one pair of columns per role category)
-    category_keys = [c.key for c in role.categories] if role else []
+    categories = role.categories if role else []
+    category_keys = [c.key for c in categories]
     if evaluation and hasattr(evaluation, "scores"):
         scores = evaluation.scores
         total_score = 0
         total_max = 0
-        for key in category_keys:
+        for category in categories:
+            key = category.key
             cat = getattr(scores, key, None)
             if cat is None:
                 csv_row[f"{key}_score"] = "N/A"
                 csv_row[f"{key}_max"] = "N/A"
                 continue
-            csv_row[f"{key}_score"] = cat.score
-            csv_row[f"{key}_max"] = cat.max
-            total_score += cat.score
-            total_max += cat.max
+            # Cap against the role's weights, not the "max" the LLM echoes back.
+            capped_score = min(cat.score, category.max)
+            csv_row[f"{key}_score"] = capped_score
+            csv_row[f"{key}_max"] = category.max
+            total_score += capped_score
+            total_max += category.max
 
         csv_row["total_score"] = total_score
         csv_row["total_max"] = total_max
