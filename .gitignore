@@ -4,6 +4,7 @@
 resume/*.pdf
 run/*.pdf
 test_*.py
+!tests/**
 cache/
 resume_evaluations.csv
 resume_evaluations_*.csv

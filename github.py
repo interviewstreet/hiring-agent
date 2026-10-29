@@ -134,7 +134,13 @@ def extract_github_username(github_url: str) -> Optional[str]:
             # Remove query parameters if present (e.g., "?tab=repositories")
             if "?" in username:
                 username = username.split("?", 1)[0]
-            return username
+            if "#" in username:
+                username = username.split("#", 1)[0]
+            if username.endswith(".git"):
+                username = username[:-4]
+            username = username.rstrip("/")
+            if username:
+                return username
     return None
 
 
@@ -188,13 +194,29 @@ def fetch_contributions_count(owner: str, contributors_data):
     user_contributions = 0
     total_contributions = 0
 
+    if not contributors_data or not isinstance(contributors_data, list):
+        return user_contributions, total_contributions
+
+    normalized_owner = (owner or "").strip().lower()
+
     for contributor in contributors_data:
         if isinstance(contributor, dict):
-            contributions = contributor.get("contributions", 0)
-            total_contributions += contributions
+            raw_contrib = contributor.get("contributions", 0)
+            parsed_contrib = 0
+            if isinstance(raw_contrib, int):
+                parsed_contrib = raw_contrib
+            elif raw_contrib is not None:
+                try:
+                    parsed_contrib = int(raw_contrib)
+                except (ValueError, TypeError):
+                    parsed_contrib = 0
 
-            if contributor.get("login", "").lower() == owner.lower():
-                user_contributions = contributions
+            total_contributions += parsed_contrib
+
+            login = contributor.get("login")
+            if login and isinstance(login, str) and normalized_owner:
+                if login.strip().lower() == normalized_owner:
+                    user_contributions = parsed_contrib
 
     return user_contributions, total_contributions
 
