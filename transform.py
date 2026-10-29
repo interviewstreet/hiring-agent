@@ -518,11 +518,11 @@ def transform_evaluation_response(
         csv_row["name"] = basics.name if basics.name else ""
         csv_row["email"] = basics.email if basics.email else ""
         csv_row["phone"] = basics.phone if basics.phone else ""
-        csv_row["location"] = (
-            f"{basics.location.city}, {basics.location.region}"
-            if basics.location
-            else ""
-        )
+        if basics.location:
+            loc_parts = [p for p in (basics.location.city, basics.location.region) if p]
+            csv_row["location"] = ", ".join(loc_parts)
+        else:
+            csv_row["location"] = ""
         csv_row["summary"] = basics.summary if basics.summary else ""
 
         # Extract all profile information
@@ -592,6 +592,15 @@ def transform_evaluation_response(
             for prefix in ["github", "linkedin", "twitter", "dev", "behance"]:
                 csv_row[f"{prefix}_url"] = ""
                 csv_row[f"{prefix}_username"] = ""
+    else:
+        csv_row["name"] = ""
+        csv_row["email"] = ""
+        csv_row["phone"] = ""
+        csv_row["location"] = ""
+        csv_row["summary"] = ""
+        for prefix in ["github", "linkedin", "twitter", "dev", "behance"]:
+            csv_row[f"{prefix}_url"] = ""
+            csv_row[f"{prefix}_username"] = ""
 
     # Extract work experience summary
     if resume_data and hasattr(resume_data, "work") and resume_data.work:
