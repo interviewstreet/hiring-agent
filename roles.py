@@ -117,6 +117,17 @@ Resume to evaluate:
 """
 
 
+def _validate_role_name(name: str) -> None:
+    """Validate that role name is a non-empty single directory name without path traversal."""
+    if not name or not isinstance(name, str) or not name.strip():
+        raise ValueError("Role name must be a non-empty string")
+    name_path = Path(name)
+    if name_path.is_absolute() or ".." in name_path.parts or len(name_path.parts) > 1:
+        raise ValueError(
+            f"Invalid role name '{name}': path traversal and subdirectories are not permitted"
+        )
+
+
 def scaffold_role(name: str) -> Path:
     """Create ``roles/<name>/`` with a basic, runnable role definition.
 
@@ -124,6 +135,7 @@ def scaffold_role(name: str) -> Path:
     placeholder categories. Returns the new role directory. Raises ValueError if
     a role with that name already exists.
     """
+    _validate_role_name(name)
     role_dir = ROLES_DIR / name
     if role_dir.exists():
         raise ValueError(f"Role '{name}' already exists at {role_dir}")
@@ -171,6 +183,7 @@ def load_role(name: str) -> Role:
     Raises ValueError with the list of available roles if the role directory,
     its manifest, or its prompt templates are missing or malformed.
     """
+    _validate_role_name(name)
     role_dir = ROLES_DIR / name
     manifest_path = role_dir / "role.json"
     criteria_path = role_dir / "criteria.jinja"
@@ -219,19 +232,27 @@ def load_role(name: str) -> Role:
             )
         )
 
+    bonus_max_val = manifest.get("bonus_max")
+    bonus_max = int(bonus_max_val) if bonus_max_val is not None else 20
+    min_final_val = manifest.get("min_final_score")
+    min_final_score = int(min_final_val) if min_final_val is not None else 0
+    max_final_val = manifest.get("max_final_score")
+    max_final_score = (
+        int(max_final_val)
+        if max_final_val is not None
+        else sum(c.max for c in categories) + bonus_max
+    )
+    raw_bonus_rules = manifest.get("bonus_rules")
+    bonus_rules = raw_bonus_rules if isinstance(raw_bonus_rules, list) else []
+
     return Role(
         name=name,
-        position_title=manifest.get("position_title", name),
+        position_title=manifest.get("position_title", name) or name,
         categories=categories,
-        bonus_max=int(manifest.get("bonus_max", 20)),
-        min_final_score=int(manifest.get("min_final_score", 0)),
-        max_final_score=int(
-            manifest.get(
-                "max_final_score",
-                sum(c.max for c in categories) + int(manifest.get("bonus_max", 20)),
-            )
-        ),
+        bonus_max=bonus_max,
+        min_final_score=min_final_score,
+        max_final_score=max_final_score,
         criteria_source=criteria_path.read_text(encoding="utf-8"),
         system_message_source=system_message_path.read_text(encoding="utf-8"),
-        bonus_rules=manifest.get("bonus_rules", []),
+        bonus_rules=bonus_rules,
     )
