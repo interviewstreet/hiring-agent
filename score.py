@@ -346,7 +346,7 @@ def main(pdf_path, role: Role):
 
         # Write CSV row to a role-specific file, since each role's columns differ.
         csv_path = f"resume_evaluations_{role.name}.csv"
-        file_exists = os.path.exists(csv_path)
+        file_exists = os.path.exists(csv_path) and os.path.getsize(csv_path) > 0
 
         with open(csv_path, "a", newline="", encoding="utf-8") as csvfile:
             fieldnames = list(csv_row.keys())

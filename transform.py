@@ -16,7 +16,13 @@ def transform_parsed_data(parsed_data: Dict) -> Dict:
                         )
                     ),
                     "volunteer": transform_organizations(
-                        parsed_data.get("organizations", [])
+                        parsed_data.get(
+                            "organizations",
+                            parsed_data.get(
+                                "volunteer",
+                                parsed_data.get("volunteering", []),
+                            ),
+                        )
                     ),
                     "education": transform_education(parsed_data.get("education", [])),
                     "awards": transform_achievements(
@@ -227,13 +233,13 @@ def transform_organizations(org_list: List) -> List[Dict]:
         if isinstance(item, dict):
             transformed.append(
                 {
-                    "organization": item.get("name", ""),
-                    "position": item.get("role", ""),
+                    "organization": item.get("organization", item.get("name", "")),
+                    "position": item.get("position", item.get("role", "")),
                     "url": item.get("url", None),
-                    "startDate": None,
-                    "endDate": "Present",
-                    "summary": None,
-                    "highlights": [],
+                    "startDate": item.get("startDate", None),
+                    "endDate": item.get("endDate", "Present"),
+                    "summary": item.get("summary", None),
+                    "highlights": item.get("highlights", []),
                 }
             )
     return transformed
