@@ -47,6 +47,35 @@ logging.basicConfig(
 )
 
 
+def compute_overall_score(evaluation, role: Role) -> tuple[float, int]:
+    """Compute the overall score using the role rubric as the source of truth.
+
+    Category maxima come from the role (not the LLM). Bonus and deductions are
+    applied, then the total is clamped to ``[min_final_score, max_final_score]``
+    so hallucinated deduction totals cannot produce absurd negatives.
+    """
+    total_score = 0.0
+    max_score = 0
+
+    if hasattr(evaluation, "scores") and evaluation.scores:
+        for category in role.categories:
+            cat_score = getattr(evaluation.scores, category.key, None)
+            if not cat_score:
+                continue
+            total_score += min(float(cat_score.score), float(category.max))
+            max_score += category.max
+
+    if hasattr(evaluation, "bonus_points") and evaluation.bonus_points:
+        total_score += float(evaluation.bonus_points.total)
+
+    if hasattr(evaluation, "deductions") and evaluation.deductions:
+        total_score -= float(evaluation.deductions.total)
+
+    upper = min(role.max_final_score, max_score + role.bonus_max)
+    lower = role.min_final_score
+    return max(lower, min(upper, total_score)), max_score
+
+
 def print_evaluation_results(
     evaluation, role: Role, candidate_name: str = "Candidate"
 ):
@@ -59,35 +88,7 @@ def print_evaluation_results(
         print("❌ No evaluation data available")
         return
 
-    # Calculate overall score
-    total_score = 0
-    max_score = 0
-
-    if hasattr(evaluation, "scores") and evaluation.scores:
-        for category_name, category_data in evaluation.scores.model_dump().items():
-            category_score = min(category_data["score"], category_data["max"])
-            total_score += category_score
-            max_score += category_data["max"]
-
-            # Log warning if score was capped
-            if category_score < category_data["score"]:
-                print(
-                    f"⚠️  Warning: {category_name} score capped from {category_data['score']} to {category_score} (max: {category_data['max']})"
-                )
-
-    # Add bonus points
-    if hasattr(evaluation, "bonus_points") and evaluation.bonus_points:
-        total_score += evaluation.bonus_points.total
-
-    # Subtract deductions
-    if hasattr(evaluation, "deductions") and evaluation.deductions:
-        total_score -= evaluation.deductions.total
-
-    # Ensure total score doesn't exceed maximum possible score
-    max_possible_score = max_score + role.bonus_max
-    if total_score > max_possible_score:
-        total_score = max_possible_score
-        print(f"⚠️  Warning: Total score capped at maximum possible value")
+    total_score, max_score = compute_overall_score(evaluation, role)
 
     # Overall Score
     print(f"\n🎯 OVERALL SCORE: {total_score:.1f}/{max_score}")
@@ -102,7 +103,7 @@ def print_evaluation_results(
             if not cat_score:
                 continue
             capped_score = min(cat_score.score, category.max)
-            print(f"{category.icon} {category.label}: {capped_score}/{cat_score.max}")
+            print(f"{category.icon} {category.label}: {capped_score}/{category.max}")
             print(f"   Evidence: {cat_score.evidence}")
             print()
 

@@ -247,10 +247,42 @@ def _points_for_rank(rank, tiers) -> int:
     return 0
 
 
+def _max_qualifying_rank(tiers) -> int:
+    """Highest rank that still earns points under the given tiers."""
+    return max(tier["max_rank"] for tier in tiers)
+
+
+def _max_deduction(role) -> float:
+    """Largest deduction that can still leave the score at ``min_final_score``."""
+    category_total = sum(category.max for category in role.categories)
+    return float(category_total + role.bonus_max - role.min_final_score)
+
+
+# Keep free-text fields short so small models finish the JSON object instead of
+# looping on evidence/reasons until the context window truncates mid-string.
+_EVIDENCE_MAX_LENGTH = 300
+_REASONS_MAX_LENGTH = 500
+
+
+def _truncate_text(value, max_length: int):
+    """Coerce to a trimmed string capped at ``max_length`` when possible."""
+    if value is None or not isinstance(value, str):
+        return value
+    trimmed = value.strip()
+    if len(trimmed) <= max_length:
+        return trimmed
+    return trimmed[: max_length - 3].rstrip() + "..."
+
+
 class BonusItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
     points: int = Field(ge=0)
-    evidence: str = Field(min_length=1)
+    evidence: str = Field(min_length=1, max_length=_EVIDENCE_MAX_LENGTH)
+
+    @field_validator("evidence", mode="before")
+    @classmethod
+    def truncate_evidence(cls, value):
+        return _truncate_text(value, _EVIDENCE_MAX_LENGTH)
 
 
 class RankedBonusItem(BonusItem):
@@ -285,13 +317,21 @@ def _build_bonus_item_model(rule) -> Type[BaseModel]:
 
 
 def _validate_bonus(rule, item) -> None:
-    """Validate one item against its configured points or rank tiers."""
+    """Align one item's points with its configured rule.
+
+    For tiered (rank-based) bonuses the rank is authoritative: derive points
+    from it so small models that emit mismatched rank/points pairs still score
+    correctly instead of aborting the evaluation. Hallucinated ranks beyond the
+    highest qualifying tier are cleared so they cannot poison downstream math.
+    """
     if "tiers" in rule:
+        if item.rank is not None and item.rank > _max_qualifying_rank(rule["tiers"]):
+            item.rank = None
+            item.points = 0
+            return
         expected = _points_for_rank(item.rank, rule["tiers"])
         if item.points != expected:
-            raise ValueError(
-                f"{rule['label']}: rank {item.rank} requires {expected} points"
-            )
+            item.points = expected
         return
 
     allowed = set(_allowed_bonus_points(rule))
@@ -367,15 +407,97 @@ def build_bonus_model(role) -> Type[BaseModel]:
     return BonusPoints
 
 
+def _build_category_score_model(category) -> Type[BaseModel]:
+    """Build a category score whose schema pins ``max`` and caps ``score``."""
+    name = "".join(part.title() for part in category.key.split("_")) + "Score"
+
+    class BoundCategoryScore(BaseModel):
+        score: float = Field(
+            ge=0,
+            description="Score achieved in this category",
+        )
+        max: Literal[category.max] = Field(  # type: ignore[valid-type]
+            description=f"Maximum possible score (must be {category.max})",
+        )
+        evidence: str = Field(
+            min_length=1,
+            max_length=_EVIDENCE_MAX_LENGTH,
+            description="Evidence supporting the score",
+        )
+
+        @field_validator("score", mode="before")
+        @classmethod
+        def clamp_score(cls, value):
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                return value
+            return max(0.0, min(numeric, float(category.max)))
+
+        @field_validator("evidence", mode="before")
+        @classmethod
+        def truncate_evidence(cls, value):
+            return _truncate_text(value, _EVIDENCE_MAX_LENGTH)
+
+        @field_validator("max", mode="before")
+        @classmethod
+        def force_role_max(cls, value):
+            return category.max
+
+    BoundCategoryScore.__name__ = name
+    BoundCategoryScore.__qualname__ = name
+    return BoundCategoryScore
+
+
 def build_scores_model(categories) -> Type[BaseModel]:
     """Build a ``Scores`` model with one CategoryScore field per role category.
 
     Using ``create_model`` (rather than a loose ``Dict[str, CategoryScore]``)
     keeps the emitted JSON schema concrete — the exact category property names —
     so the LLM's structured output stays as constrained as the old fixed schema.
+    Each category pins ``max`` to the role rubric and clamps ``score`` into range.
     """
-    fields = {category.key: (CategoryScore, ...) for category in categories}
+    fields = {
+        category.key: (_build_category_score_model(category), ...)
+        for category in categories
+    }
     return create_model("Scores", **fields)
+
+
+def build_deductions_model(role) -> Type[BaseModel]:
+    """Build a deductions model that clamps absurd LLM totals into range."""
+    deduction_cap = _max_deduction(role)
+
+    class BoundDeductions(BaseModel):
+        total: float = Field(
+            ge=0,
+            description=(
+                "Total deduction points (stored as positive, applied as negative). "
+                f"Must be between 0 and {deduction_cap:g}."
+            ),
+        )
+        reasons: str = Field(
+            max_length=_REASONS_MAX_LENGTH,
+            description="Reasons for deductions",
+        )
+
+        @field_validator("total", mode="before")
+        @classmethod
+        def clamp_total(cls, value):
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                return value
+            return max(0.0, min(numeric, deduction_cap))
+
+        @field_validator("reasons", mode="before")
+        @classmethod
+        def truncate_reasons(cls, value):
+            return _truncate_text(value, _REASONS_MAX_LENGTH)
+
+    BoundDeductions.__name__ = "Deductions"
+    BoundDeductions.__qualname__ = "Deductions"
+    return BoundDeductions
 
 
 def build_evaluation_model(role) -> Type[BaseModel]:
@@ -387,12 +509,13 @@ def build_evaluation_model(role) -> Type[BaseModel]:
     scores_model = build_scores_model(role.categories)
 
     bonus_model = build_bonus_model(role)
+    deductions_model = build_deductions_model(role)
 
     return create_model(
         "EvaluationData",
         scores=(scores_model, ...),
         bonus_points=(bonus_model, ...),
-        deductions=(Deductions, ...),
+        deductions=(deductions_model, ...),
         key_strengths=(List[str], Field(min_items=1, max_items=5)),
         areas_for_improvement=(List[str], Field(min_items=1, max_items=5)),
     )
