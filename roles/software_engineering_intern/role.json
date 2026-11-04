@@ -4,13 +4,13 @@
     {
       "key": "open_source",
       "label": "Open Source",
-      "max": 35,
+      "max": 30,
       "icon": "🌐"
     },
     {
       "key": "self_projects",
       "label": "Self Projects",
-      "max": 30,
+      "max": 25,
       "icon": "🚀"
     },
     {
@@ -34,7 +34,7 @@
   ],
   "bonus_max": 20,
   "min_final_score": -20,
-  "max_final_score": 130,
+  "max_final_score": 120,
   "bonus_rules": [
     {
       "key": "gsoc",
@@ -72,7 +72,7 @@
           "points": 1
         }
       ],
-      "description": "Read the awards section for HackerRank Orchestrate. Return its best stated rank, matching tier points, and the supporting award. Return rank null and points 0 if absent; do not use Codeforces, LeetCode, CodeChef, or other contest ranks. Python validates that points match the rank tier."
+      "description": "Read the awards section for HackerRank Orchestrate. Return its best stated rank, matching tier points, and the supporting award. Return rank null and points 0 if absent; do not use Codeforces, LeetCode, CodeChef, or other contest ranks. Python derives points from the returned rank when they disagree."
     },
     {
       "key": "founder",

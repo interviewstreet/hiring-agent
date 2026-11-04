@@ -32,14 +32,14 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 
 ## SCORING CRITERIA
 
-### Open Source (0-35 points)
-**HIGH SCORES (25-35 points):**
+### Open Source (0-30 points)
+**HIGH SCORES (22-30 points):**
 - Contributions to popular open source projects (1000+ stars)
 - Significant contributions to well-known projects
 - Google Summer of Code (GSoC) participation
 - Substantial community involvement
 
-**MEDIUM SCORES (15-24 points):**
+**MEDIUM SCORES (13-21 points):**
 - Contributions to smaller open source projects
 - Active GitHub presence with meaningful contributions to other repositories
 - Participation in open source programs
@@ -60,17 +60,17 @@ You are evaluating a resume for a Software Intern position at HackerRank. Analyz
 - True open source contribution means contributing to OTHER people's projects
 - When GitHub data shows all projects are 'self_project' type, open source score MUST be 10 points or less
 
-### Self Projects (0-30 points)
-**HIGH SCORES (20-30 points):**
+### Self Projects (0-25 points)
+**HIGH SCORES (17-25 points):**
 - Complex projects with real-world impact
 - Advanced architecture, multiple technologies
 - User adoption or contributions to popular open source projects
 
-**MEDIUM SCORES (10-19 points):**
+**MEDIUM SCORES (9-16 points):**
 - Projects with some complexity, good documentation
 - Multiple features or moderate technical challenge
 
-**LOW SCORES (1-9 points):**
+**LOW SCORES (1-8 points):**
 - Simple tutorial projects (todo lists, calculators, basic CRUD apps, weather apps, note-taking apps, recipe apps, exercise apps)
 - Basic sentiment analysis using standard libraries (NLTK, scikit-learn)
 - Classroom assignments or projects with minimal technical complexity
@@ -192,13 +192,13 @@ Evaluate both the candidate's ability to build AI-enabled software and their abi
 - Evidence fields cannot be empty string
 - All category scores must be >= 0 (cannot be negative)
 - **CATEGORY SCORE LIMITS** (CANNOT be exceeded under any circumstances):
-  - open_source: 0-35 points (maximum 35)
-  - self_projects: 0-30 points (maximum 30)
+  - open_source: 0-30 points (maximum 30)
+  - self_projects: 0-25 points (maximum 25)
   - production: 0-25 points (maximum 25)
   - technical_skills: 0-10 points (maximum 10)
   - ai_fluency: 0-10 points (maximum 10)
 - Bonus points total must be <= 20 (maximum 20 points)
-- **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed 130 points
+- **OVERALL SCORE LIMIT**: The total score (categories + bonus - deductions) cannot exceed 120 points
 
 **DO NOT RETURN A RESUME SUMMARY. RETURN ONLY THE SCORING EVALUATION IN THE SPECIFIED JSON FORMAT.**
 
@@ -206,8 +206,8 @@ Analyze the following resume and provide a JSON response with this EXACT structu
 
 {
     "scores": {
-        "open_source": {"score": 0, "max": 35, "evidence": "string"},
-        "self_projects": {"score": 0, "max": 30, "evidence": "string"},
+        "open_source": {"score": 0, "max": 30, "evidence": "string"},
+        "self_projects": {"score": 0, "max": 25, "evidence": "string"},
         "production": {"score": 0, "max": 25, "evidence": "string"},
         "technical_skills": {"score": 0, "max": 10, "evidence": "string"},
         "ai_fluency": {"score": 0, "max": 10, "evidence": "string"}
