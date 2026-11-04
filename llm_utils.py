@@ -12,13 +12,10 @@ logger = logging.getLogger(__name__)
 
 def extract_json_from_response(response_text: str) -> str:
     """
-    Extract JSON content from markdown code blocks.
+    Extract JSON content from an LLM response.
 
-    Args:
-        response_text: Text that may contain JSON wrapped in markdown code blocks
-
-    Returns:
-        Text with markdown code block syntax removed
+    Strips markdown fences and ``<think>`` blocks, then keeps the outermost
+    JSON object or array when the model wraps the payload in prose.
     """
 
     response_text = response_text.strip()
@@ -28,12 +25,24 @@ def extract_json_from_response(response_text: str) -> str:
         if think_start != -1 and think_end != -1:
             response_text = response_text[:think_start] + response_text[think_end + 8 :]
 
-    # Remove leading ```json if present
+    # Remove leading ```json / ``` if present
     if response_text.startswith("```json"):
         response_text = response_text[7:]
+    elif response_text.startswith("```"):
+        response_text = response_text[3:]
     # Remove trailing ``` if present
     if response_text.endswith("```"):
         response_text = response_text[:-3]
+
+    response_text = response_text.strip()
+
+    # Prefer an object payload; fall back to an array (e.g. project selection).
+    for open_char, close_char in (("{", "}"), ("[", "]")):
+        start = response_text.find(open_char)
+        end = response_text.rfind(close_char)
+        if start != -1 and end != -1 and end > start:
+            return response_text[start : end + 1]
+
     return response_text
 
 
