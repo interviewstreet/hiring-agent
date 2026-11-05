@@ -1,0 +1,27 @@
+"""Development cases: the verifier may be tuned against these only."""
+S, U = "supported", "unsupported"
+CASES = [
+("gsoc",S,"Google Summer of Code 2024 contributor at OpenCV."),("gsoc",S,"GSoC'25 at Blender: sculpt tools."),
+("gsoc",S,"Selected as a GSoC 2023 student with Apache Airflow."),("gsoc",S,"Google Summer of Code mentor for Zulip."),
+("gsoc",S,"GSoC 2022 @ Sugar Labs."),("gsoc",S,"Completed Google Summer of Code at Scala Center."),
+("gsoc",U,"Applied for GSoC 2025."),("gsoc",U,"Rejected from Google Summer of Code."),("gsoc",U,"Preparing for GSoC."),
+("gsoc",U,"Attended a GSoC info session."),("gsoc",U,"Mentored by a GSoC alumnus."),("gsoc",U,"Blog on how to write a GSoC proposal."),
+("gsoc",U,"Intern at Google."),("gsoc",U,"Girl Script Summer of Code contributor."),
+("girl_script",S,"GSSoC'24 contributor."),("girl_script",S,"Girl Script Summer of Code mentor 2023."),
+("girl_script",S,"GirlScript Summer of Code project admin."),("girl_script",S,"Participated in GSSoC 2022."),
+("girl_script",U,"Applied to GSSoC."),("girl_script",U,"Google Summer of Code 2022 student."),
+("girl_script",U,"GirlScript community meetup attendee."),("girl_script",U,"Planning for Girl Script Summer of Code."),
+("orchestrate",S,"HackerRank Orchestrate Rank 33.",33),("orchestrate",S,"Rank 120 in HackerRank Orchestrate.",120),
+("orchestrate",S,"HackerRank Orchestrate, ranked #410.",410),("orchestrate",S,"2nd place at HackerRank Orchestrate.",2),
+("orchestrate",U,"HackerRank Orchestrate participant.",10),("orchestrate",U,"HackerRank Orchestrate rank 700.",100),
+("orchestrate",U,"Codeforces rank 33.",33),("orchestrate",U,"HackerRank Orchestrate rank 220.",22),
+("founder",S,"Founder & CEO at Mintly, a fintech startup."),("founder",S,"Co-founder, Loopi Technologies Pvt Ltd."),
+("founder",S,"Cofounder of a SaaS startup, Formly."),("founder",S,"Founded DevDock Inc., a developer tools company."),
+("founder",U,"Founder's Office intern at Meesho."),("founder",U,"Founder of the coding club."),
+("founder",U,"Intern reporting to the co-founder at a startup."),("founder",U,"Aspiring founder."),
+("founder",U,"Personal project about startups."),("founder",U,"Worked with founders on growth."),
+("early_engineer",S,"Founding Engineer at Mintly."),("early_engineer",S,"First engineering hire at Formly, a startup."),
+("early_engineer",S,"Engineer #2 at Loopi, a startup."),("early_engineer",S,"One of the first 8 engineers at DevDock."),
+("early_engineer",U,"Intern at an early-stage startup."),("early_engineer",U,"Engineer at a 5000 person company."),
+("early_engineer",U,"First prize in hackathon."),("early_engineer",U,"Intern working with the founding engineer."),
+]

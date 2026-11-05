@@ -1,6 +1,11 @@
 from typing import Dict, List, Optional, Tuple, Any
 from pydantic import BaseModel, Field, field_validator
 from models import JSONResume
+from bonus_verifier import (
+    apply_bonus_verification,
+    reconcile_ranked_bonus,
+    recover_missed_bonuses,
+)
 from llm_utils import initialize_llm_provider, extract_json_from_response
 import logging
 import json
@@ -28,6 +33,10 @@ class ResumeEvaluator:
 
         self.role = role
         self.evaluation_model = evaluation_model
+        self.verify_bonuses = True
+        self.bonus_verdicts = []
+        self.rank_correction = None
+        self.recovered_bonuses = []
         self.model_name = model_name
         self.model_params = model_params or MODEL_PARAMETERS.get(
             model_name, {"temperature": 0.5, "top_p": 0.9}
@@ -78,7 +87,17 @@ class ResumeEvaluator:
             logger.error(f"🔤 Prompt response: {response_text}")
 
             evaluation_dict = json.loads(response_text)
+            self.rank_correction = reconcile_ranked_bonus(
+                evaluation_dict, resume_text, self.role
+            )
             evaluation_data = self.evaluation_model(**evaluation_dict)
+            if self.verify_bonuses:
+                self.bonus_verdicts = apply_bonus_verification(
+                    evaluation_data, resume_text
+                )
+                self.recovered_bonuses = recover_missed_bonuses(
+                    evaluation_data, resume_text, self.role
+                )
 
             return evaluation_data
 
