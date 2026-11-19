@@ -1,0 +1,39 @@
+{
+  "position_title": "Deployment Strategist (customer-facing AI deployment)",
+  "categories": [
+    {"key": "customer_deployment", "label": "Customer Deployment", "max": 30, "icon": "🤝"},
+    {"key": "technical_build", "label": "Technical Build", "max": 25, "icon": "🛠️"},
+    {"key": "ai_fluency", "label": "AI Fluency", "max": 20, "icon": "🤖"},
+    {"key": "workflow_and_change", "label": "Workflow and Change Management", "max": 15, "icon": "🔄"},
+    {"key": "communication", "label": "Communication", "max": 10, "icon": "🗣️"}
+  ],
+  "bonus_max": 10,
+  "min_final_score": -20,
+  "max_final_score": 110,
+  "bonus_rules": [
+    {
+      "key": "founder",
+      "label": "Founder or first operator",
+      "points": [2, 3, 4],
+      "description": "Founded or was among the first operators of a company or program and owned delivery end to end; 2-4 if evidenced, otherwise 0. A side project alone does not qualify."
+    },
+    {
+      "key": "regulated_domain",
+      "label": "Regulated or high-stakes domain",
+      "points": [2, 3],
+      "description": "Deployed or ran software in healthcare, public sector, social services, finance or legal settings where privacy or compliance rules applied; 2-3 if evidenced, otherwise 0."
+    },
+    {
+      "key": "public_demo",
+      "label": "Linked demo or repository",
+      "points": [2],
+      "description": "At least one deployed tool or workflow on the resume links to a live demo, demo video or repository; +2 if present, otherwise 0."
+    },
+    {
+      "key": "linkedin",
+      "label": "LinkedIn profile",
+      "points": [1],
+      "description": "LinkedIn profile in resume profiles; +1 if present, otherwise 0."
+    }
+  ]
+}
