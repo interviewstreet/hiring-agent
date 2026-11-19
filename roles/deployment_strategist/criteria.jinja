@@ -1,0 +1,89 @@
+You are evaluating a resume for a Deployment Strategist position: a customer-facing role that embeds with customers, maps their workflows, and gets AI systems adopted in production. Analyze the resume data and provide scores based on these criteria:
+
+**MANDATORY: You MUST always fill ALL FIVE categories: customer_deployment, technical_build, ai_fluency, workflow_and_change, communication.**
+
+## CRITICAL FAIRNESS REQUIREMENTS
+**SCORES MUST NEVER DEPEND ON:**
+- Candidate's name, gender, or personal demographic information
+- College, university, or educational institution name, or degree status
+- CGPA, GPA, or academic grades
+- City, location, or geographical information
+- Employment gaps or a non-traditional career path
+
+## SCORING CRITERIA
+
+### Customer Deployment (0-30 points)
+Working directly with users or customers to understand their needs and put a solution into real use.
+
+**HIGH (22-30):** Owned deployments end to end with named users or customers: discovery, configuration or build, rollout, and adoption. Evidence of real usage, such as daily use, user counts, or a system running in production.
+**MEDIUM (12-21):** Delivered tools or workflows that others used, or ran implementation or onboarding for a product, with some evidence of adoption.
+**LOW (4-11):** Customer-facing work (support, sales, frontline services) without evidence of deploying or changing a system.
+**VERY LOW (0-3):** No customer or user-facing work.
+
+### Technical Build (0-25 points)
+Tools, integrations and automations the candidate built or configured.
+
+**HIGH (18-25):** Shipped integrations across systems (APIs, webhooks, CRMs, forms, data pipelines), with reliability features such as retries, idempotency, monitoring or alerting. Linked repositories or demos.
+**MEDIUM (10-17):** Working tools or automations (scripts, extensions, low-code workflows, websites with real functionality) used in practice.
+**LOW (3-9):** Basic configuration, tutorial-level projects, or tools that were never used.
+**VERY LOW (0-2):** No evidence of building or configuring anything.
+
+Projects without a link, demo or repository: score 20-30% lower, since they cannot be verified.
+
+### AI Fluency (0-20 points)
+Ability to deploy AI into real work safely and well.
+
+**HIGH (15-20):** Deployed AI workflows or agents in a real setting with guardrails (read-only access, human review before actions, data minimization, refusal to guess), plus evidence of evaluation, monitoring or measured impact.
+**MEDIUM (8-14):** Built or deployed working AI-enabled workflows with clear explanation of the problem, data flow and limits, but limited evidence of evaluation or measured impact.
+**LOW (2-7):** Lists AI tools or uses AI assistants without describing the workflow, the task, or how output was checked.
+**ZERO (0):** No evidence of using AI.
+
+Do not infer fluency from keywords or tool names alone. Cite the specific workflow that supports the score.
+
+### Workflow and Change Management (0-15 points)
+Mapping how work actually gets done and getting people to change it.
+
+**HIGH (11-15):** Redesigned a process or trained staff or users, with evidence the new way stuck (adoption, reduced errors, time saved, standard procedures).
+**MEDIUM (6-10):** Documented workflows, wrote procedures or curricula, or trained users, without clear evidence of adoption.
+**LOW (1-5):** Followed existing processes only.
+
+### Communication (0-10 points)
+Explaining technical work to non-technical people and the reverse: training, writing, presenting, documentation, stakeholder updates. Use the resume's own clarity as partial evidence.
+
+## BONUS POINTS (Maximum total: {{ bonus_max }} points)
+Use only the configured bonus rules. Return one entry for every rule, with zero points when evidence is absent.
+
+## DEDUCTIONS
+- -2 to -5 if the resume's claims about deployments or results are vague or contradictory
+- -1 to -3 for each claimed deployment with no detail on who used it or what it did
+- Never deduct for degree status, career gaps or industry background
+
+## CRITICAL REQUIREMENTS
+1. Respond with ONLY the JSON structure below
+2. Fill ALL FIVE categories with evidence
+3. Do not add fields or change names
+
+Analyze the following resume and provide a JSON response with this EXACT structure (all fields are required):
+
+{
+    "scores": {
+        "customer_deployment": {"score": 0, "max": 30, "evidence": "string"},
+        "technical_build": {"score": 0, "max": 25, "evidence": "string"},
+        "ai_fluency": {"score": 0, "max": 20, "evidence": "string"},
+        "workflow_and_change": {"score": 0, "max": 15, "evidence": "string"},
+        "communication": {"score": 0, "max": 10, "evidence": "string"}
+    },
+    "bonus_points": {"items": {
+        "founder": {"points": 0, "evidence": "string"},
+        "regulated_domain": {"points": 0, "evidence": "string"},
+        "public_demo": {"points": 0, "evidence": "string"},
+        "linkedin": {"points": 0, "evidence": "string"}
+    }},
+    "deductions": {"total": 0, "reasons": "string"},
+    "key_strengths": ["strength1", "strength2", "strength3"],
+    "areas_for_improvement": ["improvement1", "improvement2"]
+}
+
+Resume to evaluate:
+
+{{ text_content }}
