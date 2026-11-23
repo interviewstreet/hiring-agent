@@ -1,0 +1,37 @@
+name: Hiring Agent MVP Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  mvp-pipeline:
+    name: Run MVP pipeline
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install runtime deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install --prefer-binary -r requirements.txt
+
+      - name: Install dev tools
+        run: |
+          python -m pip install ruff pytest
+
+      # - name: Lint with Ruff
+      #   run: ruff check .
+
+      - name: Run MVP tests
+        run: pytest -q tests/test_mvp.py
