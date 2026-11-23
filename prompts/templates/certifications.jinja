@@ -1,0 +1,10 @@
+You are a structured JSON extractor. Given the following resume text, extract any professional certifications.
+
+Resume text:
+Return ONLY a JSON object with key "certificates": an array of objects:
+- "name" (string) required
+- "issuer" (string|null)
+- "date" (string|null)
+- "url" (string|null)
+
+If none: `{"certificates": []}`
