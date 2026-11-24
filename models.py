@@ -417,6 +417,17 @@ class GitHubProfile(BaseModel):
     hireable: Optional[bool] = None
 
 
+def require_all_properties(node: Any) -> Any:
+    if isinstance(node, list):
+        return [require_all_properties(item) for item in node]
+    if not isinstance(node, dict):
+        return node
+    required = {key: require_all_properties(value) for key, value in node.items()}
+    if isinstance(node.get("properties"), dict):
+        required["required"] = list(node["properties"])
+    return required
+
+
 class OpenAICompatibleProvider:
     """Generic OpenAI-chat-compatible LLM provider.
 
@@ -460,7 +471,10 @@ class OpenAICompatibleProvider:
             if self.structured_output == "json_schema":
                 body["response_format"] = {
                     "type": "json_schema",
-                    "json_schema": {"name": "response", "schema": schema},
+                    "json_schema": {
+                        "name": "response",
+                        "schema": require_all_properties(schema),
+                    },
                 }
             elif self.structured_output == "json_object":
                 body["response_format"] = {"type": "json_object"}
